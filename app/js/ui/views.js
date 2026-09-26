@@ -75,6 +75,7 @@ function weightLabel(e, w) {
   if (w === null || w === undefined) return e.loadMode === 'bodyweight' ? '체중' : '<small>kg 입력</small>';
   if (e.loadMode === 'bodyweight') return `+${w}<small>kg</small>`;
   if (e.loadMode === 'assist') return `${w}<small>보조</small>`;
+  if (w === 0 && (e.loadMode === 'machine' || e.loadMode === 'per_side')) return '<small>빈 기구</small>';
   return `${w}<small>kg</small>`;
 }
 

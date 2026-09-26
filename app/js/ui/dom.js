@@ -39,6 +39,14 @@ export function sheet(html, { collect = null } = {}) {
       if (value === '__cancel') { done(null); return; }
       done(collect ? { value, data: collect(box) } : value);
     };
+    // 키패드의 완료(Enter)를 누르면 시트의 주 버튼을 누른 것으로 처리한다 (여러 줄 입력칸은 제외).
+    box.onkeydown = (ev) => {
+      if (ev.key !== 'Enter' || ev.isComposing || ev.target.tagName !== 'INPUT') return;
+      const ok = box.querySelector('.btn.primary[data-sheet-value]');
+      if (!ok) return;
+      ev.preventDefault();
+      ok.click();
+    };
     const first = box.querySelector('input,textarea');
     if (first) setTimeout(() => first.focus(), 60);
   });
@@ -58,8 +66,8 @@ export async function choiceSheet(title, items, { note = '' } = {}) {
   return sheet(`<h3>${esc(title)}</h3>${note ? `<p class="small">${esc(note)}</p>` : ''}<div class="list">${list}</div><div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`);
 }
 
-export async function numberSheet(title, value, { step = 'any', suffix = '' } = {}) {
-  const r = await sheet(`<h3>${esc(title)}</h3><div class="row"><input type="number" inputmode="decimal" step="${step}" min="0" name="n" value="${value ?? ''}" style="flex:1"><span class="small">${esc(suffix)}</span></div>
+export async function numberSheet(title, value, { step = 'any', suffix = '', zeroLabel = '' } = {}) {
+  const r = await sheet(`<h3>${esc(title)}</h3>${zeroLabel ? `<p class="small">${esc(zeroLabel)}</p>` : ''}<div class="row"><input type="number" inputmode="decimal" enterkeyhint="done" step="${step}" min="0" name="n" value="${value ?? ''}" style="flex:1"><span class="small">${esc(suffix)}</span></div>
     <div class="actions"><button class="btn" data-sheet-value="clear">비우기</button><button class="btn primary" data-sheet-value="ok">확인</button></div>`, { collect: (b) => b.querySelector('[name=n]').value });
   if (!r) return undefined;
   if (r.value === 'clear') return null;
@@ -70,7 +78,7 @@ export async function numberSheet(title, value, { step = 'any', suffix = '' } = 
 export async function textSheet(title, value = '', { placeholder = '', hint = '', multiline = false } = {}) {
   const input = multiline
     ? `<textarea name="t" placeholder="${esc(placeholder)}">${esc(value)}</textarea>`
-    : `<input type="text" name="t" placeholder="${esc(placeholder)}" value="${esc(value)}">`;
+    : `<input type="text" name="t" enterkeyhint="done" placeholder="${esc(placeholder)}" value="${esc(value)}">`;
   const r = await sheet(`<h3>${esc(title)}</h3>${hint ? `<p class="small">${esc(hint)}</p>` : ''}${input}<div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">확인</button></div>`, { collect: (b) => b.querySelector('[name=t]').value });
   return r ? r.data : null;
 }

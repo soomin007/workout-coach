@@ -127,7 +127,8 @@ const actions = {
     const e = entry(d.uid); const z = e?.sets[+d.i];
     if (!z) return;
     const title = d.f === 'weight' ? `${e.name} 중량 (kg)` : `${e.name} ${d.f === 'leftReps' ? '왼쪽 ' : d.f === 'rightReps' ? '오른쪽 ' : ''}${e.measure === 'seconds' ? '시간(초)' : '반복'}`;
-    const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1' });
+    const zeroLabel = d.f === 'weight' && ['machine', 'per_side'].includes(e.loadMode) ? '원판을 하나도 안 꽂았으면 0 을 입력하세요 (빈 기구).' : d.f === 'weight' && e.loadMode === 'assist' ? '보조중량: 몸무게를 덜어 주는 무게입니다. 숫자가 클수록 쉽습니다.' : '';
+    const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1', zeroLabel });
     if (v === undefined) return;
     run((s) => T.editSet(s, d.uid, +d.i, d.f, v));
   },

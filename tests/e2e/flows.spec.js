@@ -280,3 +280,23 @@ test('세트 번호를 누르면 유형 변경과 세트별 RIR 입력을 할 �
   expect([e.sets[0].rir, e.sets[1].type]).toEqual([2, 'backoff']);
   await expect(c.locator('[data-action="set-menu"]').nth(1)).toHaveText('B');
 });
+
+test('키패드 완료(Enter)로 숫자 입력이 바로 적용되고 시트가 닫힌다 · 0kg 은 빈 기구로 표시', async ({ page }) => {
+  await startPart(page, 'Lower', 60);
+  const c = card(page, 'legpress');
+  await c.getByTestId('weight-0').locator('.val').click();
+  const input = sheet(page).locator('input[name=n]');
+  await expect(input).toHaveAttribute('enterkeyhint', 'done');
+  await input.fill('0');
+  await input.press('Enter');
+  await expect(sheet(page)).toBeHidden();
+  await expect(c.getByTestId('weight-0')).toContainText('빈 기구');
+  await expect(c.getByTestId('weight-1')).toContainText('빈 기구');
+  await c.getByTestId('weight-0').getByRole('button', { name: '늘리기' }).click();
+  await expect(c.getByTestId('weight-0')).toContainText('5kg');
+  await c.getByRole('button', { name: '한 줄 입력' }).click();
+  await sheet(page).locator('input[name=t]').fill('0 12 12');
+  await sheet(page).locator('input[name=t]').press('Enter');
+  await expect(sheet(page)).toBeHidden();
+  await expect(c.locator('.set.done')).toHaveCount(2);
+});
