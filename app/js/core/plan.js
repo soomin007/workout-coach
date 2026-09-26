@@ -1,0 +1,204 @@
+// 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
+import { DB, CORE_SLOTS, OPTIONAL_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
+import { profileFor } from './coach.js';
+import { parseDateLocal, endOfDay, localISODate } from './util.js';
+
+export const POLICY = {
+  initialWeeklyBudget: { push: 10, pull: 12, lower: 12 },
+  minGapHours: 36,
+  secondarySetCredit: 0.5,
+};
+
+const DAY = 86400000;
+
+function inWindow(dateStr, now, days) {
+  const d = parseDateLocal(dateStr);
+  return !!d && d.getTime() >= now.getTime() - days * DAY && d.getTime() <= endOfDay(now);
+}
+
+export function muscleSets(state, muscle, now = new Date()) {
+  let n = 0;
+  for (const p of state.performance || []) {
+    if (!inWindow(p.date, now, 7)) continue;
+    const sets = (p.sets || []).filter((x) => x.done && x.type === 'main').length;
+    const prof = catalogById(p.exerciseId);
+    const primary = Array.isArray(p.primary) ? p.primary : prof?.primary || [];
+    const secondary = Array.isArray(p.secondary) ? p.secondary : prof?.secondary || [];
+    if (primary.includes(muscle)) n += sets;
+    if (secondary.includes(muscle)) n += sets * POLICY.secondarySetCredit;
+  }
+  return Math.round(n * 10) / 10;
+}
+
+function muscleNeed(state, m, now) {
+  const b = MUSCLE_BUDGET[m] || 8;
+  return Math.max(-1, Math.min(1.5, (b - muscleSets(state, m, now)) / Math.max(1, b)));
+}
+
+function partNeed(state, part, now) {
+  const ms = PART_MUSCLES[part] || [];
+  return ms.length ? ms.reduce((a, m) => a + muscleNeed(state, m, now), 0) / ms.length : 0;
+}
+
+export function daysSince(state, part, now = new Date()) {
+  const xs = state.history.filter((h) => h.part === part).map((h) => parseDateLocal(h.date)).filter((d) => d && d.getTime() <= endOfDay(now));
+  if (!xs.length) return 99;
+  const last = Math.max(...xs.map((d) => d.getTime()));
+  return Math.max(0, Math.floor((now.getTime() - last) / DAY));
+}
+
+export function weeklySets(state, part, now = new Date()) {
+  return state.history.filter((h) => h.part === part && inWindow(h.date, now, 7)).reduce((a, h) => a + (Number.isFinite(+h.workSets) ? +h.workSets : 0), 0);
+}
+
+function sessionsWithin(state, part, hours, now) {
+  return state.history.filter((h) => { const d = parseDateLocal(h.date); return h.part === part && d && d.getTime() >= now.getTime() - hours * 3600000 && d.getTime() <= endOfDay(now); }).length;
+}
+
+function recentPT(state, part, now) {
+  return state.history.some((h) => h.source === 'pt' && h.part === part && inWindow(h.date, now, 3));
+}
+
+export function recommendPart(state, now = new Date()) {
+  const c = state.check;
+  const detail = [];
+  const today = localISODate(now);
+  const ptToday = state.history.some((h) => h.source === 'pt' && h.date === today);
+  if (c.energy === 'very_tired') return { part: 'rest', confidence: '높음', why: '전신 피로가 매우 높아 회복을 우선합니다.', detail: ['매우 피곤 → 휴식'] };
+  const dow = now.getDay();
+  if (state.settings.ptDay === dow && !ptToday) return { part: 'pt', confidence: '높음', why: '오늘은 정기 PT 날입니다. PT를 마친 뒤 기록하면 다음 추천에 반영합니다.', detail: ['PT 예정일'] };
+  if (ptToday) return { part: 'rest', confidence: '높음', why: '오늘 PT 기록이 있어 추가 웨이트보다 회복을 우선합니다.', detail: ['오늘 PT 기록 있음'] };
+  if (dow === 0 && state.settings.gymClosedSunday) return { part: 'core', confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무 → 홈 Core'] };
+  const score = {};
+  for (const p of ['push', 'pull', 'lower']) {
+    const d = daysSince(state, p, now), sets = weeklySets(state, p, now), need = partNeed(state, p, now);
+    let v = Math.min(d, 7) * 1.15 + (POLICY.initialWeeklyBudget[p] - sets) * 0.18 + need * 2.2;
+    if (sessionsWithin(state, p, POLICY.minGapHours, now)) v -= 6;
+    if (recentPT(state, p, now)) v -= 3.5;
+    score[p] = v;
+    detail.push(`${p.toUpperCase()}: ${d >= 99 ? '최근 기록 없음' : d + '일 전'} · 7일 ${sets}세트 · 볼륨 필요도 ${need.toFixed(2)}`);
+  }
+  if (c.upperDoms >= 2) { score.push -= 2.5; score.pull -= 2; }
+  if (c.lowerDoms >= 2) score.lower -= 4;
+  if (c.upperDoms >= 3) { score.push = -999; score.pull = -999; }
+  if (c.lowerDoms >= 3) score.lower = -999;
+  if (c.pain === 'shoulder') { score.push = -999; score.pull -= 2; detail.push('어깨 통증: Push 제외'); }
+  if (c.pain === 'back') { score.lower -= 4; score.pull -= 2; detail.push('허리 통증: Lower/Pull 우선순위 감소'); }
+  if (c.pain === 'knee') { score.lower = -999; detail.push('무릎 통증: Lower 제외'); }
+  if (c.energy === 'tired') { score.lower -= 1.5; detail.push('피곤: 하체 우선순위 감소'); }
+  const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
+  if (ranked[0][1] <= -900) return { part: 'rest', confidence: '높음', why: '지금 근육통/통증 조건에서는 웨이트 세션을 추천하지 않습니다.', detail };
+  const part = ranked[0][0], gap = ranked[0][1] - ranked[1][1], n = state.history.filter((h) => h.part === part).length;
+  return { part, score, detail, confidence: n >= 3 && gap > 1.5 ? '높음' : n >= 1 ? '보통' : '낮음', why: `회복 조건을 먼저 보고, 최근 간격·PT·주간 세트·근육별 부족분을 합쳐 ${part.toUpperCase()}를 골랐습니다.` };
+}
+
+export function supportsSlot(profile, slot) {
+  return (SLOT_COMPAT[slot] || [slot]).includes(profile.role);
+}
+
+export function isAvailable(state, profile) {
+  if (!profile) return false;
+  if (profile.risk === 'hinge' && state.settings.avoidHinge !== false) return false;
+  if (profile.equipment !== 'none' && state.settings.equipment[profile.equipment] === false) return false;
+  if ((state.settings.unavailableExercises || []).includes(profile.id)) return false;
+  if ((state.session?.tempUnavailable || []).includes(profile.id)) return false;
+  return true;
+}
+
+export function partPool(state, part) {
+  const ids = [...(DB[part] || []).map((x) => x.id), ...(state.customExercises || []).filter((x) => x.part === part).map((x) => x.id)];
+  return ids.map((id) => profileFor(state, id)).filter(Boolean);
+}
+
+function optionNeedScore(state, profile, now) {
+  const prim = profile.primary || [];
+  const deficit = prim.length ? prim.reduce((a, m) => a + muscleNeed(state, m, now), 0) / prim.length : 0;
+  return deficit * 10 + (profile.priority || 0) / 20;
+}
+
+export function chooseForSlot(state, part, slot, used, now = new Date()) {
+  return partPool(state, part)
+    .filter((e) => supportsSlot(e, slot) && isAvailable(state, e) && !used.has(e.id))
+    .sort((a, b) => ((b.role === slot ? 20 : 0) - (a.role === slot ? 20 : 0)) || (optionNeedScore(state, b, now) - optionNeedScore(state, a, now)) || (b.priority - a.priority))[0] || null;
+}
+
+export function estimateMinutes(profile, sets, withFullWarmup = false) {
+  const setup = profile.compound ? 2.5 : 1.2;
+  const warm = withFullWarmup && profile.compound ? 5 : profile.compound ? 1.5 : 0.5;
+  return setup + warm + 0.75 * sets + Math.max(0, sets - 1) * (profile.rest / 60);
+}
+
+export function adjustedSetCount(state, profile, part, minutes, slot, now = new Date()) {
+  const core = (CORE_SLOTS[part] || []).includes(slot);
+  let n = profile.sets || 2;
+  if (minutes <= 30 && n > 2) n--;
+  if (state.check.energy === 'tired' && n > 2) n--;
+  if (state.check.intensity === 'light' && n > 2) n--;
+  const prim = profile.primary || [];
+  const over = prim.length && prim.every((m) => MUSCLE_BUDGET[m] && muscleSets(state, m, now) >= MUSCLE_BUDGET[m] + 2);
+  if (over && !core && n > 2) n--;
+  if (POLICY.initialWeeklyBudget[part] && weeklySets(state, part, now) >= POLICY.initialWeeklyBudget[part] + 5 && !core && n > 2) n--;
+  if (state.check.intensity === 'strength' && profile.compound && core && n < 4) n++;
+  return Math.max(2, Math.min(4, n));
+}
+
+// 반환: { planned: [{ id, slot, sets, warmupLevel }], estimatedMinutes }
+export function buildPlan(state, part, minutes, now = new Date()) {
+  const used = new Set(), planned = [];
+  const maxCount = part === 'core' ? 4 : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
+  for (const slot of CORE_SLOTS[part] || []) {
+    const e = chooseForSlot(state, part, slot, used, now);
+    if (!e) continue;
+    planned.push({ p: e, slot, sets: adjustedSetCount(state, e, part, minutes, slot, now) });
+    used.add(e.id);
+  }
+  const order = SESSION_ORDER[part] || [];
+  const sortPlan = () => planned.sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot));
+  const firstCompoundIdx = () => planned.findIndex((x) => x.p.compound);
+  const total = () => { const f = firstCompoundIdx(); return planned.reduce((a, x, i) => a + estimateMinutes(x.p, x.sets, i === f), 0); };
+  sortPlan();
+  let est = total();
+  for (let i = planned.length - 1; i >= 0 && est > minutes * 1.05; i--) {
+    if (planned[i].sets > 2) { planned[i].sets--; est = total(); }
+  }
+  const opts = [];
+  const provisional = new Set(used);
+  for (const slot of OPTIONAL_SLOTS[part] || []) {
+    const e = chooseForSlot(state, part, slot, provisional, now);
+    if (e) { opts.push({ p: e, slot, score: optionNeedScore(state, e, now) + (e.role === slot ? 5 : 0) }); provisional.add(e.id); }
+  }
+  opts.sort((a, b) => b.score - a.score);
+  for (const o of opts) {
+    if (planned.length >= maxCount) break;
+    const sets = Math.min(2, adjustedSetCount(state, o.p, part, minutes, o.slot, now));
+    const cost = estimateMinutes(o.p, sets, false);
+    if (est + cost <= minutes * 1.06 || (minutes >= 60 && planned.length < 5)) {
+      planned.push({ p: o.p, slot: o.slot, sets });
+      used.add(o.p.id);
+      est += cost;
+    }
+  }
+  sortPlan();
+  const f = firstCompoundIdx();
+  return {
+    planned: planned.map((x, i) => ({ id: x.p.id, slot: x.slot, sets: x.sets, warmupLevel: i === f ? 'full' : x.p.compound ? 'short' : 'none' })),
+    estimatedMinutes: Math.round(total()),
+  };
+}
+
+// 교체 후보: 같은 슬롯 먼저, 그다음 같은 부위의 다른 역할. 현재 세션 중복 제외.
+export function replacementCandidates(state, entry, now = new Date()) {
+  const s = state.session;
+  const used = new Set(s.exercises.filter((e) => e.uid !== entry.uid).map((e) => e.exerciseId));
+  return partPool(state, s.part)
+    .filter((x) => x.id !== entry.exerciseId && isAvailable(state, x) && !used.has(x.id))
+    .map((x) => ({ ...x, sameSlot: supportsSlot(x, entry.slot) }))
+    .sort((a, b) => (b.sameSlot - a.sameSlot) || ((b.role === entry.slot) - (a.role === entry.slot)) || (optionNeedScore(state, b, now) - optionNeedScore(state, a, now)) || (b.priority - a.priority));
+}
+
+export function missingCoreSlots(state) {
+  const s = state.session;
+  if (!s) return [];
+  const slots = s.exercises.map((e) => e.slot);
+  return (CORE_SLOTS[s.part] || []).filter((slot) => !slots.includes(slot));
+}

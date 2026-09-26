@@ -1,0 +1,43 @@
+{
+  "version": "7.0",
+  "energy": "good",
+  "lastBackup": "2026-09-24T03:13:56.691Z",
+  "check": { "upperDoms": 0, "lowerDoms": 0, "pain": "none", "minutes": 60, "intensity": "normal" },
+  "currentSession": null,
+  "history": [
+    { "date": "2026-09-21", "part": "push", "workSets": 13, "duration": 422, "source": "recommended", "note": "순서 메모", "overrideReason": "" },
+    { "date": "2026-09-23", "part": "pull", "workSets": 14, "duration": 4516, "source": "recommended", "note": "", "overrideReason": "" },
+    { "date": "bad-date", "part": "push", "workSets": 1 }
+  ],
+  "performanceHistory": [
+    { "date": "2026-09-21", "part": "push", "exerciseId": "bench", "variant": "바벨 벤치프레스", "loadMode": "total", "increment": 2.5,
+      "sets": [
+        { "type": "main", "weight": "40", "reps": "10", "rir": "2", "leftReps": "", "leftRir": "", "rightReps": "", "rightRir": "", "done": true, "restActual": null },
+        { "type": "main", "weight": "50", "reps": "8", "rir": "1", "leftReps": "", "leftRir": "", "rightReps": "", "rightRir": "", "done": true, "restActual": null },
+        { "type": "main", "weight": "50", "reps": "8", "rir": "1", "leftReps": "", "leftRir": "", "rightReps": "", "rightRir": "", "done": true, "restActual": null },
+        { "type": "main", "weight": "60", "reps": "5", "rir": "0", "leftReps": "", "leftRir": "", "rightReps": "", "rightRir": "", "done": true, "restActual": 183 }
+      ], "memo": "" },
+    { "date": "2026-09-21", "part": "push", "exerciseId": "incline_db", "variant": "체스트프레스 머신", "loadMode": "per_side", "increment": 2,
+      "sets": [
+        { "type": "main", "weight": "20", "reps": "12", "rir": "", "done": true, "restActual": null },
+        { "type": "main", "weight": "20", "reps": "12", "rir": "", "done": true, "restActual": 217 }
+      ], "memo": "" },
+    { "date": "2026-09-23", "part": "pull", "exerciseId": "lat", "variant": "시티드 랫풀다운", "loadMode": "machine", "increment": 5,
+      "sets": [
+        { "type": "warmup", "weight": "35", "reps": "10", "rir": "", "done": true },
+        { "type": "main", "weight": "50", "reps": "8", "rir": "", "done": true },
+        { "type": "main", "weight": "57", "reps": "5", "rir": "0", "done": true },
+        { "type": "main", "weight": "65", "reps": "5", "rir": "0", "done": true },
+        { "type": "backoff", "weight": "27", "reps": "10", "rir": "", "done": true }
+      ], "memo": "" },
+    { "date": "2026-09-23", "part": "pull", "exerciseId": "rear_cable", "variant": "덤벨 리버스 플라이", "loadMode": "per_side", "increment": 2.5,
+      "sets": [ { "type": "main", "weight": "6", "reps": "10", "rir": "", "done": true } ], "memo": "" },
+    { "date": "2026-09-23", "part": "pull", "exerciseId": "pullup", "variant": "풀업", "loadMode": "bodyweight", "increment": 0,
+      "sets": [ { "type": "main", "weight": "", "reps": "10", "rir": "", "done": true }, { "type": "main", "weight": "", "reps": "10", "rir": "", "done": true } ], "memo": "" }
+  ],
+  "lastPerformance": {},
+  "settings": { "gymClosedSunday": true, "ptThursday": true, "equipment": { "cable_row": true } },
+  "archives": [],
+  "unavailable": { "row": true, "chest_row": true, "tbar": false },
+  "timer": { "running": false, "start": null, "elapsed": 0 }
+}

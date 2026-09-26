@@ -1,0 +1,39 @@
+{
+  "version": "9.1",
+  "energy": "normal",
+  "check": { "upperDoms": 1, "lowerDoms": 0, "pain": "none", "minutes": 45, "intensity": "normal" },
+  "history": [
+    { "sessionId": "s_a", "date": "2026-09-10", "part": "lower", "workSets": 12, "duration": 3600, "source": "manual", "note": "" },
+    { "sessionId": "s_b", "date": "2026-09-12", "part": "core", "workSets": 6, "duration": 1200, "source": "recommended", "note": "" },
+    { "sessionId": "pt_1", "date": "2026-09-11", "part": "push", "workSets": 0, "source": "pt", "note": "PT", "volumeUnknown": true }
+  ],
+  "performanceHistory": [
+    { "sessionId": "s_a", "date": "2026-09-10", "part": "lower", "exerciseId": "bulgarian", "variant": "불가리안 스플릿 스쿼트", "slot": "unilateral", "loadMode": "per_dumbbell", "increment": 2,
+      "sets": [
+        { "type": "main", "weight": "10", "reps": "", "rir": "", "leftReps": "8", "leftRir": "2", "rightReps": "10", "rightRir": "1", "done": true, "restActual": 150 },
+        { "type": "main", "weight": "10", "reps": "", "rir": "", "leftReps": "9", "leftRir": "", "rightReps": "9", "rightRir": "", "done": true, "restActual": null },
+        { "type": "main", "weight": "10", "reps": "", "rir": "", "leftReps": "", "leftRir": "", "rightReps": "", "rightRir": "", "done": false }
+      ], "memo": "왼쪽 약함", "primary": ["quads", "glute"], "secondary": ["hamstring"] },
+    { "sessionId": "s_b", "date": "2026-09-12", "part": "core", "exerciseId": "deadbug", "variant": "데드버그", "slot": "core", "loadMode": "bodyweight", "increment": 0,
+      "sets": [ { "type": "main", "weight": "", "reps": "10", "rir": "", "done": true } ], "memo": "" },
+    { "sessionId": "s_a", "date": "2026-09-10", "part": "lower", "exerciseId": "custom:힙쓰러스트:abc", "variant": "힙쓰러스트", "slot": "secondary_lower", "loadMode": "total", "increment": 5,
+      "sets": [ { "type": "main", "weight": "60", "reps": "10", "rir": "2", "done": true } ], "memo": "" }
+  ],
+  "exercisePrefs": {
+    "row": { "loadMode": "machine", "increment": 7.5, "rest": 150, "range": [8, 12], "unilateral": false },
+    "bench": { "loadMode": "total", "increment": 2.5, "rest": 240 }
+  },
+  "customExercises": [
+    { "id": "custom:힙쓰러스트:abc", "name": "힙쓰러스트", "part": "lower", "role": "secondary_lower", "primary": ["glute"], "secondary": [], "sets": 2, "range": [8, 12], "rest": 120, "inc": 5, "mode": "total", "priority": 50, "equipment": "none" }
+  ],
+  "settings": { "gymClosedSunday": false, "ptDay": 2, "avoidHinge": true, "leftFirst": true, "equipment": { "smith": false } },
+  "currentSession": {
+    "sessionId": "s_live", "part": "push", "date": "2026-09-14", "source": "recommended",
+    "exercises": [
+      { "exerciseId": "ohp", "variant": "바벨 오버헤드프레스", "slot": "vertical_push", "role": "vertical_push", "loadMode": "total", "increment": 2.5, "primary": ["shoulder"],
+        "sets": [ { "type": "main", "weight": "30", "reps": "8", "rir": "2", "done": true }, { "type": "main", "weight": "30", "reps": "", "rir": "", "done": false } ] },
+      { "exerciseId": "lateral", "variant": "사이드 레터럴레이즈", "sets": [ { "type": "main", "weight": "", "reps": "", "done": false } ] }
+    ]
+  },
+  "storageRevision": 57
+}
