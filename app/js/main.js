@@ -62,7 +62,7 @@ function renderStatus() {
   const st = store.status;
   const bad = st.local === 'error' || st.idb === 'error';
   const days = store.state.lastBackup ? Math.floor((Date.now() - new Date(store.state.lastBackup).getTime()) / 86400000) : null;
-  el.innerHTML = `${bad ? '<span class="badge bad">저장 오류</span>' : ''}${days === null || days >= 7 ? `<span class="badge warn">${days === null ? '백업 없음' : `백업 ${days}일 전`}</span>` : ''}${store.state.session ? '<span class="badge good">운동 중</span>' : ''}`;
+  el.innerHTML = `${bad ? '<span class="badge bad">저장 오류</span>' : ''}${days === null || days >= 7 ? `<span class="badge warn">${days === null ? '백업 없음' : `백업 ${days}일 전`}</span>` : ''}${store.state.session ? '<span class="badge good">운동 중</span>' : ''}${ui.updateReady ? '<button class="badge warn" data-action="apply-update">업데이트</button>' : ''}`;
 }
 
 let restNotified = null;
@@ -96,6 +96,7 @@ const entry = (uid) => store.state.session?.exercises.find((e) => e.uid === uid)
 
 // ---------- 동작 ----------
 const actions = {
+  'apply-update': () => location.reload(),
   tab: (d) => { ui.tab = d.tab; render(); window.scrollTo(0, 0); },
   energy: (d) => run((s) => { s.check.energy = d.v; }),
   start: (d) => startSession(d.part, d.source),
@@ -427,6 +428,24 @@ document.addEventListener('visibilitychange', async () => {
   }
 });
 
+// ---------- 업데이트 ----------
+// 새 버전 서비스 워커가 활성화되면(controllerchange) 세션 중이 아닐 때 바로 새로고침, 세션 중이면 배지만 띄운다.
+// 로컬 개발 서버에서는 캐시가 방해되므로 ?sw 를 붙였을 때만 등록한다.
+function registerServiceWorker() {
+  const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (!('serviceWorker' in navigator) || (local && !location.search.includes('sw'))) return;
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    if (!store.state.session) { location.reload(); return; }
+    ui.updateReady = true;
+    renderStatus();
+  });
+}
+
 // ---------- 시작 ----------
 (async () => {
   const notes = await store.load();
@@ -435,6 +454,6 @@ document.addEventListener('visibilitychange', async () => {
   }
   render();
   if (notes.length) toast(notes[0], 4000);
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  registerServiceWorker();
 })();
 

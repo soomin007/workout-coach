@@ -24,6 +24,8 @@ jobs:
         with:
           node-version: 24
       - run: npm test
+      # 서비스 워커 캐시 버전을 커밋 해시로: 배포마다 새 캐시로 통째 교체된다
+      - run: sed -i "s/const VERSION = 'wc-dev';/const VERSION = 'wc-${GITHUB_SHA::8}';/" app/sw.js && grep -q "wc-${GITHUB_SHA::8}" app/sw.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

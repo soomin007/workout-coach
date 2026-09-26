@@ -24,7 +24,8 @@
 
 - https://soomin007.github.io/workout-coach/ (저장소 soomin007/workout-coach)
 - main 에 push 하면 `.github/workflows/pages.yml` 이 단위 테스트 후 `app/` 을 배포한다.
-- 앱 파일을 바꿔 배포할 때는 `app/sw.js` 의 VERSION 을 올린다 (옛 캐시 정리).
+- `app/sw.js` 의 VERSION 은 워크플로가 커밋 해시로 자동 교체한다. 손대지 않는다.
+- 서비스 워커에 새 파일을 추가하면 `SHELL` 목록에도 넣는다 (빠지면 오프라인에서 그 파일만 없다).
 
 ## 명령
 
