@@ -1,0 +1,10 @@
+{
+  "name": "workout-coach",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit/",
+    "e2e": "playwright test",
+    "serve": "node scripts/serve.mjs"
+  }
+}
