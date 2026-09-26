@@ -16,8 +16,8 @@ export function freshState() {
     revision: 0,
     savedAt: null,
     lastBackup: null,
-    check: { energy: 'normal', upperDoms: 0, lowerDoms: 0, pain: 'none', minutes: 60, intensity: 'normal' },
-    settings: { gymClosedSunday: true, ptDay: 4, avoidHinge: true, leftFirst: true, equipment, unavailableExercises: [] },
+    check: { energy: 'normal', upperDoms: 0, lowerDoms: 0, pain: 'none', minutes: 60, intensity: 'normal', gymClosedDate: null },
+    settings: { gymClosedSunday: true, ptDay: 4, avoidHinge: true, leftFirst: true, equipment, unavailableExercises: [], homeEquipment: [] },
     // 사용자가 설정에서 명시적으로 바꾼 운동별 기본값만. 세션 중 코치 조정은 절대 쓰지 않는다.
     prefs: {},
     customExercises: [],
@@ -64,6 +64,7 @@ export function normalizeState(src) {
   n.settings = { ...base.settings, ...(x.settings || {}) };
   n.settings.equipment = { ...base.settings.equipment, ...(x.settings?.equipment || {}) };
   n.settings.unavailableExercises = Array.isArray(x.settings?.unavailableExercises) ? [...new Set(x.settings.unavailableExercises)] : [];
+  n.settings.homeEquipment = Array.isArray(x.settings?.homeEquipment) ? [...new Set(x.settings.homeEquipment)] : [];
   n.prefs = x.prefs && typeof x.prefs === 'object' ? x.prefs : {};
   n.customExercises = Array.isArray(x.customExercises) ? x.customExercises : [];
   n.history = Array.isArray(x.history) ? x.history.filter((h) => h && PARTS.includes(h.part) && parseDateLocal(h.date)) : [];

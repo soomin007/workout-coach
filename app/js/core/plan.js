@@ -68,7 +68,8 @@ export function recommendPart(state, now = new Date()) {
   const dow = now.getDay();
   if (state.settings.ptDay === dow && !ptToday) return { part: 'pt', confidence: '높음', why: '오늘은 정기 PT 날입니다. PT를 마친 뒤 기록하면 다음 추천에 반영합니다.', detail: ['PT 예정일'] };
   if (ptToday) return { part: 'rest', confidence: '높음', why: '오늘 PT 기록이 있어 추가 웨이트보다 회복을 우선합니다.', detail: ['오늘 PT 기록 있음'] };
-  if (dow === 0 && state.settings.gymClosedSunday) return { part: 'core', confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무 → 홈 Core'] };
+  if (c.gymClosedDate === today) return { part: 'core', home: true, confidence: '높음', why: '오늘은 헬스장에 못 가서 집에서 할 수 있는 Core를 추천합니다.', detail: ['헬스장 휴무 → 홈 운동'] };
+  if (dow === 0 && state.settings.gymClosedSunday) return { part: 'core', home: true, confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무 → 홈 Core'] };
   const score = {};
   for (const p of ['push', 'pull', 'lower']) {
     const d = daysSince(state, p, now), sets = weeklySets(state, p, now), need = partNeed(state, p, now);
@@ -96,8 +97,10 @@ export function supportsSlot(profile, slot) {
   return (SLOT_COMPAT[slot] || [slot]).includes(profile.role);
 }
 
-export function isAvailable(state, profile) {
+// 집에서 할 때(home)는 장비 불필요 운동과 설정의 '집에 있는 장비'만 쓴다.
+export function isAvailable(state, profile, { home = state.session?.home ?? false } = {}) {
   if (!profile) return false;
+  if (home && profile.equipment !== 'none' && !(state.settings.homeEquipment || []).includes(profile.equipment)) return false;
   if (profile.risk === 'hinge' && state.settings.avoidHinge !== false) return false;
   if (profile.equipment !== 'none' && state.settings.equipment[profile.equipment] === false) return false;
   if ((state.settings.unavailableExercises || []).includes(profile.id)) return false;
@@ -116,9 +119,9 @@ function optionNeedScore(state, profile, now) {
   return deficit * 10 + (profile.priority || 0) / 20;
 }
 
-export function chooseForSlot(state, part, slot, used, now = new Date()) {
+export function chooseForSlot(state, part, slot, used, now = new Date(), opts = {}) {
   return partPool(state, part)
-    .filter((e) => supportsSlot(e, slot) && isAvailable(state, e) && !used.has(e.id))
+    .filter((e) => supportsSlot(e, slot) && isAvailable(state, e, opts) && !used.has(e.id))
     .sort((a, b) => ((b.role === slot ? 20 : 0) - (a.role === slot ? 20 : 0)) || (optionNeedScore(state, b, now) - optionNeedScore(state, a, now)) || (b.priority - a.priority))[0] || null;
 }
 
@@ -143,11 +146,11 @@ export function adjustedSetCount(state, profile, part, minutes, slot, now = new 
 }
 
 // 반환: { planned: [{ id, slot, sets, warmupLevel }], estimatedMinutes }
-export function buildPlan(state, part, minutes, now = new Date()) {
+export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   const used = new Set(), planned = [];
   const maxCount = part === 'core' ? 4 : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
   for (const slot of CORE_SLOTS[part] || []) {
-    const e = chooseForSlot(state, part, slot, used, now);
+    const e = chooseForSlot(state, part, slot, used, now, where);
     if (!e) continue;
     planned.push({ p: e, slot, sets: adjustedSetCount(state, e, part, minutes, slot, now) });
     used.add(e.id);
@@ -164,7 +167,7 @@ export function buildPlan(state, part, minutes, now = new Date()) {
   const opts = [];
   const provisional = new Set(used);
   for (const slot of OPTIONAL_SLOTS[part] || []) {
-    const e = chooseForSlot(state, part, slot, provisional, now);
+    const e = chooseForSlot(state, part, slot, provisional, now, where);
     if (e) { opts.push({ p: e, slot, score: optionNeedScore(state, e, now) + (e.role === slot ? 5 : 0) }); provisional.add(e.id); }
   }
   opts.sort((a, b) => b.score - a.score);

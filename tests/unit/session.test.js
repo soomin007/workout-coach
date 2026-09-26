@@ -252,3 +252,69 @@ test('이력 날짜 · 부위 수정과 삭제가 연결된 운동 기록에 반
   T.deleteHistory(s, id);
   assert.equal(s.performance.length, 0);
 });
+
+test('헬스장 휴무일: 집 모드 추천과 세션은 장비 불필요 운동(+집 장비)만 쓴다', async () => {
+  const { recommendPart } = await import('../../app/js/core/plan.js');
+  const s = freshState();
+  const mon = new Date(2026, 8, 28, 10);
+  s.check.gymClosedDate = '2026-09-28';
+  const r = recommendPart(s, mon);
+  assert.deepEqual([r.part, r.home], ['core', true]);
+  T.createSession(s, { part: 'core', home: true, now: mon });
+  assert.ok(s.session.home);
+  assert.ok(s.session.exercises.every((e) => e.equipment === 'none'), s.session.exercises.map((e) => e.name).join(','));
+  assert.ok(!s.session.exercises.some((e) => e.exerciseId === 'pallof'));
+  assert.equal(s.session.exercises.length >= 3, true);
+  T.createSession(s, { part: 'push', home: true, now: mon });
+  assert.ok(s.session.exercises.every((e) => e.equipment === 'none'));
+  s.settings.homeEquipment = ['dumbbell'];
+  T.createSession(s, { part: 'pull', home: true, now: mon });
+  assert.ok(s.session.exercises.some((e) => e.exerciseId === 'db_row'), '집 덤벨이 있으면 덤벨 운동');
+  assert.ok(s.session.exercises.every((e) => ['none', 'dumbbell'].includes(e.equipment)));
+});
+
+test('일요일 홈 Core 는 케이블 운동(팰로프)을 넣지 않는다', async () => {
+  const { recommendPart } = await import('../../app/js/core/plan.js');
+  const s = freshState();
+  const sun = new Date(2026, 8, 27, 10);
+  const r = recommendPart(s, sun);
+  assert.equal(r.home, true);
+  T.createSession(s, { part: r.part, home: r.home, now: sun });
+  assert.ok(s.session.exercises.every((e) => e.equipment === 'none'));
+});
+
+test('운동 시간은 ✓ 시각으로 계산: 종료를 잊어도 70시간이 찍히지 않는다', () => {
+  const s = sessionWith(freshState(), 'pull', ['curl', 'hammer']);
+  const t0 = now.getTime();
+  const e = entryOf(s, 'curl');
+  T.toggleSetDone(s, e.uid, 0, { now: new Date(t0 + 3 * 60000) });
+  T.toggleSetDone(s, e.uid, 1, { now: new Date(t0 + 45 * 60000) });
+  const later = new Date(t0 + 70 * 3600000);
+  assert.ok(T.staleSessionInfo(s, later));
+  assert.equal(T.staleSessionInfo(s, new Date(t0 + 60 * 60000)), null, '마지막 활동 15분 뒤는 방치 아님');
+  T.finishSession(s, { now: later });
+  assert.equal(s.history.at(-1).durationSec, (3 + 42 + 1) * 60, '준비 3분 + 3분~45분 + 마지막 1분');
+});
+
+test('시각 없는 기록(계획대로 완료)만 있으면 비정상적으로 긴 타이머는 시간 모름으로', () => {
+  const s = sessionWith(freshState(), 'pull', ['curl']);
+  T.completeRemaining(s, null, { now });
+  T.finishSession(s, { now: new Date(now.getTime() + 70 * 3600000) });
+  assert.equal(s.history.at(-1).durationSec, null);
+  T.setHistoryDuration(s, s.history.at(-1).id, 55);
+  assert.equal(s.history.at(-1).durationSec, 3300);
+});
+
+test('계획대로 완료: 채워진 값대로 남은 세트를 완료, 값이 빈 세트는 건너뛴다', () => {
+  const s = sessionWith(freshState(), 'pull', ['curl', 'pullup']);
+  const c = entryOf(s, 'curl');
+  T.editSet(s, c.uid, 0, 'weight', 8);
+  T.toggleSetDone(s, c.uid, 0, { now });
+  const n = T.completeRemaining(s, c.uid, { now });
+  assert.equal(n, 1);
+  assert.ok(entryOf(s, 'curl').sets.every((z) => z.done && z.weight === 8));
+  assert.equal(s.session.restTimer, null);
+  assert.ok(entryOf(s, 'pullup').sets.every((z) => !z.done), '다른 운동은 그대로');
+  T.completeRemaining(s, null, { now });
+  assert.ok(entryOf(s, 'pullup').sets.every((z) => z.done));
+});

@@ -51,14 +51,14 @@ function firstCompoundUid(s) {
   return s.exercises.find((e) => e.compound)?.uid || null;
 }
 
-export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', now = new Date() }) {
+export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date() }) {
   const c = state.check;
   const minutes = part === 'core' ? Math.min(30, c.minutes) : c.minutes;
-  const plan = buildPlan(state, part, minutes, now);
+  const plan = buildPlan(state, part, minutes, now, { home });
   state.session = {
     id: newId('s'), part, source, date: date || localISODate(now), minutes, intensity: c.intensity,
     startedAt: now.getTime(), estimatedMinutes: plan.estimatedMinutes, note: '', overrideReason,
-    tempUnavailable: [], restTimer: null, timer: { running: true, start: now.getTime(), elapsed: 0 },
+    tempUnavailable: [], restTimer: null, timer: { running: true, start: now.getTime(), elapsed: 0 }, home: !!home, lastActivityAt: now.getTime(),
     exercises: [],
   };
   state.session.exercises = plan.planned.map((x) => makeEntry(state, x.id, { slot: x.slot, setCount: x.sets, warmupLevel: x.warmupLevel, part, minutes }));
@@ -198,6 +198,7 @@ export function toggleSetDone(state, uid, setIndex, { now = new Date() } = {}) {
   const prevDone = entry.sets.filter((x) => x.done && x.doneAt).sort((a, b) => b.doneAt - a.doneAt)[0];
   z.restBefore = prevDone ? Math.round((t - prevDone.doneAt) / 1000) : null;
   z.done = true; z.doneAt = t;
+  s.lastActivityAt = t;
   if (z.type === 'main') coachAfterSet(entry, setIndex);
   // 워밍업 뒤에는 짧게 (최대 60초)
   s.restTimer = { uid, setIndex, startedAt: t, seconds: z.type === 'warmup' ? Math.min(60, effectiveRest(entry)) : effectiveRest(entry) };
@@ -360,7 +361,7 @@ export function repairSession(state, { now = new Date() } = {}) {
   const used = new Set(s.exercises.map((e) => e.exerciseId));
   let added = 0;
   for (const slot of missingCoreSlots(state)) {
-    const p = chooseForSlot(state, s.part, slot, used, now);
+    const p = chooseForSlot(state, s.part, slot, used, now, { home: !!s.home });
     if (!p) continue;
     s.exercises.push(makeEntry(state, p.id, { slot, setCount: 2, warmupLevel: p.compound ? 'short' : 'none', part: s.part, minutes: s.minutes }));
     used.add(p.id);
@@ -401,9 +402,61 @@ function performanceScore(session) {
 }
 
 // 세션 종료. 완료 세트만 기록에 넣는다. 0세트 확인은 호출 전에 UI 에서 받는다.
+// 운동 시간: 타이머 대신 실제 활동 흔적으로 계산한다 (종료를 잊어도 70시간이 찍히지 않게).
+// 완료 시각이 있으면 첫 ✓ 앞 준비 시간(최대 5분) + 첫 ✓ ~ 마지막 ✓ + 마지막 세트 1분.
+// 시각이 없으면(한 줄 입력 · 계획대로 완료) 타이머 값을 쓰되 예상 시간의 2배를 넘으면 모름(null).
+export function activeDurationSec(s, now = new Date()) {
+  const ts = s.exercises.flatMap((e) => e.sets.filter((z) => z.done && z.doneAt).map((z) => z.doneAt));
+  if (ts.length) {
+    const first = Math.min(...ts), last = Math.max(...ts);
+    const prep = Math.min(5 * 60000, Math.max(0, first - (s.startedAt || first)));
+    return Math.round((last - first + prep + 60000) / 1000);
+  }
+  const t = timerSeconds(s.timer, now.getTime());
+  const cap = Math.max(30, s.estimatedMinutes || 60) * 2 * 60;
+  return t > 0 && t <= cap ? t : null;
+}
+
+// 마지막 활동 후 오래 방치된 세션이면 요약을 돌려준다 (앱을 열 때 "저장할까요?"를 묻는 데 쓴다).
+export const STALE_MINUTES = 90;
+export function staleSessionInfo(state, now = new Date()) {
+  const s = state.session;
+  if (!s) return null;
+  const doneTs = s.exercises.flatMap((e) => e.sets.filter((z) => z.doneAt).map((z) => z.doneAt));
+  const last = Math.max(s.lastActivityAt || 0, s.startedAt || 0, ...doneTs);
+  const idleMin = Math.floor((now.getTime() - last) / 60000);
+  if (idleMin < STALE_MINUTES) return null;
+  return { idleMin, lastAt: last, workSets: countWorkSets(s), part: s.part, date: s.date };
+}
+
+// 남은 세트를 지금 채워진 값(처방)대로 완료 처리 (운동 뒤 몰아서 기록할 때). 완료 시각은 모름(null).
+export function completeRemaining(state, uid = null, { now = new Date() } = {}) {
+  const s = sessionOf(state);
+  const targets = uid ? [findEntry(state, uid).entry] : s.exercises;
+  let n = 0;
+  for (const e of targets) {
+    for (const z of e.sets) {
+      if (z.done) continue;
+      if (z.type !== 'warmup' && setReps(z) === null) continue;
+      z.done = true; z.doneAt = null; n++;
+    }
+  }
+  if (s.restTimer && (!uid || s.restTimer.uid === uid)) s.restTimer = null;
+  s.lastActivityAt = now.getTime();
+  return n;
+}
+
+export function setHistoryDuration(state, historyId, minutes) {
+  const h = state.history.find((x) => x.id === historyId);
+  need(h, 'no_history', '기록을 찾을 수 없습니다.');
+  const m = minutes === null || minutes === '' ? null : Number(minutes);
+  need(m === null || (Number.isFinite(m) && m >= 0 && m <= 600), 'bad_duration', '운동 시간(분)을 확인하세요.');
+  h.durationSec = m === null ? null : Math.round(m * 60);
+}
+
 export function finishSession(state, { now = new Date() } = {}) {
   const s = sessionOf(state);
-  const duration = timerSeconds(s.timer, now.getTime());
+  const duration = activeDurationSec(s, now);
   const work = countWorkSets(s);
   for (const e of s.exercises) {
     const done = e.sets.filter((z) => z.done);

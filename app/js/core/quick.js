@@ -53,5 +53,6 @@ export function applyQuickLine(state, uid, text) {
     z.done = true; z.doneAt = null; z.touched = true;
   });
   if (effort) entry.effort = effort;
+  state.session.lastActivityAt = Date.now();
   return { count: sets.length, effort };
 }

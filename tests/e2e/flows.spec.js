@@ -367,3 +367,59 @@ test('설정: 앱 버전 표시와 업데이트 확인 버튼', async ({ page })
   await page.getByRole('button', { name: '업데이트 확인' }).click();
   await expect(page.locator('#toast')).toBeVisible();
 });
+
+test('오늘 헬스장 못 가요 → 집에서 Core 추천, 헬스장 장비 운동 없음', async ({ page }) => {
+  await page.getByTestId('gym-closed').click();
+  await expect(page.getByTestId('rec-title')).toHaveText('Core');
+  await page.getByRole('button', { name: '집에서 Core 시작' }).click();
+  await expect(page.getByTestId('session-head')).toContainText('진행 중 · 집');
+  const s = await st(page);
+  expect(s.session.home).toBe(true);
+  expect(s.session.exercises.every((e) => e.equipment === 'none')).toBe(true);
+  expect(s.session.exercises.length).toBeGreaterThanOrEqual(3);
+});
+
+test('종료를 잊은 세션: 다시 열면 저장을 묻고, 운동 시간은 마지막 기록까지로', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await c.locator('[data-action="done"]').nth(0).click();
+  await c.locator('[data-action="done"]').nth(1).click();
+  // 5시간 전으로 되돌려 "잊고 방치"를 흉내 낸다 (두 세트 간격은 20분)
+  await page.evaluate(() => window.__store.commit((s) => {
+    const H = 5 * 3600000;
+    s.session.startedAt -= H; s.session.lastActivityAt -= H; s.session.timer.start -= H;
+    const done = s.session.exercises.flatMap((e) => e.sets.filter((z) => z.doneAt));
+    done[0].doneAt -= H + 20 * 60000; done[1].doneAt -= H;
+  }));
+  await page.reload();
+  await expect(sheet(page)).toContainText('끝내지 않은 운동이 있어요');
+  await sheet(page).getByRole('button', { name: '저장하고 종료' }).click();
+  await expect(sheet(page)).toContainText('Pull 완료 · 2세트');
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  const h = (await st(page)).history.at(-1);
+  expect(h.durationSec).toBeGreaterThanOrEqual(21 * 60);
+  expect(h.durationSec).toBeLessThanOrEqual(27 * 60);
+});
+
+test('계획대로 완료 한 번으로 운동의 남은 세트가 기록된다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 8);
+  await c.getByRole('button', { name: '계획대로 완료' }).click();
+  await expect(c.getByTestId('effort')).toBeVisible();
+  const e = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl');
+  expect(e.sets.every((z) => z.done && z.weight === 8)).toBe(true);
+});
+
+test('기록 수정에서 운동 시간을 고칠 수 있다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  await card(page, 'curl').locator('[data-action="done"]').first().click();
+  await page.getByRole('button', { name: /저장하고 종료/ }).click();
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  await page.locator('#tabs').getByRole('button', { name: '기록' }).click();
+  await page.locator('[data-action="hist-edit"]').first().click();
+  await sheet(page).locator('input[name=min]').fill('55');
+  await sheet(page).getByRole('button', { name: '저장' }).click();
+  expect((await st(page)).history.at(-1).durationSec).toBe(3300);
+  await expect(page.locator('.hist-item').first()).toContainText('55분');
+});

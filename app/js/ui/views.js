@@ -51,11 +51,11 @@ export function renderToday(state, ui, now = new Date()) {
     <div class="title" data-testid="rec-title">${esc(map[r.part])}</div>
     <ul class="reasons">${reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
     <div class="row" style="margin-top:12px">
-      ${PART_OPTS.includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-source="recommended">${esc(map[r.part])} 시작</button>` : ''}
+      ${PART_OPTS.includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-source="recommended" data-home="${r.home ? 1 : 0}">${r.home ? '집에서 ' : ''}${esc(map[r.part])} 시작</button>` : ''}
       ${r.part === 'pt' ? '<button class="btn primary" data-action="pt">PT 기록</button>' : ''}
       <button class="btn" data-action="start-manual">부위 직접 선택</button>
     </div>
-    <div class="row" style="margin-top:6px"><button class="btn sm ghost" data-action="why">계산 자세히</button>${r.part !== 'pt' ? '<button class="btn sm ghost" data-action="pt">PT 기록</button>' : ''}</div>
+    <div class="row" style="margin-top:6px"><button class="btn sm ${c.gymClosedDate === localISODate(now) ? 'lit' : 'ghost'}" data-action="gym-closed" data-testid="gym-closed">${c.gymClosedDate === localISODate(now) ? '헬스장 휴무 해제' : '오늘 헬스장 못 가요'}</button><button class="btn sm ghost" data-action="why">계산 자세히</button>${r.part !== 'pt' ? '<button class="btn sm ghost" data-action="pt">PT 기록</button>' : ''}</div>
   </section>
   ${renderDashboard(state, now)}`;
 }
@@ -150,7 +150,7 @@ function renderExercise(state, e, idx, ui, next) {
     <div class="sets">${rows}</div>
     ${effort}
     ${e.memo ? `<div class="tiny" style="margin-top:6px">메모: ${esc(e.memo)}</div>` : ''}
-    <div class="ex-actions"><button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 입력</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button>${fold}</div>
+    <div class="ex-actions">${allDone ? '' : `<button class="btn sm" data-action="complete-rest" data-uid="${e.uid}">계획대로 완료</button>`}<button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 입력</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button>${fold}</div>
   </section>`;
 }
 
@@ -164,7 +164,7 @@ export function renderSession(state, ui, now = new Date()) {
   return `
   <section class="card session-top part-${s.part}" data-testid="session-head">
     <div class="session-head">
-      <div><div class="kicker">진행 중${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
+      <div><div class="kicker">진행 중${s.home ? ' · 집' : ''}${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
         <div class="small" data-testid="session-meta">예상 ${s.estimatedMinutes}분 · 운동 ${s.exercises.length}개 · 본세트 ${work}/${total}</div></div>
       <div class="head-right"><div class="clock" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
@@ -247,7 +247,8 @@ export function renderSettings(state, ui) {
   <section class="card"><h3>헬스장에 없는 운동</h3>${unav}</section>
   <section class="card"><h3>운동별 설정</h3><div class="small">중량 방식 · 증량 단위 · 기본 휴식 · 반복 범위를 바꾼 운동만 보입니다.</div>${prefs}
     <button class="btn sm" data-action="pref-pick" style="margin-top:8px">운동 골라서 설정</button></section>
-  <section class="card"><h3>장비</h3>${equip}</section>
+  <section class="card"><h3>집에 있는 장비</h3><div class="small">헬스장 휴무일 · 일요일 홈 운동에서 쓸 수 있는 장비입니다. 없으면 맨몸 운동만 추천합니다.</div>${['dumbbell', 'dumbbell_bench', 'pullup'].map((k) => `<label class="setting"><span>${esc(EQUIPMENT[k])}</span><input type="checkbox" data-action="home-equip" data-k="${k}"${(st.homeEquipment || []).includes(k) ? ' checked' : ''}></label>`).join('')}</section>
+  <section class="card"><h3>헬스장 장비</h3>${equip}</section>
   <section class="card"><h3>저장 상태</h3>
     <div class="small" data-testid="storage-status">기기 저장: ${storage.local === 'error' ? '<b style="color:var(--bad)">오류</b>' : '정상'} · 백업 저장소: ${storage.idb === 'error' ? '<b style="color:var(--bad)">오류</b>' : storage.idb === 'ok' ? '정상' : '확인 중'} · 영구 저장: ${storage.persisted === true ? '허용됨' : storage.persisted === false ? '미허용 (홈 화면에 설치하면 허용되기 쉽습니다)' : '확인 중'}</div>
     <div class="tiny" style="margin-top:4px">저장 번호 ${state.revision} · ${state.savedAt ? new Date(state.savedAt).toLocaleString('ko-KR') : '-'}</div>

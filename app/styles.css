@@ -126,7 +126,7 @@ details.cue summary { cursor: pointer; color: var(--faint); }
 .effort { margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .effort button { min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: transparent; font-weight: 700; }
 .effort button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
-.ex-actions { display: flex; gap: 6px; margin-top: 10px; }
+.ex-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
 /* 휴식 바 · 탭 */
 .restbar { position: fixed; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom)); z-index: 25; display: flex; align-items: center; gap: 8px; justify-content: center;

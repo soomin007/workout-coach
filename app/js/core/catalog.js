@@ -90,6 +90,7 @@ export const DB = {
     { id: 'cable_lateral', name: '케이블 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 2.5, mode: 'machine', priority: 82, equipment: 'cable', why: '측면삼각근 지속 장력' },
     { id: 'pushdown', name: '트라이셉 푸시다운', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 2.5, mode: 'machine', priority: 95, equipment: 'cable', why: '삼두 직접 볼륨' },
     { id: 'cable_fly', name: '케이블 플라이', role: 'chest_isolation', primary: ['chest'], secondary: [], sets: 2, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 90, equipment: 'cable', why: '프레스 후 가슴 고립' },
+    { id: 'pike_pushup', name: '파이크 푸쉬업', role: 'vertical_push', primary: ['front_delt'], secondary: ['triceps'], sets: 3, range: [6, 12], rest: 90, inc: 0, mode: 'bodyweight', priority: 40, equipment: 'none', compound: true, why: '집에서 하는 어깨 프레스', cue: '엉덩이를 높이 들고 머리가 손 사이로 내려가게.' },
     { id: 'pushup', name: '푸쉬업', role: 'chest_finisher', primary: ['chest'], secondary: ['triceps'], sets: 2, range: [10, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 60, equipment: 'none', why: '가벼운 마무리' },
   ],
   pull: [
@@ -97,6 +98,7 @@ export const DB = {
     { id: 'lat', name: '랫풀다운', aliases: ['시티드 랫풀다운'], role: 'secondary_vertical_pull', primary: ['back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 92, equipment: 'lat_pulldown', compound: true, why: '광배 추가 볼륨' },
     { id: 'row', name: '시티드 케이블 로우', role: 'horizontal_pull', primary: ['back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 7.5, mode: 'machine', priority: 95, equipment: 'cable_row', compound: true, why: '수평 당기기 메인' },
     { id: 'chest_row', name: '체스트 서포티드 로우', role: 'horizontal_pull', primary: ['back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 93, equipment: 'chest_supported_row', compound: true, why: '허리 부담을 줄인 수평 당기기' },
+    { id: 'db_row', name: '원암 덤벨 로우', role: 'horizontal_pull', primary: ['back'], secondary: ['biceps', 'rear_delt'], sets: 3, range: [8, 12], rest: 90, inc: 2, mode: 'per_dumbbell', priority: 80, equipment: 'dumbbell', compound: true, unilateral: true, why: '덤벨만으로 하는 수평 당기기', cue: '허리는 중립, 팔꿈치를 골반 쪽으로 당기기.' },
     { id: 'tbar', name: 'T바/플레이트 로우', aliases: ['T바 로우'], role: 'secondary_back', primary: ['upper_back'], secondary: ['biceps'], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 86, equipment: 'tbar', compound: true, why: '상부 등 보완' },
     { id: 'rear_cable', name: '케이블 리어델트 플라이', role: 'rear_delt', primary: ['rear_delt'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 2.5, mode: 'machine', priority: 92, equipment: 'cable', why: '후면삼각근 직접 볼륨' },
     { id: 'facepull', name: '페이스풀', role: 'rear_delt', primary: ['rear_delt'], secondary: ['upper_back'], sets: 2, range: [12, 20], rest: 75, inc: 2.5, mode: 'machine', priority: 84, equipment: 'cable', why: '후면어깨/견갑 보완' },
@@ -111,6 +113,8 @@ export const DB = {
     { id: 'legcurl', name: '레그컬', role: 'hamstring', primary: ['hamstring'], secondary: [], sets: 3, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 95, equipment: 'leg_curl', why: '햄스트링 직접 볼륨' },
     { id: 'legpress', name: '싱글 레그프레스', role: 'secondary_lower', primary: ['quads', 'glute'], secondary: [], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 88, equipment: 'leg_press', unilateral: true, why: '편측 하체 추가 볼륨', cue: '왼쪽 무릎/대퇴사두 우세와 오른쪽 둔근 우세를 관찰. 무릎 궤적·골반 회전·뒤꿈치 들림 체크.' },
     { id: 'abduction', name: '힙 어브덕션', role: 'glute_med', primary: ['glute'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 78, equipment: 'abduction', why: '둔근 보조' },
+    { id: 'bw_split_squat', name: '맨몸 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], secondary: [], sets: 3, range: [10, 15], rest: 75, inc: 0, mode: 'bodyweight', priority: 45, equipment: 'none', compound: true, unilateral: true, why: '집에서 하는 편측 하체' },
+    { id: 'glute_bridge', name: '글루트 브릿지', role: 'glute_med', primary: ['glute'], secondary: ['hamstring'], sets: 2, range: [12, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 40, equipment: 'none', why: '집에서 하는 둔근 운동', cue: '허리를 꺾지 말고 엉덩이를 조여서 올리기.' },
     { id: 'calf', name: '한발 카프레이즈', role: 'calf', primary: ['calf'], secondary: [], sets: 2, range: [12, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 75, equipment: 'none', unilateral: true, why: '종아리 보완', cue: '반동 없이 천천히. 통증/잠김/불안정이 있으면 중단.' },
   ],
   core: [

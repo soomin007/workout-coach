@@ -100,12 +100,15 @@ const actions = {
   'apply-update': () => location.reload(),
   tab: (d) => { ui.tab = d.tab; render(); window.scrollTo(0, 0); },
   energy: (d) => run((s) => { s.check.energy = d.v; }),
-  start: (d) => startSession(d.part, d.source),
+  start: (d) => startSession(d.part, d.source, '', d.home === '1'),
+  'gym-closed': () => run((s) => { const t = localISODate(); s.check.gymClosedDate = s.check.gymClosedDate === t ? null : t; }),
+  'complete-rest': (d) => run((s) => T.completeRemaining(s, d.uid), (n) => (n ? `${n}세트를 계획대로 완료했습니다. 다르게 한 세트만 고치세요.` : '완료할 세트가 없습니다.')),
   'start-manual': async () => {
-    const r = await sheet(`<h3>부위 직접 선택</h3><textarea name="why" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등"></textarea>
+    const homeDefault = store.state.check.gymClosedDate === localISODate() || (new Date().getDay() === 0 && store.state.settings.gymClosedSunday);
+    const r = await sheet(`<h3>부위 직접 선택</h3><label class="setting"><span>집에서 (헬스장 없이)</span><input type="checkbox" name="home"${homeDefault ? ' checked' : ''}></label><textarea name="why" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등"></textarea>
       <div class="list" style="margin-top:10px">${['push', 'pull', 'lower', 'core'].map((p) => `<button data-sheet-value="${p}">${PART_LABEL[p]}</button>`).join('')}</div>
-      <div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`, { collect: (b) => b.querySelector('[name=why]').value });
-    if (r) startSession(r.value, 'manual', r.data);
+      <div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`, { collect: (b) => ({ why: b.querySelector('[name=why]').value, home: b.querySelector('[name=home]').checked }) });
+    if (r) startSession(r.value, 'manual', r.data.why, r.data.home);
   },
   pt: () => logPT(),
   evidence: () => sheet(evidenceHtml()),
@@ -201,6 +204,7 @@ const changeActions = {
   setting: (d, el) => run((s) => { s.settings[d.k] = d.k === 'ptDay' ? (el.value === 'none' ? null : +el.value) : el.value === 'true'; }),
   'setting-bool': (d, el) => run((s) => { s.settings[d.k] = el.checked; }),
   equip: (d, el) => run((s) => { s.settings.equipment[d.k] = el.checked; }),
+  'home-equip': (d, el) => run((s) => { const xs = new Set(s.settings.homeEquipment || []); if (el.checked) xs.add(d.k); else xs.delete(d.k); s.settings.homeEquipment = [...xs]; }),
 };
 // 타이핑 중 다시 그리면 포커스를 잃으므로 조용히 저장만 한다.
 const inputActions = {
@@ -233,11 +237,16 @@ async function sessionMenu() {
   if (!s) return;
   const v = await choiceSheet('세션', [
     { value: 'add', label: '+ 운동 추가' },
+    { value: 'complete-all', label: '남은 세트 전부 계획대로 완료', hint: '운동이 끝난 뒤 몰아서 기록할 때. 다르게 한 세트만 고치면 됩니다' },
     { value: 'date', label: '운동 날짜 바꾸기', hint: s.date },
     { value: 'part', label: '부위 바꾸기', hint: '입력한 기록은 버려집니다' },
     { value: 'discard', label: '세션 버리기' },
   ]);
   if (v === 'add') return addExercise();
+  if (v === 'complete-all') {
+    if (await confirmSheet('아직 안 한 세트를 모두 지금 적힌 값대로 완료 처리할까요?', { ok: '완료 처리' })) run((st) => T.completeRemaining(st), (n) => `${n}세트를 완료 처리했습니다.`);
+    return;
+  }
   if (v === 'part') return actions['change-part']();
   if (v === 'discard') return actions.discard();
   if (v === 'date') {
@@ -262,10 +271,10 @@ async function readVersion() {
 }
 
 // ---------- 흐름 ----------
-async function startSession(part, source, overrideReason = '') {
+async function startSession(part, source, overrideReason = '', home = false) {
   if (store.state.session && T.sessionHasUserData(store.state) && !(await confirmSheet('진행 중인 세션 기록이 있습니다. 버리고 새로 시작할까요?', { ok: '버리고 시작', danger: true }))) return;
   const date = ui.newDate || localISODate();
-  run((s) => T.createSession(s, { part, source, date, overrideReason }));
+  run((s) => T.createSession(s, { part, source, date, overrideReason, home }));
   ui.newDate = null;
   window.scrollTo(0, 0);
 }
@@ -420,7 +429,7 @@ async function finishSession() {
   const sum = run((st) => T.finishSession(st));
   if (!sum) return;
   const lines = sum.exercises.map((x) => `<div class="small"><b>${esc(x.name)}</b> ${x.sets.map((z) => `${z.weight ?? ''}${z.weight !== null ? '×' : ''}${z.reps ?? '-'}`).join(' / ')}</div>`).join('');
-  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${fmt(sum.durationSec)}</h3>${lines}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
+  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
 }
 
 async function logPT() {
@@ -441,15 +450,16 @@ async function editHistory(id) {
   if (!h) return;
   const r = await sheet(`<h3>기록 수정</h3>
     <div class="grid2"><label class="field">날짜<input type="date" name="date" value="${esc(h.date)}"></label>
-    <label class="field">부위<select name="part">${['push', 'pull', 'lower', 'core'].map((p) => `<option value="${p}"${p === h.part ? ' selected' : ''}>${PART_LABEL[p]}</option>`).join('')}</select></label></div>
+    <label class="field">부위<select name="part">${['push', 'pull', 'lower', 'core'].map((p) => `<option value="${p}"${p === h.part ? ' selected' : ''}>${PART_LABEL[p]}</option>`).join('')}</select></label>
+    <label class="field">운동 시간(분)<input type="number" name="min" min="0" max="600" inputmode="numeric" enterkeyhint="done" placeholder="모름" value="${h.durationSec ? Math.round(h.durationSec / 60) : ''}"></label></div>
     <div class="actions"><button class="btn danger" data-sheet-value="delete">삭제</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
-  { collect: (b) => ({ date: b.querySelector('[name=date]').value, part: b.querySelector('[name=part]').value }) });
+  { collect: (b) => ({ date: b.querySelector('[name=date]').value, part: b.querySelector('[name=part]').value, min: b.querySelector('[name=min]').value }) });
   if (!r) return;
   if (r.value === 'delete') {
     if (await confirmSheet(`${h.date} ${PART_LABEL[h.part]} 기록과 연결된 운동 기록을 삭제할까요?`, { ok: '삭제', danger: true })) run((s) => T.deleteHistory(s, id), '삭제했습니다.');
     return;
   }
-  run((s) => { if (r.data.date !== h.date) T.updateHistoryDate(s, id, r.data.date); if (r.data.part !== h.part) T.updateHistoryPart(s, id, r.data.part); }, '수정했습니다.');
+  run((s) => { if (r.data.date !== h.date) T.updateHistoryDate(s, id, r.data.date); if (r.data.part !== h.part) T.updateHistoryPart(s, id, r.data.part); T.setHistoryDuration(s, id, r.data.min === '' ? null : +r.data.min); }, '수정했습니다.');
 }
 
 function download(name, text, type) {
@@ -487,8 +497,26 @@ document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
     if (ui.wakeLock && !wakeLockHandle) { try { wakeLockHandle = await navigator.wakeLock.request('screen'); } catch { ui.wakeLock = false; } }
     render();
+    askStaleSession();
   }
 });
+
+// 마지막 활동 후 오래 지난 세션이 열려 있으면 먼저 묻는다 (종료를 잊은 경우).
+let staleAsking = false;
+async function askStaleSession() {
+  const info = T.staleSessionInfo(store.state);
+  if (!info || staleAsking || sheetOpen()) return;
+  staleAsking = true;
+  const last = new Date(info.lastAt);
+  const when = `${last.getMonth() + 1}/${last.getDate()} ${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
+  const hours = info.idleMin >= 120 ? `${Math.floor(info.idleMin / 60)}시간` : `${info.idleMin}분`;
+  const v = await sheet(`<h3>끝내지 않은 운동이 있어요</h3><p class="small">${esc(info.date)} ${esc(PART_LABEL[info.part])} · 완료 ${info.workSets}세트 · 마지막 기록 ${when} (${hours} 전)</p><p class="small">저장하면 운동 시간은 마지막 기록까지로 계산됩니다. 안 한 세트가 있으면 먼저 이어서 기록해도 됩니다.</p>
+    <div class="list"><button data-sheet-value="save">${info.workSets ? '저장하고 종료' : '기록 없음 · 저장하고 종료'}</button><button data-sheet-value="continue">이어서 기록하기</button><button data-sheet-value="discard">버리기</button></div>`);
+  staleAsking = false;
+  if (v === 'save') return finishSession();
+  if (v === 'discard') { if (await confirmSheet('이 세션의 기록을 모두 버릴까요?', { ok: '버리기', danger: true })) run((s) => T.discardSession(s), '세션을 버렸습니다.'); return; }
+  if (v === 'continue') run((s) => { s.session.lastActivityAt = Date.now(); });
+}
 
 // ---------- 업데이트 ----------
 // 새 버전 서비스 워커가 활성화되면(controllerchange) 세션 중이 아닐 때 바로 새로고침, 세션 중이면 배지만 띄운다.
@@ -535,6 +563,7 @@ window.addEventListener('popstate', () => {
   }
   render();
   if (notes.length) toast(notes[0], 4000);
+  askStaleSession();
   registerServiceWorker();
   readVersion().then(() => { if (ui.tab === 'settings') render(); });
 })();
