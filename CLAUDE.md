@@ -20,6 +20,12 @@
 - `tests/fixtures/`: 합성 fixture 는 커밋. 사용자 실데이터는 `tests/fixtures/private/` (gitignore).
 - `current/`: GPT 에서 넘겨받은 v9 원본. 참고용, 수정 금지.
 
+## 배포
+
+- https://soomin007.github.io/workout-coach/ (저장소 soomin007/workout-coach)
+- main 에 push 하면 `.github/workflows/pages.yml` 이 단위 테스트 후 `app/` 을 배포한다.
+- 앱 파일을 바꿔 배포할 때는 `app/sw.js` 의 VERSION 을 올린다 (옛 캐시 정리).
+
 ## 명령
 
 - 단위 테스트: `npm test`
