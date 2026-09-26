@@ -199,7 +199,8 @@ export function toggleSetDone(state, uid, setIndex, { now = new Date() } = {}) {
   z.restBefore = prevDone ? Math.round((t - prevDone.doneAt) / 1000) : null;
   z.done = true; z.doneAt = t;
   if (z.type === 'main') coachAfterSet(entry, setIndex);
-  s.restTimer = { uid, setIndex, startedAt: t, seconds: effectiveRest(entry) };
+  // 워밍업 뒤에는 짧게 (최대 60초)
+  s.restTimer = { uid, setIndex, startedAt: t, seconds: z.type === 'warmup' ? Math.min(60, effectiveRest(entry)) : effectiveRest(entry) };
   return { done: true };
 }
 

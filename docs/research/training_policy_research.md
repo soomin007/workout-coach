@@ -29,7 +29,7 @@
 (rep drop-off)으로 근사 RIR을 역산한다(예: 직전 세트 대비 반복수가 크게 떨어지면 실패 근접으로 간주).
 단, 이는 세트 내 실시간 RIR 예측이 아니라 세션 전체의 대략적 피로 신호이므로 보수적으로만 사용하고,
 저반복(≤12)·목표 강도 부하일 때만 신뢰도를 높게 취급한다.
-**(나)** Halperin et al., *Accuracy in Predicting Repetitions to Task Failure in Resistance Exercise: A Scoping Review and Exploratory Meta-analysis*, Sports Medicine 2022 ([PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC12360324/), [관련 리뷰](https://journals.sagepub.com/doi/10.1177/00315125241241785)) · Zourdos et al. 2016 RPE 스케일 원 논문.
+**(나)** Halperin et al., *Accuracy in Predicting Repetitions to Task Failure in Resistance Exercise: A Scoping Review and Exploratory Meta-analysis*, Sports Medicine 2022 ([PubMed 34542869](https://pubmed.ncbi.nlm.nih.gov/34542869/), [관련 리뷰](https://journals.sagepub.com/doi/10.1177/00315125241241785)) · Zourdos et al. 2016 RPE 스케일 원 논문.
 **(다)** 강한 근거(메타분석 기반 수치).
 **(라)** 초보자라고 RIR 정확도가 떨어진다고 가정하고 무시하면 안 됨. 다만 "실패 근접 세트로 감각을 보정"하는
 연습(저위험 종목에서 가끔 실패까지)은 권장할 만하다.

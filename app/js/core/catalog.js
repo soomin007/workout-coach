@@ -66,6 +66,17 @@ export const SLOT_COMPAT = {
   core_lateral: ['core_lateral'], core_flexion: ['core_flexion'],
 };
 
+export const SLOT_LABEL = {
+  horizontal_push: '수평 밀기', secondary_chest_press: '가슴 보조 프레스', vertical_push: '어깨 프레스', lateral_delt: '측면 어깨',
+  triceps: '삼두', chest_isolation: '가슴 고립', chest_finisher: '가슴 마무리',
+  vertical_pull: '수직 당기기', secondary_vertical_pull: '수직 당기기 보조', horizontal_pull: '수평 당기기', secondary_back: '등 보조',
+  rear_delt: '후면 어깨', biceps: '이두', biceps_secondary: '이두 보조',
+  squat: '스쿼트', secondary_squat: '스쿼트 보조', unilateral: '편측 하체', hamstring: '햄스트링', secondary_lower: '하체 보조',
+  glute_med: '중둔근', calf: '종아리',
+  core_anti_extension: '항신전', core_anti_rotation: '항회전', core_lateral: '항측굴', core_flexion: '복부 굴곡',
+};
+export const slotName = (x) => SLOT_LABEL[x] || String(x || '').replaceAll('_', ' ');
+
 // measure: 'reps'(기본) 또는 'seconds'(버티기). range 는 measure 단위.
 export const DB = {
   push: [

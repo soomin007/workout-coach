@@ -177,6 +177,14 @@ test('세트 완료: 세트 간격 자동 기록, 휴식 타이머는 오늘 휴
   assert.equal(entryOf(s, 'curl').sets[1].doneAt, null);
 });
 
+test('워밍업 세트 뒤 휴식은 최대 60초', () => {
+  const s = sessionWith(freshState(), 'push', ['bench']);
+  T.editSet(s, entryOf(s, 'bench').uid, mi(s, 'bench'), 'weight', 60);
+  T.toggleSetDone(s, entryOf(s, 'bench').uid, 0, { now });
+  assert.equal(entryOf(s, 'bench').sets[0].type, 'warmup');
+  assert.equal(s.session.restTimer.seconds, 60);
+});
+
 test('느낌 버튼은 마지막 완료 본세트의 빈 RIR 만 채운다', () => {
   const s = sessionWith(freshState(), 'pull', ['curl']);
   const e = entryOf(s, 'curl');
