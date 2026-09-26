@@ -15,22 +15,59 @@ export function toast(msg, ms = 2200) {
 
 // 바텀시트. html 을 넣고, [data-sheet-value] 버튼을 누르면 그 값으로 resolve. 배경을 누르면 null.
 // collect(root) 가 있으면 값과 함께 { value, data: collect(root) } 로 resolve.
+//
+// 뒤로가기: 시트가 열리면 방문 기록을 하나 쌓고, 뒤로가기(popstate)는 시트만 닫는다.
+// 버튼으로 닫을 때는 쌓은 기록을 history.back() 으로 되돌리며, 그 popstate 는 무시한다.
+// 되돌리기가 끝나기 전에 다음 시트가 열리면 기록이 꼬이므로 settle 을 기다린 뒤 쌓는다.
 let pending = null;
+let hasEntry = false;
+let ignorePop = 0;
+let settle = Promise.resolve();
+let settleResolve = null;
+
+function pushEntry() {
+  settle.then(() => {
+    if (pending && !hasEntry) { history.pushState({ sheet: true }, ''); hasEntry = true; }
+  });
+}
+
+// popstate 에서 호출. 시트 관련으로 처리했으면 true.
+export function handleSheetBack() {
+  if (ignorePop > 0) {
+    ignorePop--;
+    if (ignorePop === 0 && settleResolve) { settleResolve(); settleResolve = null; }
+    return true;
+  }
+  if (pending) { hasEntry = false; pending(null, { fromBack: true }); return true; }
+  return false;
+}
+
+export function sheetOpen() { return !!pending; }
+
 export function sheet(html, { collect = null } = {}) {
   const bd = document.getElementById('sheet');
   const box = bd.querySelector('.sheet');
-  if (pending) pending(null);
+  if (pending) pending(null, { replacing: true });
   box.innerHTML = html;
   bd.classList.remove('hidden');
   return new Promise((resolve) => {
-    const done = (v) => {
+    const done = (v, { replacing = false, fromBack = false } = {}) => {
       pending = null;
-      bd.classList.add('hidden');
-      bd.onclick = null;
-      box.innerHTML = '';
+      if (!replacing) {
+        bd.classList.add('hidden');
+        bd.onclick = null;
+        box.innerHTML = '';
+        if (hasEntry && !fromBack) {
+          hasEntry = false;
+          ignorePop++;
+          settle = new Promise((r) => { settleResolve = r; });
+          history.back();
+        }
+      }
       resolve(v);
     };
     pending = done;
+    pushEntry();
     bd.onclick = (ev) => {
       if (ev.target === bd) { done(null); return; }
       const b = ev.target.closest('[data-sheet-value]');

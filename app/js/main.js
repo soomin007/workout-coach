@@ -7,8 +7,9 @@ import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
 import { profileFor } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
 import { localISODate } from './core/util.js';
-import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet } from './ui/dom.js';
+import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, MODE_LABEL } from './ui/views.js';
+import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
 const local = { getItem: (k) => localStorage.getItem(k), setItem: (k, v) => localStorage.setItem(k, v) };
@@ -34,7 +35,7 @@ const idb = {
   }),
 };
 
-const ui = { tab: 'today', newDate: null, historyLimit: 30, wakeLock: false, storage: {} };
+const ui = { tab: 'today', newDate: null, historyLimit: 30, wakeLock: false, storage: {}, condOpen: false, expanded: new Set(), version: null };
 let wakeLockHandle = null;
 
 const store = createStore({
@@ -132,9 +133,26 @@ const actions = {
     if (v === undefined) return;
     run((s) => T.editSet(s, d.uid, +d.i, d.f, v));
   },
-  done: (d) => run((s) => T.toggleSetDone(s, d.uid, +d.i)),
+  done: (d) => {
+    const wasDone = entry(d.uid)?.sets[+d.i]?.done;
+    run((s) => T.toggleSetDone(s, d.uid, +d.i));
+    if (!wasDone) scrollToNext();
+  },
   split: (d) => run((s) => T.setSplit(s, d.uid, +d.i, d.on === '1')),
-  effort: (d) => run((s) => T.setEffort(s, d.uid, entry(d.uid)?.effort === d.v ? null : d.v)),
+  effort: (d) => {
+    ui.expanded.delete(d.uid);
+    run((s) => T.setEffort(s, d.uid, entry(d.uid)?.effort === d.v ? null : d.v));
+    scrollToNext();
+  },
+  expand: (d) => { ui.expanded.add(d.uid); render(); },
+  collapse: (d) => { ui.expanded.delete(d.uid); render(); },
+  'toggle-cond': () => { ui.condOpen = !ui.condOpen; render(); },
+  why: () => {
+    const r = recommendPart(store.state);
+    sheet(`<h3>추천 계산 자세히</h3><div class="small">${esc(r.why)} (신뢰도 ${esc(r.confidence || '-')})</div><ul class="reasons">${(r.detail || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul><div class="actions"><button class="btn" data-action="evidence-open" data-sheet-value="evidence">추천 근거</button><button class="btn primary" data-sheet-value="__cancel">닫기</button></div>`).then((v) => { if (v === 'evidence') sheet(evidenceHtml()); });
+  },
+  'session-menu': () => sessionMenu(),
+  'check-update': () => checkUpdate(),
   quick: async (d) => {
     const e = entry(d.uid);
     const t = await textSheet(`${e.name} 한 줄 입력`, '', { placeholder: e.loadMode === 'bodyweight' ? '예: 10 10 8 한계' : '예: 50 10 10 8 한계', hint: '중량 다음 세트별 반복, 끝에 느낌(여유 · 적당 · 한계). 키보드 마이크로 말해도 됩니다. 입력한 세트는 완료로 표시됩니다.' });
@@ -199,6 +217,49 @@ document.addEventListener('click', (ev) => {
 document.getElementById('tabs').addEventListener('click', (ev) => { const b = ev.target.closest('[data-tab]'); if (b) actions.tab({ tab: b.dataset.tab }); });
 document.addEventListener('change', (ev) => { const el = ev.target.closest('[data-action]'); const fn = el && changeActions[el.dataset.action]; if (fn) fn({ ...el.dataset }, el); });
 document.addEventListener('input', (ev) => { const el = ev.target.closest('[data-action]'); const fn = el && inputActions[el.dataset.action]; if (fn) fn({ ...el.dataset }, el); });
+
+// 다음 세트가 화면 밖이면 가운데로 부드럽게 옮긴다.
+function scrollToNext() {
+  requestAnimationFrame(() => {
+    const el = document.querySelector('.set.next');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < 90 || r.bottom > window.innerHeight - 150) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+}
+
+async function sessionMenu() {
+  const s = store.state.session;
+  if (!s) return;
+  const v = await choiceSheet('세션', [
+    { value: 'add', label: '+ 운동 추가' },
+    { value: 'date', label: '운동 날짜 바꾸기', hint: s.date },
+    { value: 'part', label: '부위 바꾸기', hint: '입력한 기록은 버려집니다' },
+    { value: 'discard', label: '세션 버리기' },
+  ]);
+  if (v === 'add') return addExercise();
+  if (v === 'part') return actions['change-part']();
+  if (v === 'discard') return actions.discard();
+  if (v === 'date') {
+    const r = await sheet(`<h3>운동 날짜</h3><p class="small">실제로 운동한 날짜로 저장됩니다.</p><input type="date" name="date" value="${esc(s.date)}"><div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">확인</button></div>`, { collect: (b) => b.querySelector('[name=date]').value });
+    if (r) run((st) => T.setSessionDate(st, r.data), '운동 날짜를 바꿨습니다.');
+  }
+}
+
+let swReg = null;
+async function checkUpdate() {
+  if (!swReg) { toast('이 환경에서는 업데이트 확인을 쓸 수 없습니다.'); return; }
+  toast('업데이트 확인 중...');
+  try {
+    await swReg.update();
+    if (swReg.installing || swReg.waiting) toast('새 버전을 받는 중입니다. 곧 자동으로 적용됩니다.', 4000);
+    else toast('최신 버전입니다.');
+  } catch { toast('업데이트를 확인하지 못했습니다. 인터넷 연결을 확인하세요.'); }
+}
+
+async function readVersion() {
+  try { const ks = await caches.keys(); ui.version = ks.find((k) => k.startsWith('wc-') && k !== 'wc-fonts') || null; } catch { ui.version = null; }
+}
 
 // ---------- 흐름 ----------
 async function startSession(part, source, overrideReason = '') {
@@ -437,6 +498,8 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || (local && !location.search.includes('sw'))) return;
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').then((reg) => {
+    swReg = reg;
+    reg.update().catch(() => {});
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
   }).catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -447,6 +510,23 @@ function registerServiceWorker() {
   });
 }
 
+// ---------- 뒤로가기 ----------
+// 시트가 열려 있으면 시트만 닫고(dom.js), 기록·설정 탭이면 오늘 탭으로, 오늘 탭이면 한 번 더 눌러야 종료.
+// 크롬은 사용자 조작 없이 쌓은 기록을 뒤로가기에서 건너뛰므로, 가드는 첫 터치 때 쌓는다.
+let guardArmed = false;
+function armBackGuard() {
+  if (guardArmed || sheetOpen()) return;
+  history.pushState({ guard: true }, '');
+  guardArmed = true;
+}
+document.addEventListener('pointerdown', armBackGuard, { capture: true });
+window.addEventListener('popstate', () => {
+  if (handleSheetBack()) return;
+  guardArmed = false;
+  if (ui.tab !== 'today') { actions.tab({ tab: 'today' }); armBackGuard(); return; }
+  toast('뒤로 버튼을 한 번 더 누르면 종료됩니다.', 2000);
+});
+
 // ---------- 시작 ----------
 (async () => {
   const notes = await store.load();
@@ -456,5 +536,6 @@ function registerServiceWorker() {
   render();
   if (notes.length) toast(notes[0], 4000);
   registerServiceWorker();
+  readVersion().then(() => { if (ui.tab === 'settings') render(); });
 })();
 

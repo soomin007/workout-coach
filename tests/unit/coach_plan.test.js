@@ -101,3 +101,19 @@ test('추천: 매우 피곤 → 휴식, PT 요일 → PT, 일요일 휴무 → C
   s.history.push({ id: 'pt', date: '2026-09-24', part: 'push', source: 'pt', workSets: 0 });
   assert.equal(recommendPart(s, thu).part, 'rest', 'PT 기록 후에는 추가 세션 대신 휴식');
 });
+
+test('추천 설명: 쉰 기간 · 부족한 근육 · 채운 근육을 문장으로', async () => {
+  const { explainRecommendation } = await import('../../app/js/core/plan.js');
+  const s = v7();
+  const now = new Date(2026, 8, 25, 10);
+  const rec = recommendPart(s, now);
+  assert.equal(rec.part, 'lower');
+  const lines = explainRecommendation(s, rec, now);
+  assert.match(lines[0], /하체 운동 기록이 아직 없어요/);
+  assert.ok(lines.some((l) => /대퇴사두·햄스트링·둔근·종아리 세트가 목표의 절반도/.test(l)));
+  assert.ok(!lines.some((l) => /채웠어요/.test(l)), '합성 데이터는 가슴 6세트라 아직 미달');
+  s.performance.push(perf('cable_fly', [[10, 12], [10, 12], [10, 12], [10, 12]], { date: '2026-09-24' }));
+  assert.ok(explainRecommendation(s, rec, now).some((l) => /가슴은 이번 주 목표 세트를 채웠어요/.test(l)));
+  const { josa } = await import('../../app/js/core/plan.js');
+  assert.deepEqual([josa('이두', '은', '는'), josa('하체', '을', '를'), josa('가슴·삼두', '은', '는'), josa('등·이두', '을', '를')], ['이두는', '하체를', '가슴·삼두는', '등·이두를']);
+});

@@ -1,7 +1,7 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (actions.js 가 위임 처리).
 import { esc } from './dom.js';
 import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName } from '../core/catalog.js';
-import { recommendPart, daysSince, weeklySets, muscleSets, missingCoreSlots, POLICY } from '../core/plan.js';
+import { recommendPart, explainRecommendation, daysSince, muscleSets, missingCoreSlots } from '../core/plan.js';
 import { countWorkSets, timerSeconds } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
@@ -18,52 +18,59 @@ export function renderToday(state, ui, now = new Date()) {
   if (state.session) return renderSession(state, ui, now);
   const c = state.check;
   const r = recommendPart(state, now);
-  const map = { push: 'Push', pull: 'Pull', lower: 'Lower', core: 'Core', rest: '휴식', pt: 'PT 예정' };
-  const conf = r.confidence === '높음' ? 'good' : r.confidence === '보통' ? 'warn' : '';
+  const map = { push: 'Push', pull: 'Pull', lower: 'Lower', core: 'Core', rest: '오늘은 쉬어요', pt: 'PT 날' };
   const energy = [['good', '좋음'], ['normal', '보통'], ['tired', '피곤'], ['very_tired', '매우 피곤']];
   const doms = [[0, '없음'], [1, '약간'], [2, '꽤 있음'], [3, '심함']];
+  const domsL = (v) => doms.find((x) => x[0] === +v)?.[1] || '없음';
+  const painL = { none: '없음', shoulder: '어깨', back: '허리', knee: '무릎', ankle: '발목', other: '기타' };
+  const intL = { light: '가볍게', normal: '일반', strength: '근력 중심' };
+  const date = ui.newDate || localISODate(now);
+  const summary = [
+    c.upperDoms || c.lowerDoms ? `근육통 상체 ${domsL(c.upperDoms)} · 하체 ${domsL(c.lowerDoms)}` : '근육통 없음',
+    c.pain !== 'none' ? `${painL[c.pain]} 불편` : null, `${c.minutes}분`, intL[c.intensity],
+    date !== localISODate(now) ? `${date} 기록` : null,
+  ].filter(Boolean).join(' · ');
+  const reasons = explainRecommendation(state, r, now);
+  const partCls = PART_OPTS.includes(r.part) ? ` part-${r.part}` : '';
   return `
-  <section class="card hero">
-    <div class="kicker">오늘 추천</div>
-    <div class="title" data-testid="rec-title">${esc(map[r.part])}</div>
-    <div class="small">${esc(r.why)} <span class="badge ${conf}">신뢰도 ${esc(r.confidence)}</span></div>
-    <div class="decision">${(r.detail || []).slice(0, 6).map((x) => `<b>·</b><span>${esc(x)}</span>`).join('')}</div>
-    <div class="row" style="margin-top:12px">
-      ${['push', 'pull', 'lower', 'core'].includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-source="recommended">${esc(map[r.part])} 시작</button>` : ''}
-      ${r.part === 'pt' ? '<button class="btn primary" data-action="pt">PT 기록</button>' : ''}
-      <button class="btn" data-action="start-manual">부위 직접 선택</button>
-      <button class="btn ghost" data-action="evidence">추천 근거</button>
-    </div>
-  </section>
   <section class="card">
-    <h3>컨디션</h3>
-    <div class="row">${energy.map(([v, l]) => `<button class="chip${c.energy === v ? ' on' : ''}" data-action="energy" data-v="${v}">${l}</button>`).join('')}</div>
-    <div class="grid2" style="margin-top:10px">
+    <div class="kicker">오늘 컨디션</div>
+    <div class="row" style="margin-top:6px">${energy.map(([v, l]) => `<button class="chip${c.energy === v ? ' on' : ''}" data-action="energy" data-v="${v}">${l}</button>`).join('')}</div>
+    <button class="cond-summary" data-action="toggle-cond" aria-expanded="${ui.condOpen ? 'true' : 'false'}"><span>${esc(summary)}</span><span class="tiny">${ui.condOpen ? '접기' : '바꾸기'}</span></button>
+    ${ui.condOpen ? `<div class="grid2" style="margin-top:8px">
       <label class="field">상체 근육통<select data-action="check" data-k="upperDoms">${doms.map(([v, l]) => opt(v, l, c.upperDoms)).join('')}</select></label>
       <label class="field">하체 근육통<select data-action="check" data-k="lowerDoms">${doms.map(([v, l]) => opt(v, l, c.lowerDoms)).join('')}</select></label>
-      <label class="field">통증/불편<select data-action="check" data-k="pain">${[['none', '없음'], ['shoulder', '어깨'], ['back', '허리'], ['knee', '무릎'], ['ankle', '발목'], ['other', '기타']].map(([v, l]) => opt(v, l, c.pain)).join('')}</select></label>
+      <label class="field">통증/불편<select data-action="check" data-k="pain">${Object.entries(painL).map(([v, l]) => opt(v, l, c.pain)).join('')}</select></label>
       <label class="field">가능 시간<select data-action="check" data-k="minutes">${[30, 45, 60, 75, 90].map((m) => opt(m, `${m}분`, c.minutes)).join('')}</select></label>
-      <label class="field">오늘 강도<select data-action="check" data-k="intensity">${[['light', '가볍게'], ['normal', '일반'], ['strength', '근력 중심']].map(([v, l]) => opt(v, l, c.intensity)).join('')}</select></label>
-      <label class="field">운동 날짜<input type="date" data-action="new-date" value="${esc(ui.newDate || localISODate(now))}"></label>
-    </div>
+      <label class="field">오늘 강도<select data-action="check" data-k="intensity">${Object.entries(intL).map(([v, l]) => opt(v, l, c.intensity)).join('')}</select></label>
+      <label class="field">운동 날짜<input type="date" data-action="new-date" value="${esc(date)}"></label>
+    </div>` : ''}
   </section>
-  ${renderDashboard(state, now)}
-  <section class="card">
-    <div class="row"><button class="btn" data-action="pt">PT 기록</button><button class="btn" data-action="tab" data-tab="records">지난 기록</button></div>
-  </section>`;
+  <section class="card hero${partCls}">
+    <div class="kicker">오늘 추천</div>
+    <div class="title" data-testid="rec-title">${esc(map[r.part])}</div>
+    <ul class="reasons">${reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <div class="row" style="margin-top:12px">
+      ${PART_OPTS.includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-source="recommended">${esc(map[r.part])} 시작</button>` : ''}
+      ${r.part === 'pt' ? '<button class="btn primary" data-action="pt">PT 기록</button>' : ''}
+      <button class="btn" data-action="start-manual">부위 직접 선택</button>
+    </div>
+    <div class="row" style="margin-top:6px"><button class="btn sm ghost" data-action="why">계산 자세히</button>${r.part !== 'pt' ? '<button class="btn sm ghost" data-action="pt">PT 기록</button>' : ''}</div>
+  </section>
+  ${renderDashboard(state, now)}`;
 }
 
 function renderDashboard(state, now) {
-  const recent = PART_OPTS.map((p) => { const d = daysSince(state, p, now); return `<b>${PART_LABEL[p]}</b><span>${d >= 99 ? '기록 없음' : d === 0 ? '오늘' : `${d}일 전`}</span>`; }).join('');
-  const muscles = Object.keys(MUSCLE_LABEL).map((m) => {
-    const v = muscleSets(state, m, now), b = MUSCLE_BUDGET[m];
-    return `<div class="bar-row"><span>${MUSCLE_LABEL[m]}</span><div class="bar"><i style="width:${Math.min(100, (v / b) * 100)}%"></i></div><span class="tiny">${v}/${b}</span></div>`;
-  }).join('');
-  const parts = ['push', 'pull', 'lower'].map((p) => { const v = weeklySets(state, p, now), b = POLICY.initialWeeklyBudget[p]; return `<div class="bar-row"><span>${PART_LABEL[p]}</span><div class="bar"><i style="width:${Math.min(100, (v / b) * 100)}%"></i></div><span class="tiny">${v}세트</span></div>`; }).join('');
+  const recent = PART_OPTS.map((p) => { const d = daysSince(state, p, now); return `<div class="recent part-${p}"><b>${PART_LABEL[p]}</b><span>${d >= 99 ? '기록 없음' : d === 0 ? '오늘' : `${d}일 전`}</span></div>`; }).join('');
+  const rows = Object.keys(MUSCLE_LABEL).map((m) => ({ m, v: muscleSets(state, m, now), b: MUSCLE_BUDGET[m] }));
+  const bar = ({ m, v, b }) => `<div class="bar-row"><span>${MUSCLE_LABEL[m]}</span><div class="bar"><i style="width:${Math.min(100, (v / b) * 100)}%"></i></div><span class="tiny">${v}/${b}</span></div>`;
+  const lacking = rows.filter((x) => x.v < x.b * 0.5);
+  const rest = rows.filter((x) => x.v >= x.b * 0.5);
   return `<section class="card">
-    <h3>최근 부위</h3><div class="decision" style="margin-top:0">${recent}</div>
-    <div class="sep"></div><h3>최근 7일 세션 세트</h3><div class="bars">${parts}</div>
-    <div class="sep"></div><h3>근육별 7일 유효세트 <span class="tiny">직접 1 · 간접 0.5</span></h3><div class="bars">${muscles}</div>
+    <h3>최근 부위</h3><div class="recent-grid">${recent}</div>
+    <div class="sep"></div><h3>이번 주 부족한 근육 <span class="tiny">최근 7일 · 목표의 절반 미만</span></h3>
+    <div class="bars">${lacking.map(bar).join('') || '<div class="small">모든 근육이 목표의 절반 이상입니다.</div>'}</div>
+    ${rest.length ? `<details class="more"><summary>나머지 ${rest.length}개 근육</summary><div class="bars" style="margin-top:6px">${rest.map(bar).join('')}</div></details>` : ''}
   </section>`;
 }
 
@@ -83,7 +90,22 @@ function stepper(action, uid, i, field, label, testid) {
   return `<div class="stepper" data-testid="${testid}"><button data-action="${action}" data-uid="${uid}" data-i="${i}" data-f="${field}" data-d="-1" aria-label="줄이기">−</button><button class="val" data-action="num" data-uid="${uid}" data-i="${i}" data-f="${field}">${label}</button><button data-action="${action}" data-uid="${uid}" data-i="${i}" data-f="${field}" data-d="1" aria-label="늘리기">+</button></div>`;
 }
 
-function renderSetRow(e, z, i, mainNo) {
+// 다음에 할 세트: 운동 순서대로 첫 미완료 세트.
+export function nextSet(session) {
+  for (const e of session?.exercises || []) {
+    const i = e.sets.findIndex((z) => !z.done);
+    if (i >= 0) return { e, i, z: e.sets[i] };
+  }
+  return null;
+}
+
+function setSummary(e, z) {
+  const w = z.weight === null || z.weight === undefined ? '' : z.weight === 0 && ['machine', 'per_side'].includes(e.loadMode) ? '빈 기구 × ' : `${z.weight}kg × `;
+  const reps = z.split ? `L${z.leftReps ?? '-'}/R${z.rightReps ?? '-'}` : `${z.reps ?? '-'}`;
+  return `${w}${reps}${unitOf(e)}`;
+}
+
+function renderSetRow(e, z, i, mainNo, isNext) {
   const warm = z.type === 'warmup';
   const no = warm ? 'W' : z.type === 'backoff' ? 'B' : String(mainNo);
   const u = unitOf(e);
@@ -92,35 +114,43 @@ function renderSetRow(e, z, i, mainNo) {
     : stepper('step', e.uid, i, 'reps', `${z.reps ?? '-'}<small>${u}</small>`, `reps-${i}`);
   const w = stepper('step', e.uid, i, 'weight', weightLabel(e, z.weight), `weight-${i}`);
   const toggle = e.unilateral && !warm ? `<span></span><button class="split-toggle" data-action="split" data-uid="${e.uid}" data-i="${i}" data-on="${z.split ? 0 : 1}">${z.split ? '좌우 같게' : '좌우 다르게 입력'}</button>` : '';
-  if (z.split) {
-    return `<div class="set ${z.type}${z.done ? ' done' : ''}" data-set="${i}"><button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>${w}<span></span><button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료">✓</button><span></span>${repsBlock}${toggle}</div>`;
-  }
-  return `<div class="set ${z.type}${z.done ? ' done' : ''}" data-set="${i}"><button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>${w}${repsBlock}<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료">✓</button>${toggle}</div>`;
+  const cls = `set ${z.type}${z.done ? ' done' : ''}${isNext ? ' next' : ''}`;
+  const noBtn = `<button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>`;
+  const doneBtn = `<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료" aria-pressed="${z.done}">${z.done ? '✓' : ''}</button>`;
+  if (z.split) return `<div class="${cls}" data-set="${i}">${noBtn}${w}<span></span>${doneBtn}<span></span>${repsBlock}${toggle}</div>`;
+  return `<div class="${cls}" data-set="${i}">${noBtn}${w}${repsBlock}${doneBtn}${toggle}</div>`;
 }
 
-function renderExercise(state, e, idx) {
+function renderExercise(state, e, idx, ui, next) {
   const mains = e.sets.filter((z) => z.type !== 'warmup');
   const allDone = mains.length > 0 && mains.every((z) => z.done);
+  // 다 끝났고 느낌까지 받았으면 한 줄로 접는다 (눌러서 다시 펼침).
+  if (allDone && e.effort && !ui.expanded?.has(e.uid)) {
+    return `<section class="card ex collapsed" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
+      <button class="ex-fold" data-action="expand" data-uid="${e.uid}"><span class="ex-title"><span class="ok">✓</span> ${idx + 1}. ${esc(e.name)}</span>
+      <span class="small" data-testid="ex-summary">${mains.map((z) => setSummary(e, z)).join(' · ')} · ${EFFORT_LABEL[e.effort]}</span></button></section>`;
+  }
   const badge = e.unilateral ? '좌우' : e.compound ? '복합' : '보조';
   const restNow = e.restToday ?? e.rest;
   let mainNo = 0;
-  const rows = e.sets.map((z, i) => renderSetRow(e, z, i, z.type === 'warmup' ? 0 : ++mainNo)).join('');
+  const rows = e.sets.map((z, i) => renderSetRow(e, z, i, z.type === 'warmup' ? 0 : ++mainNo, !!next && next.e.uid === e.uid && next.i === i)).join('');
   const effort = allDone
-    ? `<div class="effort" data-testid="effort">${EFFORTS.map((k) => `<button class="${e.effort === k ? 'on' : ''}" data-action="effort" data-uid="${e.uid}" data-v="${k}">${EFFORT_LABEL[k]}</button>`).join('')}</div><div class="tiny" style="margin-top:4px">마지막 세트 느낌: 다음 처방에 반영됩니다.</div>`
+    ? `<div class="effort-ask">마지막 세트 어땠나요? <span class="tiny">다음 처방에 반영됩니다</span></div><div class="effort" data-testid="effort">${EFFORTS.map((k) => `<button class="${e.effort === k ? 'on' : ''}" data-action="effort" data-uid="${e.uid}" data-v="${k}">${EFFORT_LABEL[k]}</button>`).join('')}</div>`
     : '';
-  return `<section class="card ex${allDone ? ' complete' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
+  const fold = allDone && e.effort ? `<button class="btn sm ghost" data-action="collapse" data-uid="${e.uid}">접기</button>` : '';
+  return `<section class="card ex${allDone ? ' complete' : ''}${next && next.e.uid === e.uid ? ' current' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
     <div class="ex-head">
       <div><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
-      <div class="ex-meta">${esc(slotLabel(e.slot))} · 목표 ${e.range[0]}~${e.range[1]}${unitOf(e)} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
+      <div class="ex-meta">목표 ${e.range[0]}~${e.range[1]}${unitOf(e)} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
       <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
     </div>
-    <div class="rx">${esc(e.why)}. ${esc(e.prescription?.note || '')}</div>
+    <div class="rx">${esc(e.prescription?.note || '')}</div>
     ${e.coach ? `<div class="coach" data-testid="coach">${esc(e.coach)}</div>` : ''}
-    ${e.cue ? `<details class="cue"><summary>자세 큐</summary>${esc(e.cue)}</details>` : ''}
+    <details class="cue"><summary>운동 설명${e.cue ? ' · 자세 큐' : ''}</summary>${esc(slotLabel(e.slot))} · ${esc(e.why)}${e.cue ? `<br>${esc(e.cue)}` : ''}</details>
     <div class="sets">${rows}</div>
     ${effort}
     ${e.memo ? `<div class="tiny" style="margin-top:6px">메모: ${esc(e.memo)}</div>` : ''}
-    <div class="ex-actions"><button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 입력</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button></div>
+    <div class="ex-actions"><button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 입력</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button>${fold}</div>
   </section>`;
 }
 
@@ -129,22 +159,24 @@ export function renderSession(state, ui, now = new Date()) {
   const total = s.exercises.reduce((a, e) => a + e.sets.filter((z) => z.type !== 'warmup').length, 0);
   const work = countWorkSets(s);
   const missing = missingCoreSlots(state);
+  const next = nextSet(s);
+  const today = localISODate(now);
   return `
-  <section class="card" data-testid="session-head">
+  <section class="card session-top part-${s.part}" data-testid="session-head">
     <div class="session-head">
-      <div><div class="kicker">진행 중</div><h2>${esc(PART_LABEL[s.part])} · ${s.source === 'recommended' ? '추천' : '직접 선택'}</h2>
-        <div class="small" data-testid="session-meta">시간 ${s.minutes}분 · 예상 ${s.estimatedMinutes}분 · 운동 ${s.exercises.length}개 · 본세트 ${total}개</div></div>
-      <div style="text-align:right"><div class="clock" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div><button class="btn sm ghost" style="white-space:nowrap" data-action="timer">${s.timer.running ? '일시정지' : '재개'}</button></div>
+      <div><div class="kicker">진행 중${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
+        <div class="small" data-testid="session-meta">예상 ${s.estimatedMinutes}분 · 운동 ${s.exercises.length}개 · 본세트 ${work}/${total}</div></div>
+      <div class="head-right"><div class="clock" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>
+        <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
+          <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${s.timer.running ? '❚❚' : '▶'}</button>
+          <button class="btn sm ghost${ui.wakeLock ? ' lit' : ''}" data-action="wakelock" aria-label="화면 켜짐 유지" title="화면 켜짐 유지">☀</button>
+          <button class="btn sm ghost" data-action="session-menu" aria-label="세션 메뉴">⋯</button>
+        </div></div>
     </div>
     <div class="progress"><i style="width:${total ? (work / total) * 100 : 0}%"></i></div>
-    <div class="grid2" style="margin-top:10px">
-      <label class="field">운동 날짜<input type="date" data-action="session-date" value="${esc(s.date)}"></label>
-      <label class="field">화면 켜짐 유지<button class="chip${ui.wakeLock ? ' on' : ''}" data-action="wakelock">${ui.wakeLock ? '켜짐' : '꺼짐'}</button></label>
-    </div>
     ${missing.length ? `<div class="warnbox">빠진 핵심 동작: ${missing.map(slotLabel).join(', ')} <button class="btn sm" data-action="repair" style="margin-left:6px">자동 보완</button></div>` : ''}
-    <div class="row" style="margin-top:10px"><button class="btn sm" data-action="add-ex">+ 운동 추가</button><button class="btn sm" data-action="change-part">부위 바꾸기</button><button class="btn sm ghost danger" data-action="discard">세션 버리기</button></div>
   </section>
-  ${s.exercises.map((e, i) => renderExercise(state, e, i)).join('')}
+  ${s.exercises.map((e, i) => renderExercise(state, e, i, ui, next)).join('')}
   <section class="card">
     <h3>세션 마치기</h3>
     <div class="small">완료한 세트만 저장합니다. 추천과 다르게 한 내용도 다음 처방에 반영됩니다.</div>
@@ -156,9 +188,10 @@ export function renderSession(state, ui, now = new Date()) {
 export function renderRestbar(state, now = Date.now()) {
   const rt = state.session?.restTimer;
   if (!rt) return null;
-  const e = state.session.exercises.find((x) => x.uid === rt.uid);
   const left = Math.ceil((rt.startedAt + rt.seconds * 1000 - now) / 1000);
-  return { over: left < 0, html: `<span class="lbl">${esc(e?.name || '휴식')}</span><span class="t" data-testid="rest-time">${left >= 0 ? fmtClock(left) : '+' + fmtClock(-left)}</span><button class="btn sm" data-action="rest-adj" data-d="-15">−15</button><button class="btn sm" data-action="rest-adj" data-d="30">+30</button><button class="btn sm" data-action="rest-stop">끝</button>` };
+  const n = nextSet(state.session);
+  const nx = n ? `다음 · ${esc(n.e.name)} ${esc(setSummary(n.e, n.z))}` : '마지막 세트까지 끝났어요';
+  return { over: left < 0, html: `<div class="rest-info"><span class="lbl" data-testid="rest-next">${nx}</span><span class="t" data-testid="rest-time">${left >= 0 ? fmtClock(left) : '+' + fmtClock(-left)}</span></div><button class="btn sm" data-action="rest-adj" data-d="-15">−15</button><button class="btn sm" data-action="rest-adj" data-d="30">+30</button><button class="btn sm" data-action="rest-stop">끝</button>` };
 }
 
 // ---------- 기록 ----------
@@ -220,7 +253,8 @@ export function renderSettings(state, ui) {
     <div class="tiny" style="margin-top:4px">저장 번호 ${state.revision} · ${state.savedAt ? new Date(state.savedAt).toLocaleString('ko-KR') : '-'}</div>
   </section>
   <section class="card"><h3>추천 근거</h3><button class="btn" data-action="evidence">근거와 앱 정책 보기</button></section>
-  <section class="card"><div class="tiny">Workout Coach v10 · 데이터는 이 기기에만 저장됩니다.</div></section>`;
+  <section class="card"><h3>앱 정보</h3><div class="small" data-testid="app-version">버전 ${esc(ui.version || '확인 중')}</div><div class="tiny">데이터는 이 기기에만 저장됩니다.</div>
+    <button class="btn sm" data-action="check-update" style="margin-top:8px">업데이트 확인</button></section>`;
 }
 
 export function evidenceHtml() {

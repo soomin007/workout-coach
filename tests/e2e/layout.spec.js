@@ -23,6 +23,7 @@ async function measure(page) {
 }
 
 async function startPart(page, label, minutes) {
+  await page.locator('[data-action="toggle-cond"]').click();
   await page.locator('select[data-k="minutes"]').selectOption(String(minutes));
   await page.getByRole('button', { name: '부위 직접 선택' }).click();
   await page.locator('#sheet').getByRole('button', { name: label, exact: true }).click();

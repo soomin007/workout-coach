@@ -15,10 +15,17 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION && k !== FONT_CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
+// 글꼴(jsdelivr)은 버전과 무관한 별도 캐시에 담아 오프라인에서도 쓴다.
+const FONT_CACHE = 'wc-fonts';
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  const url = new URL(e.request.url);
+  if (e.request.method === 'GET' && url.hostname === 'cdn.jsdelivr.net') {
+    e.respondWith(caches.open(FONT_CACHE).then(async (c) => (await c.match(e.request)) || fetch(e.request).then((res) => { if (res.ok || res.type === 'opaque') c.put(e.request, res.clone()); return res; })));
+    return;
+  }
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith(caches.open(VERSION).then(async (c) => (await c.match(e.request, { ignoreSearch: true })) || fetch(e.request)));
 });

@@ -202,3 +202,32 @@ export function missingCoreSlots(state) {
   const slots = s.exercises.map((e) => e.slot);
   return (CORE_SLOTS[s.part] || []).filter((slot) => !slots.includes(slot));
 }
+
+// 추천 이유를 트레이너 말투 문장으로. 숫자 세부는 recommendPart().detail 에 남긴다.
+export function explainRecommendation(state, rec, now = new Date()) {
+  const out = [];
+  const label = { push: '가슴·어깨·삼두', pull: '등·이두', lower: '하체', core: '코어' };
+  const names = (ms) => ms.map((m) => MUSCLE_NAMES[m] || m).join('·');
+  if (rec.part === 'rest' || rec.part === 'pt') return [rec.why];
+  if (rec.part === 'core') return [rec.why, '허리에 부담이 적은 버티기 동작 위주로 짧게 합니다.'];
+  const d = daysSince(state, rec.part, now);
+  out.push(d >= 99 ? `${label[rec.part]} 운동 기록이 아직 없어요.` : d === 0 ? `${josa(label[rec.part], '은', '는')} 오늘 이미 했지만 다른 부위가 더 지쳐 있어요.` : `${josa(label[rec.part], '을', '를')} ${d}일째 쉬었어요.`);
+  const lack = (PART_MUSCLES[rec.part] || []).filter((m) => muscleSets(state, m, now) < (MUSCLE_BUDGET[m] || 8) * 0.5);
+  if (lack.length) out.push(`이번 주 ${names(lack)} 세트가 목표의 절반도 안 됩니다.`);
+  const enough = Object.keys(MUSCLE_BUDGET).filter((m) => muscleSets(state, m, now) >= MUSCLE_BUDGET[m]);
+  if (enough.length) out.push(`${josa(names(enough), '은', '는')} 이번 주 목표 세트를 채웠어요.`);
+  const c = state.check;
+  if (c.upperDoms >= 2 || c.lowerDoms >= 2) out.push('근육통이 있는 부위는 뒤로 미뤘어요.');
+  if (c.pain && c.pain !== 'none') out.push('통증이 있는 부위에 부담되는 세션은 피했어요.');
+  if (state.history.some((h) => h.source === 'pt' && inWindow(h.date, now, 3))) out.push('최근 PT에서 한 부위는 우선순위를 낮췄어요.');
+  return out;
+}
+
+// 받침 유무로 조사 고르기 (예: 이두는, 가슴은, 하체를)
+export function josa(word, withBatchim, without) {
+  const c = String(word).charCodeAt(String(word).length - 1);
+  if (c < 0xac00 || c > 0xd7a3) return word + without;
+  return word + ((c - 0xac00) % 28 ? withBatchim : without);
+}
+
+const MUSCLE_NAMES = { chest: '가슴', back: '광배', upper_back: '상부등', front_delt: '전면어깨', side_delt: '측면어깨', rear_delt: '후면어깨', triceps: '삼두', biceps: '이두', quads: '대퇴사두', hamstring: '햄스트링', glute: '둔근', calf: '종아리' };

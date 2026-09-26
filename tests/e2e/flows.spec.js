@@ -22,7 +22,7 @@ const sheet = (page) => page.locator('#sheet');
 const card = (page, id) => page.locator(`section.ex[data-exercise="${id}"]`);
 
 async function startPart(page, label, minutes = null) {
-  if (minutes) await page.locator('select[data-k="minutes"]').selectOption(String(minutes));
+  if (minutes) { await page.locator('[data-action="toggle-cond"]').click(); await page.locator('select[data-k="minutes"]').selectOption(String(minutes)); }
   await page.getByRole('button', { name: '부위 직접 선택' }).click();
   await sheet(page).getByRole('button', { name: label, exact: true }).click();
   await expect(page.getByTestId('session-head')).toBeVisible();
@@ -136,10 +136,12 @@ test('세션 중 휴식 연장은 오늘만 적용되고 다음 세션 기본 �
 
 test('진행 중 날짜를 바꾸면 기록과 운동 기록이 그 날짜로 저장되고 새로고침 후에도 유지', async ({ page }) => {
   await startPart(page, 'Pull');
-  await page.locator('input[data-action="session-date"]').fill('2026-09-20');
-  await page.locator('input[data-action="session-date"]').dispatchEvent('change');
+  await page.locator('[data-action="session-menu"]').click();
+  await sheet(page).getByRole('button', { name: /운동 날짜 바꾸기/ }).click();
+  await sheet(page).locator('input[name=date]').fill('2026-09-20');
+  await sheet(page).getByRole('button', { name: '확인' }).click();
   await page.reload();
-  await expect(page.locator('input[data-action="session-date"]')).toHaveValue('2026-09-20');
+  await expect(page.getByTestId('session-head')).toContainText('2026-09-20 기록');
   await card(page, 'curl').locator('[data-action="done"]').first().click();
   await page.getByRole('button', { name: /저장하고 종료/ }).click();
   await sheet(page).getByRole('button', { name: '확인' }).click();
@@ -151,7 +153,8 @@ test('진행 중 날짜를 바꾸면 기록과 운동 기록이 그 날짜로 �
 test('직접 새 운동을 만들면 카드 · 편측 입력 · 예상 시간이 즉시 반영되고 새로고침 후에도 유지', async ({ page }) => {
   await startPart(page, 'Lower', 30);
   const before = (await st(page)).session.estimatedMinutes;
-  await page.getByRole('button', { name: '+ 운동 추가' }).click();
+  await page.locator('[data-action="session-menu"]').click();
+  await sheet(page).getByRole('button', { name: '+ 운동 추가' }).click();
   await sheet(page).getByRole('button', { name: /새로 만들기/ }).click();
   await sheet(page).locator('input[name=name]').fill('힙쓰러스트');
   await sheet(page).locator('select[name=uni]').selectOption('1');
@@ -172,7 +175,8 @@ test('한 줄 입력으로 세트를 몰아서 기록하고 느낌까지 반영'
   await c.getByRole('button', { name: '한 줄 입력' }).click();
   await sheet(page).locator('input[name=t]').fill('8 12 11 한계');
   await sheet(page).getByRole('button', { name: '확인' }).click();
-  await expect(c.locator('.set.done')).toHaveCount(2);
+  await expect(c.getByTestId('ex-summary')).toHaveText('8kg × 12회 · 8kg × 11회 · 한계');
+  await c.locator('[data-action="expand"]').click();
   await expect(c.getByTestId('effort').locator('button.on')).toHaveText('한계');
 });
 
@@ -299,4 +303,67 @@ test('키패드 완료(Enter)로 숫자 입력이 바로 적용되고 시트가 
   await sheet(page).locator('input[name=t]').press('Enter');
   await expect(sheet(page)).toBeHidden();
   await expect(c.locator('.set.done')).toHaveCount(2);
+});
+
+test('뒤로가기: 시트만 닫히고, 기록 탭이면 오늘 탭으로, 오늘 탭에서는 두 번 눌러야 나간다', async ({ page }) => {
+  await page.locator('#tabs').getByRole('button', { name: '설정' }).click();
+  await page.getByRole('button', { name: '근거와 앱 정책 보기' }).click();
+  await expect(sheet(page)).toBeVisible();
+  await page.goBack();
+  await expect(sheet(page)).toBeHidden();
+  await expect(page.locator('#tabs button.on')).toHaveText('설정');
+  await page.goBack();
+  await expect(page.locator('#tabs button.on')).toHaveText('오늘');
+  await page.locator('.cond-summary').click();
+  await page.locator('.cond-summary').click();
+  await page.goBack();
+  await expect(page.locator('#toast')).toContainText('한 번 더 누르면 종료');
+  expect(page.url()).toContain('localhost');
+  await page.goBack();
+  await expect.poll(() => page.url()).not.toContain('localhost:8181/');
+});
+
+test('버튼으로 시트를 닫은 뒤 이어서 연 시트도 뒤로가기로 닫힌다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  await menu(page, 'curl', '운동 변경');
+  await sheet(page).getByRole('button', { name: /해머컬/ }).click();
+  await expect(card(page, 'hammer')).toBeVisible();
+  await card(page, 'hammer').locator('[data-action="ex-menu"]').click();
+  await expect(sheet(page)).toBeVisible();
+  await page.goBack();
+  await expect(sheet(page)).toBeHidden();
+  await expect(page.getByTestId('session-head')).toBeVisible();
+});
+
+test('홈: 컨디션이 추천보다 위, 추천 이유는 문장으로, 부족한 근육만 먼저', async ({ page }) => {
+  const order = await page.evaluate(() => [...document.querySelectorAll('#view .card')].map((c) => c.querySelector('.kicker')?.textContent || c.querySelector('h3')?.textContent));
+  expect(order.slice(0, 2)).toEqual(['오늘 컨디션', '오늘 추천']);
+  await expect(page.locator('.reasons li').first()).not.toContainText('필요도');
+  await expect(page.locator('select[data-k="minutes"]')).toHaveCount(0);
+  await page.locator('[data-action="toggle-cond"]').click();
+  await expect(page.locator('select[data-k="minutes"]')).toBeVisible();
+});
+
+test('다음 세트 강조 · 휴식 바에 다음 할 것 · 느낌까지 입력하면 운동이 접힌다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 8);
+  const first = await page.evaluate(() => document.querySelector('.set.next')?.closest('section').dataset.exercise);
+  expect(first).toBe('pullup');
+  await c.locator('[data-action="done"]').first().click();
+  await expect(c.locator('.set.next')).toHaveCount(0);
+  await expect(page.getByTestId('rest-next')).toContainText('다음 · 풀업');
+  await c.locator('[data-action="done"]').nth(1).click();
+  await c.getByTestId('effort').getByRole('button', { name: '적당' }).click();
+  await expect(c.getByTestId('ex-summary')).toContainText('8kg × ');
+  await expect(c.getByTestId('ex-summary')).toContainText('적당');
+  await c.locator('[data-action="expand"]').click();
+  await expect(c.getByTestId('effort')).toBeVisible();
+});
+
+test('설정: 앱 버전 표시와 업데이트 확인 버튼', async ({ page }) => {
+  await page.locator('#tabs').getByRole('button', { name: '설정' }).click();
+  await expect(page.getByTestId('app-version')).toContainText('버전');
+  await page.getByRole('button', { name: '업데이트 확인' }).click();
+  await expect(page.locator('#toast')).toBeVisible();
 });
