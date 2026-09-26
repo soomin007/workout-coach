@@ -139,6 +139,19 @@ const actions = {
     if (t === null || !t.trim()) return;
     run((s) => applyQuickLine(s, d.uid, t), (r) => `${r.count}세트를 기록했습니다.`);
   },
+  'set-menu': async (d) => {
+    const e = entry(d.uid); const z = e?.sets[+d.i];
+    if (!z) return;
+    const v = await choiceSheet(`${e.name} ${+d.i + 1}번째 줄`, [
+      { value: 'warmup', label: '워밍업으로', hint: '볼륨에 넣지 않습니다', disabled: z.type === 'warmup' },
+      { value: 'main', label: '본세트로', disabled: z.type === 'main' },
+      { value: 'backoff', label: '백오프로', hint: '톱세트 뒤 가벼운 추가 세트', disabled: z.type === 'backoff' },
+      { value: 'rir', label: `이 세트 RIR 직접 입력${z.rir !== null ? ` (지금 ${z.rir})` : ''}`, hint: '선택 사항. 보통은 운동 끝에 느낌 버튼으로 충분합니다' },
+    ]);
+    if (!v) return;
+    if (v === 'rir') { const n = await numberSheet('남은 반복 (RIR)', z.rir, { step: '1' }); if (n !== undefined) run((s) => T.editSet(s, d.uid, +d.i, 'rir', n)); return; }
+    run((s) => T.editSet(s, d.uid, +d.i, 'type', v));
+  },
   'set-count': (d) => run((s) => T.changeSetCount(s, d.uid, +d.d)),
   'ex-menu': (d) => exerciseMenu(d.uid),
   'rest-adj': (d) => { const rt = store.state.session?.restTimer; if (rt) run((s) => T.adjustRest(s, rt.uid, +d.d)); },

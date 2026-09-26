@@ -266,3 +266,17 @@ test('운동별 기본값 설정은 명시적으로 저장한 것만 남고 현�
   await expect(card(page, 'curl').locator('.ex-meta')).toContainText('휴식 120초');
   expect((await st(page)).prefs.curl.rest).toBe(120);
 });
+
+test('세트 번호를 누르면 유형 변경과 세트별 RIR 입력을 할 수 있다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await c.locator('[data-action="set-menu"]').nth(1).click();
+  await sheet(page).getByRole('button', { name: '백오프로' }).click();
+  await c.locator('[data-action="set-menu"]').nth(0).click();
+  await sheet(page).getByRole('button', { name: /RIR 직접 입력/ }).click();
+  await sheet(page).locator('input[name=n]').fill('2');
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  const e = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl');
+  expect([e.sets[0].rir, e.sets[1].type]).toEqual([2, 'backoff']);
+  await expect(c.locator('[data-action="set-menu"]').nth(1)).toHaveText('B');
+});

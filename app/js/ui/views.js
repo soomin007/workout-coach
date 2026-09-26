@@ -92,9 +92,9 @@ function renderSetRow(e, z, i, mainNo) {
   const w = stepper('step', e.uid, i, 'weight', weightLabel(e, z.weight), `weight-${i}`);
   const toggle = e.unilateral && !warm ? `<span></span><button class="split-toggle" data-action="split" data-uid="${e.uid}" data-i="${i}" data-on="${z.split ? 0 : 1}">${z.split ? '좌우 같게' : '좌우 다르게 입력'}</button>` : '';
   if (z.split) {
-    return `<div class="set ${z.type}${z.done ? ' done' : ''}" data-set="${i}"><span class="no">${no}</span>${w}<span></span><button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료">✓</button><span></span>${repsBlock}${toggle}</div>`;
+    return `<div class="set ${z.type}${z.done ? ' done' : ''}" data-set="${i}"><button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>${w}<span></span><button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료">✓</button><span></span>${repsBlock}${toggle}</div>`;
   }
-  return `<div class="set ${z.type}${z.done ? ' done' : ''}" data-set="${i}"><span class="no">${no}</span>${w}${repsBlock}<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료">✓</button>${toggle}</div>`;
+  return `<div class="set ${z.type}${z.done ? ' done' : ''}" data-set="${i}"><button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>${w}${repsBlock}<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료">✓</button>${toggle}</div>`;
 }
 
 function renderExercise(state, e, idx) {
