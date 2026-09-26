@@ -1,0 +1,103 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { importAny } from '../../app/js/core/migrate.js';
+import { freshState } from '../../app/js/core/schema.js';
+import { profileFor, lastPerformance, prescribe, warmupPlan } from '../../app/js/core/coach.js';
+import { buildPlan, recommendPart } from '../../app/js/core/plan.js';
+import { CORE_SLOTS } from '../../app/js/core/catalog.js';
+
+const v7 = () => importAny(JSON.parse(readFileSync(new URL('../fixtures/v7_synthetic.json', import.meta.url), 'utf8'))).state;
+const rx = (state, id) => prescribe(profileFor(state, id), lastPerformance(state, id));
+const perf = (exerciseId, sets, extra = {}) => ({ sessionId: 's', date: '2026-09-20', part: 'push', exerciseId, name: exerciseId, sets: sets.map(([weight, reps, rir = null]) => ({ type: 'main', weight, reps, rir, split: false, done: true })), effort: null, ...extra });
+
+test('처방: 벤치 50kg×8 두 세트가 상한(8) 도달 → 52.5kg, 하한 6회부터', () => {
+  const r = rx(v7(), 'bench');
+  assert.deepEqual([r.kind, r.weight, r.reps], ['increase', 52.5, 6]);
+});
+
+test('처방: 랫풀다운 50×8, 57×5, 65×5 → 범위 안을 채운 50kg 유지, 9회', () => {
+  const r = rx(v7(), 'lat');
+  assert.deepEqual([r.kind, r.weight, r.reps], ['hold', 50, 9]);
+});
+
+test('처방: 풀업 체중 10·10 (범위 6~10) → 상한 도달 안내', () => {
+  const r = rx(v7(), 'pullup');
+  assert.deepEqual([r.kind, r.weight, r.reps], ['bw_top', null, 10]);
+});
+
+test('처방: 하한 미만만 있으면 약 10% 감량, 증량 단위로 내림', () => {
+  const s = freshState();
+  s.performance.push(perf('bench', [[60, 4], [60, 3]]));
+  const r = rx(s, 'bench');
+  assert.deepEqual([r.kind, r.weight, r.reps], ['decrease', 52.5, 6]);
+});
+
+test('처방: 느낌이 한계면 상한을 채워도 증량하지 않는다', () => {
+  const s = freshState();
+  s.performance.push(perf('bench', [[50, 8], [50, 8]], { effort: 'hard' }));
+  assert.equal(rx(s, 'bench').kind, 'hold');
+});
+
+test('처방: assist 는 상한 도달 시 보조중량을 줄인다', () => {
+  const s = freshState();
+  s.prefs.pullup = { loadMode: 'assist', increment: 5 };
+  s.performance.push(perf('pullup', [[30, 10], [30, 10]]));
+  const r = rx(s, 'pullup');
+  assert.deepEqual([r.kind, r.weight], ['increase', 25]);
+});
+
+test('처방: 기록 없음 → 중량 비움, 보정 안내', () => {
+  const r = rx(freshState(), 'bench');
+  assert.equal(r.kind, 'first');
+  assert.equal(r.weight, null);
+});
+
+test('워밍업: 첫 복합 60kg → 30 · 42.5 · 50, 체중·고립 운동은 없음', () => {
+  const s = freshState();
+  assert.deepEqual(warmupPlan(profileFor(s, 'bench'), 60, 'full').map((x) => x.weight), [30, 42.5, 50]);
+  assert.deepEqual(warmupPlan(profileFor(s, 'pullup'), 60, 'full'), []);
+  assert.deepEqual(warmupPlan(profileFor(s, 'lateral'), 10, 'short'), []);
+});
+
+for (const part of ['push', 'pull', 'lower']) {
+  for (const minutes of [30, 45, 60, 75]) {
+    test(`계획: ${part} ${minutes}분은 핵심 슬롯을 모두 채우고 중복이 없다`, () => {
+      const s = freshState();
+      s.check.minutes = minutes;
+      const p = buildPlan(s, part, minutes);
+      for (const slot of CORE_SLOTS[part]) assert.ok(p.planned.some((x) => x.slot === slot), slot);
+      assert.equal(new Set(p.planned.map((x) => x.id)).size, p.planned.length);
+      assert.equal(p.planned.filter((x) => x.warmupLevel === 'full').length, 1, '첫 복합운동만 full 워밍업');
+    });
+  }
+}
+
+test('계획: Core 는 항신전 · 항회전 · 항측굴 3종 이상', () => {
+  const p = buildPlan(freshState(), 'core', 30);
+  assert.ok(p.planned.length >= 3);
+  for (const slot of CORE_SLOTS.core) assert.ok(p.planned.some((x) => x.slot === slot), slot);
+});
+
+test('계획: 장비 끔 · 영구 사용 불가 운동은 제외', () => {
+  const s = freshState();
+  s.settings.equipment.bench_rack = false;
+  s.settings.unavailableExercises = ['row'];
+  assert.ok(!buildPlan(s, 'push', 60).planned.some((x) => x.id === 'bench'));
+  assert.ok(!buildPlan(s, 'pull', 60).planned.some((x) => x.id === 'row'));
+});
+
+test('추천: 매우 피곤 → 휴식, PT 요일 → PT, 일요일 휴무 → Core, 무릎 통증 → Lower 제외', () => {
+  const s = freshState();
+  const thu = new Date(2026, 8, 24, 10), sun = new Date(2026, 8, 27, 10), mon = new Date(2026, 8, 28, 10);
+  s.check.energy = 'very_tired';
+  assert.equal(recommendPart(s, mon).part, 'rest');
+  s.check.energy = 'normal';
+  assert.equal(recommendPart(s, thu).part, 'pt');
+  assert.equal(recommendPart(s, sun).part, 'core');
+  s.check.pain = 'knee';
+  assert.notEqual(recommendPart(s, mon).part, 'lower');
+  s.check.pain = 'none';
+  s.history.push({ id: 'pt', date: '2026-09-24', part: 'push', source: 'pt', workSets: 0 });
+  assert.equal(recommendPart(s, thu).part, 'rest', 'PT 기록 후에는 추가 세션 대신 휴식');
+});
