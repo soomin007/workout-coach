@@ -100,7 +100,13 @@ export function decide(cfg, state, remote) {
   if (!remote) return 'push';
   if (remote.sha === cfg.sha) return localDirty ? 'push' : 'none';
   if (!localDirty) return 'pull';
+  // 원격에 기록이 하나도 없으면(빈 기기에서 먼저 연결한 경우) 물을 것 없이 올린다. 잘못 고르면 폰 기록이 빈 파일로 덮인다.
+  if (!hasRecords(remoteState(remote))) return 'push';
   return 'conflict';
+}
+
+function remoteState(remote) {
+  try { return JSON.parse(remote.text) || {}; } catch { return { history: [1] }; } // 읽을 수 없는 파일은 기록이 있다고 보고 묻는다
 }
 
 // 한 번 동기화한다. resolve(kind) 는 충돌 시 'push' | 'pull' | null(보류) 를 돌려주는 콜백.

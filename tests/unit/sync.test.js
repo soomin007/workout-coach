@@ -147,6 +147,20 @@ test('충돌에서 원격을 고르면 원격으로 바뀐다', async () => {
   assert.equal(store.state.history[0].workSets, 20);
 });
 
+test('빈 기기가 먼저 올린 빈 파일은 묻지 않고 폰 기록으로 덮는다', async () => {
+  const gh = fakeGitHub();
+  await syncOnce({ cfg: cfg0, store: phone(), fetchImpl: gh.fetch });
+  assert.equal(JSON.parse(gh.file.text).history.length, 0);
+  const store = phone();
+  logPush(store);
+  const asked = [];
+  const r = await syncOnce({ cfg: cfg0, store, fetchImpl: gh.fetch, resolve: async (k) => { asked.push(k); return 'pull'; } });
+  assert.deepEqual(asked, []);
+  assert.equal(r.action, 'push');
+  assert.equal(JSON.parse(gh.file.text).history.length, 1);
+  assert.equal(store.state.history.length, 1);
+});
+
 test('decide: 원격이 없으면 항상 올린다', () => {
   assert.equal(decide(cfg0, { revision: 0, history: [], performance: [], session: null }, null), 'push');
 });
