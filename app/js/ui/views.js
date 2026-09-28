@@ -253,9 +253,22 @@ export function renderSettings(state, ui) {
     <div class="small" data-testid="storage-status">기기 저장: ${storage.local === 'error' ? '<b style="color:var(--bad)">오류</b>' : '정상'} · 백업 저장소: ${storage.idb === 'error' ? '<b style="color:var(--bad)">오류</b>' : storage.idb === 'ok' ? '정상' : '확인 중'} · 영구 저장: ${storage.persisted === true ? '허용됨' : storage.persisted === false ? '미허용 (홈 화면에 설치하면 허용되기 쉽습니다)' : '확인 중'}</div>
     <div class="tiny" style="margin-top:4px">저장 번호 ${state.revision} · ${state.savedAt ? new Date(state.savedAt).toLocaleString('ko-KR') : '-'}</div>
   </section>
+  ${syncCard(ui.sync)}
   <section class="card"><h3>추천 근거</h3><button class="btn" data-action="evidence">근거와 앱 정책 보기</button></section>
-  <section class="card"><h3>앱 정보</h3><div class="small" data-testid="app-version">버전 ${esc(ui.version || '확인 중')}</div><div class="tiny">데이터는 이 기기에만 저장됩니다.</div>
+  <section class="card"><h3>앱 정보</h3><div class="small" data-testid="app-version">버전 ${esc(ui.version || '확인 중')}</div><div class="tiny">${ui.sync ? '데이터는 이 기기와 GitHub 저장소에 저장됩니다.' : '데이터는 이 기기에만 저장됩니다.'}</div>
     <button class="btn sm" data-action="check-update" style="margin-top:8px">업데이트 확인</button></section>`;
+}
+
+function syncCard(sy) {
+  if (!sy) {
+    return `<section class="card"><h3>기록 동기화</h3><div class="small">GitHub 비공개 저장소에 기록을 자동으로 올려 둡니다. 폰을 바꿔도 그대로 받고, PC에서 기록을 확인하거나 고칠 수 있습니다.</div>
+    <button class="btn sm primary" data-action="sync-connect" style="margin-top:8px">GitHub 연결</button></section>`;
+  }
+  const at = sy.at ? new Date(sy.at).toLocaleString('ko-KR') : '아직 없음';
+  return `<section class="card"><h3>기록 동기화</h3>
+    <div class="small" data-testid="sync-status">${esc(sy.repo)} · ${sy.busy ? '동기화 중...' : `마지막 동기화 ${esc(at)}`}</div>
+    ${sy.error ? `<div class="warnbox">${esc(sy.error)}</div>` : ''}
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-action="sync-now">지금 동기화</button><button class="btn sm" data-action="sync-connect">다시 연결</button><button class="btn sm" data-action="sync-disconnect">연결 끊기</button></div></section>`;
 }
 
 export function evidenceHtml() {

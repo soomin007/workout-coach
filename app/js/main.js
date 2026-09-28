@@ -3,6 +3,7 @@ import { createStore } from './core/store.js';
 import * as T from './core/session.js';
 import { applyQuickLine } from './core/quick.js';
 import { toCSV, toTXT } from './core/export.js';
+import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo } from './core/sync.js';
 import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
 import { profileFor } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
@@ -40,7 +41,7 @@ let wakeLockHandle = null;
 
 const store = createStore({
   local, idb,
-  onChange: (_s, info = {}) => { ui.storage = { ...ui.storage, ...store.status }; if ('persisted' in info) renderStatus(); else render(); },
+  onChange: (_s, info = {}) => { ui.storage = { ...ui.storage, ...store.status }; if ('persisted' in info) renderStatus(); else { render(); if (!info.loaded) scheduleSync(); } },
 });
 window.__store = store; // E2E 테스트용 조회 핸들
 
@@ -48,6 +49,7 @@ window.__store = store; // E2E 테스트용 조회 핸들
 function render() {
   const view = document.getElementById('view');
   const now = new Date();
+  ui.sync = syncView();
   if (ui.tab === 'today') view.innerHTML = renderToday(store.state, ui, now);
   else if (ui.tab === 'records') view.innerHTML = renderRecords(store.state, ui, now);
   else view.innerHTML = renderSettings(store.state, ui);
@@ -62,8 +64,11 @@ function renderStatus() {
   const el = document.getElementById('status');
   const st = store.status;
   const bad = st.local === 'error' || st.idb === 'error';
-  const days = store.state.lastBackup ? Math.floor((Date.now() - new Date(store.state.lastBackup).getTime()) / 86400000) : null;
-  el.innerHTML = `${bad ? '<span class="badge bad">저장 오류</span>' : ''}${days === null || days >= 7 ? `<span class="badge warn">${days === null ? '백업 없음' : `백업 ${days}일 전`}</span>` : ''}${store.state.session ? '<span class="badge good">운동 중</span>' : ''}${ui.updateReady ? '<button class="badge warn" data-action="apply-update">업데이트</button>' : ''}`;
+  // 파일 백업과 GitHub 동기화 중 최근 것을 백업 시점으로 본다.
+  const syncAt = syncCfg()?.at;
+  const safeAt = Math.max(store.state.lastBackup ? new Date(store.state.lastBackup).getTime() : 0, syncAt ? new Date(syncAt).getTime() : 0);
+  const days = safeAt ? Math.floor((Date.now() - safeAt) / 86400000) : null;
+  el.innerHTML = `${bad ? '<span class="badge bad">저장 오류</span>' : ''}${sync.error ? '<span class="badge bad">동기화 실패</span>' : ''}${days === null || days >= 7 ? `<span class="badge warn">${days === null ? '백업 없음' : `백업 ${days}일 전`}</span>` : ''}${store.state.session ? '<span class="badge good">운동 중</span>' : ''}${ui.updateReady ? '<button class="badge warn" data-action="apply-update">업데이트</button>' : ''}`;
 }
 
 let restNotified = null;
@@ -181,6 +186,9 @@ const actions = {
   'rest-stop': () => run((s) => T.stopRest(s)),
   finish: () => finishSession(),
   'export-json': () => exportJSON(),
+  'sync-connect': () => connectSync(),
+  'sync-now': () => runSync({ manual: true }),
+  'sync-disconnect': async () => { if (await confirmSheet('GitHub 동기화 연결을 끊을까요? 이 폰과 저장소의 기록은 그대로 남습니다.', { ok: '연결 끊기' })) { saveSyncConfig(local, null); sync.error = null; render(); toast('연결을 끊었습니다.'); } },
   'export-csv': () => download(`workout_coach_${localISODate()}.csv`, toCSV(store.state), 'text/csv;charset=utf-8'),
   'export-txt': () => download(`workout_coach_${localISODate()}.txt`, toTXT(store.state), 'text/plain;charset=utf-8'),
   print: () => window.print(),
@@ -269,6 +277,77 @@ async function checkUpdate() {
 async function readVersion() {
   try { const ks = await caches.keys(); ui.version = ks.find((k) => k.startsWith('wc-') && k !== 'wc-fonts') || null; } catch { ui.version = null; }
 }
+
+// ---------- GitHub 동기화 ----------
+// 기록이 바뀌면 20초 뒤(입력이 몰리면 마지막 한 번만), 앱을 열거나 돌아올 때, 앱을 벗어날 때 동기화한다.
+const sync = { busy: false, again: false, timer: null, error: null };
+function syncCfg() { return loadSyncConfig(local); }
+function syncView() { const c = syncCfg(); return c ? { repo: c.repo, at: c.at, error: sync.error, busy: sync.busy } : null; }
+function scheduleSync(ms = 20000) {
+  if (!syncCfg()) return;
+  clearTimeout(sync.timer);
+  sync.timer = setTimeout(() => runSync(), ms);
+}
+const SYNC_DONE = { push: '기록을 올렸습니다.', pull: 'PC에서 고친 기록을 받았습니다.', none: '이미 최신입니다.', same: '이미 최신입니다.', hold: '동기화를 보류했습니다.' };
+async function runSync({ manual = false } = {}) {
+  const cfg = syncCfg();
+  if (!cfg) return;
+  if (sync.busy) { sync.again = true; return; }
+  clearTimeout(sync.timer);
+  sync.busy = true;
+  if (manual && ui.tab === 'settings') render();
+  try {
+    const r = await syncOnce({ cfg, store, resolve: askSyncConflict });
+    if (syncCfg()) saveSyncConfig(local, r.cfg);
+    sync.error = null;
+    if (manual || r.action === 'pull') toast(SYNC_DONE[r.action]);
+  } catch (e) {
+    // 오프라인은 오류로 표시하지 않고 다음 기회에 다시 한다. 올리는 사이 원격이 바뀌었으면 바로 다시 시도.
+    if (e.code !== 'offline' && e.code !== 'conflict') sync.error = e.message || '동기화하지 못했습니다.';
+    if (e.code === 'conflict') sync.again = true;
+    if (manual) toast(e.message || '동기화하지 못했습니다.', 4000);
+  } finally {
+    sync.busy = false;
+    if (ui.tab === 'settings' && !sheetOpen()) render(); else renderStatus();
+    if (sync.again) { sync.again = false; scheduleSync(1000); }
+  }
+}
+
+// 사용자 확인은 상태를 바꾸기 전에 받는다 (known-issues 5). 다른 시트가 열려 있으면 이번엔 보류.
+async function askSyncConflict() {
+  if (sheetOpen()) return null;
+  const v = await sheet(`<h3>기록이 양쪽에서 바뀌었어요</h3><p class="small">PC(GitHub 저장소)에서 고친 기록과, 이 폰에서 마지막 동기화 뒤 새로 쓴 기록이 둘 다 있습니다.</p><p class="small">PC 기록을 받으면 이 폰에서 새로 쓴 내용은 사라집니다. 이 폰 기록을 남겨도 PC에서 고친 내용은 저장소 이력에 남아 있습니다.</p>
+    <div class="list"><button data-sheet-value="push">이 폰 기록 남기기</button><button data-sheet-value="pull">PC에서 고친 기록 받기</button><button data-sheet-value="hold">나중에</button></div>`);
+  return v === 'push' || v === 'pull' ? v : null;
+}
+
+async function connectSync() {
+  const cur = syncCfg();
+  const r = await sheet(`<h3>GitHub 동기화 연결</h3>
+    <p class="small">기록을 GitHub 비공개 저장소의 data.json 파일 하나에 저장합니다. 토큰은 이 폰에만 보관하고 백업 파일에는 넣지 않습니다.</p>
+    <label class="field">저장소 (사용자명/저장소)<input type="text" name="repo" autocapitalize="off" autocomplete="off" spellcheck="false" value="${esc(cur?.repo || 'soomin007/workout-log')}"></label>
+    <label class="field" style="margin-top:8px">토큰${cur ? ' (비워 두면 기존 토큰 사용)' : ''}<input type="password" name="token" autocomplete="off" placeholder="github_pat_로 시작" value=""></label>
+    <div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">연결</button></div>`,
+  { collect: (b) => ({ repo: b.querySelector('[name=repo]').value.trim(), token: b.querySelector('[name=token]').value.trim() }) });
+  if (!r) return;
+  const token = r.data.token || cur?.token;
+  if (!validRepo(r.data.repo)) { toast('저장소는 "사용자명/저장소" 형식으로 적어 주세요.'); return; }
+  if (!token) { toast('토큰을 붙여 넣어 주세요.'); return; }
+  const cfg = { repo: r.data.repo, token, path: 'data.json', sha: null, revision: null, at: null };
+  toast('연결 확인 중...');
+  try { await fetchRemote(cfg); }
+  catch (e) { toast(e.message || '연결하지 못했습니다.', 5000); return; }
+  saveSyncConfig(local, cfg);
+  sync.error = null;
+  await runSync({ manual: true });
+}
+
+document.addEventListener('visibilitychange', () => {
+  const c = syncCfg();
+  if (!c) return;
+  if (document.visibilityState === 'visible') runSync();
+  else if (store.state.revision !== c.revision) runSync();
+});
 
 // ---------- 흐름 ----------
 async function startSession(part, source, overrideReason = '', home = false) {
@@ -564,6 +643,7 @@ window.addEventListener('popstate', () => {
   render();
   if (notes.length) toast(notes[0], 4000);
   askStaleSession();
+  runSync();
   registerServiceWorker();
   readVersion().then(() => { if (ui.tab === 'settings') render(); });
 })();
