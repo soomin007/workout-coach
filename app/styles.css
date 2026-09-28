@@ -167,3 +167,6 @@ details.cue summary { cursor: pointer; color: var(--faint); }
   .tabs, .restbar, .topbar, .btn, .sheet-backdrop { display: none !important; }
   body { background: #fff; color: #000; }
 }
+/* QR 은 어두운 테마에서도 흰 바탕이어야 카메라가 읽는다 (SVG 에 흰 배경 포함) */
+.qr { max-width: 260px; margin: 12px auto; border-radius: 10px; overflow: hidden; }
+.qr svg { display: block; width: 100%; height: auto; }

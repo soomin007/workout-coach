@@ -85,7 +85,8 @@ export function sheet(html, { collect = null } = {}) {
       ok.click();
     };
     const first = box.querySelector('input,textarea');
-    if (first) setTimeout(() => first.focus(), 60);
+    // 그 사이 사용자가 다른 칸을 눌렀으면 포커스를 빼앗지 않는다 (빼앗으면 입력이 엉뚱한 칸으로 간다)
+    if (first) setTimeout(() => { if (!box.contains(document.activeElement)) first.focus(); }, 60);
   });
 }
 

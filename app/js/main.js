@@ -3,7 +3,7 @@ import { createStore } from './core/store.js';
 import * as T from './core/session.js';
 import { applyQuickLine } from './core/quick.js';
 import { toCSV, toTXT } from './core/export.js';
-import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo } from './core/sync.js';
+import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo, transferLink, parseTransfer } from './core/sync.js';
 import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
 import { profileFor } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
@@ -188,6 +188,7 @@ const actions = {
   'export-json': () => exportJSON(),
   'sync-connect': () => connectSync(),
   'sync-now': () => runSync({ manual: true }),
+  'sync-transfer': () => showTransferQR(),
   'sync-disconnect': async () => { if (await confirmSheet('GitHub 동기화 연결을 끊을까요? 이 폰과 저장소의 기록은 그대로 남습니다.', { ok: '연결 끊기' })) { saveSyncConfig(local, null); sync.error = null; render(); toast('연결을 끊었습니다.'); } },
   'export-csv': () => download(`workout_coach_${localISODate()}.csv`, toCSV(store.state), 'text/csv;charset=utf-8'),
   'export-txt': () => download(`workout_coach_${localISODate()}.txt`, toTXT(store.state), 'text/plain;charset=utf-8'),
@@ -338,6 +339,42 @@ async function connectSync() {
   try { await fetchRemote(cfg); }
   catch (e) { toast(e.message || '연결하지 못했습니다.', 5000); return; }
   saveSyncConfig(local, cfg);
+  sync.error = null;
+  await runSync({ manual: true });
+}
+
+// PC 에서 연결한 뒤 폰 카메라로 찍어 같은 연결을 옮긴다. 토큰을 다시 입력하지 않게.
+async function showTransferQR() {
+  const cfg = syncCfg();
+  if (!cfg) return;
+  const { qrcode } = await import('./vendor/qrcode.js');
+  const q = qrcode(0, 'M');
+  q.addData(transferLink(location.origin + location.pathname, cfg));
+  q.make();
+  await sheet(`<h3>다른 기기 연결</h3><p class="small">폰 카메라로 찍으면 앱이 열리면서 같은 저장소로 연결됩니다.</p>
+    <div class="qr" data-testid="sync-qr">${q.createSvgTag({ cellSize: 4, margin: 16, scalable: true })}</div>
+    <p class="tiny">이 QR에는 토큰이 들어 있습니다. 다른 사람에게 보여 주지 마세요.</p>
+    <div class="actions"><button class="btn primary" data-sheet-value="ok">닫기</button></div>`);
+}
+
+// 주소에 연결 정보가 있으면 먼저 주소창에서 지우고(기록·공유에 남지 않게) 연결할지 묻는다.
+function takeTransferFromUrl() {
+  if (!location.hash.startsWith('#sync=')) return null;
+  const t = parseTransfer(location.hash);
+  history.replaceState(history.state, '', location.pathname + location.search);
+  if (!t) toast('연결 링크를 읽지 못했습니다. QR을 다시 찍어 주세요.', 4000);
+  return t;
+}
+
+// 앱이 이미 열린 채로 링크가 오면 새로 불러오지 않고 # 만 바뀐다.
+window.addEventListener('hashchange', () => { const t = takeTransferFromUrl(); if (t) acceptTransfer(t); });
+
+async function acceptTransfer(t) {
+  const n = store.state.history.length;
+  const ok = await confirmSheet(`이 기기를 GitHub 저장소 ${t.repo} 에 연결할까요? 이 기기의 기록 ${n}개는 저장소 상태를 보고 올리거나, 양쪽이 다르면 먼저 묻습니다.`, { ok: '연결' });
+  if (!ok) return;
+  const cur = syncCfg();
+  if (!(cur && cur.repo === t.repo && cur.token === t.token)) saveSyncConfig(local, { repo: t.repo, token: t.token, path: 'data.json', sha: null, revision: null, at: null });
   sync.error = null;
   await runSync({ manual: true });
 }
@@ -642,8 +679,10 @@ window.addEventListener('popstate', () => {
   }
   render();
   if (notes.length) toast(notes[0], 4000);
+  const incoming = takeTransferFromUrl();
+  if (incoming) acceptTransfer(incoming); // 연결 확인 시트가 먼저 뜨고, 끝난 세션 확인은 다음 복귀 때
   askStaleSession();
-  runSync();
+  if (!incoming) runSync();
   registerServiceWorker();
   readVersion().then(() => { if (ui.tab === 'settings') render(); });
 })();

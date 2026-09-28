@@ -268,7 +268,7 @@ function syncCard(sy) {
   return `<section class="card"><h3>기록 동기화</h3>
     <div class="small" data-testid="sync-status">${esc(sy.repo)} · ${sy.busy ? '동기화 중...' : `마지막 동기화 ${esc(at)}`}</div>
     ${sy.error ? `<div class="warnbox">${esc(sy.error)}</div>` : ''}
-    <div class="row" style="margin-top:8px"><button class="btn sm" data-action="sync-now">지금 동기화</button><button class="btn sm" data-action="sync-connect">다시 연결</button><button class="btn sm" data-action="sync-disconnect">연결 끊기</button></div></section>`;
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-action="sync-now">지금 동기화</button><button class="btn sm" data-action="sync-transfer">다른 기기 연결 (QR)</button><button class="btn sm" data-action="sync-connect">다시 연결</button><button class="btn sm" data-action="sync-disconnect">연결 끊기</button></div></section>`;
 }
 
 export function evidenceHtml() {

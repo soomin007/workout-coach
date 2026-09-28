@@ -41,6 +41,23 @@ export function b64decode(b64) {
   return new TextDecoder().decode(bytes);
 }
 
+// 다른 기기로 연결 옮기기: 저장소와 토큰을 주소의 # 뒤에 담는다. # 뒤는 서버로 전송되지 않는다.
+export function transferLink(baseUrl, cfg) {
+  const payload = b64encode(JSON.stringify({ r: cfg.repo, t: cfg.token })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${String(baseUrl).split('#')[0]}#sync=${payload}`;
+}
+
+export function parseTransfer(hash) {
+  const m = /^#sync=([\w-]+)$/.exec(String(hash || ''));
+  if (!m) return null;
+  try {
+    const b = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    const x = JSON.parse(b64decode(b + '='.repeat((4 - (b.length % 4)) % 4)));
+    if (validRepo(x.r) && typeof x.t === 'string' && x.t) return { repo: x.r, token: x.t };
+  } catch { /* 깨진 링크 */ }
+  return null;
+}
+
 function headers(cfg, accept = 'application/vnd.github+json') {
   return { Authorization: `Bearer ${cfg.token}`, Accept: accept, 'X-GitHub-Api-Version': '2022-11-28' };
 }

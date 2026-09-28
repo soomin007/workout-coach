@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStore, memoryLocal } from '../../app/js/core/store.js';
 import * as T from '../../app/js/core/session.js';
-import { syncOnce, decide, b64encode, b64decode, loadSyncConfig, saveSyncConfig, SyncError } from '../../app/js/core/sync.js';
+import { syncOnce, decide, b64encode, b64decode, loadSyncConfig, saveSyncConfig, SyncError, transferLink, parseTransfer } from '../../app/js/core/sync.js';
 
 const now = new Date(2026, 8, 28, 18);
 
@@ -171,4 +171,13 @@ test('오류: 잘못된 토큰 · 없는 저장소 · 오프라인', async () =>
   await assert.rejects(syncOnce({ cfg: { ...cfg0, token: 'bad' }, store, fetchImpl: gh.fetch }), (e) => e instanceof SyncError && e.code === 'auth');
   await assert.rejects(syncOnce({ cfg: { ...cfg0, repo: 'me/nope' }, store, fetchImpl: gh.fetch }), (e) => e.code === 'no_repo');
   await assert.rejects(syncOnce({ cfg: cfg0, store, fetchImpl: async () => { throw new TypeError('Failed to fetch'); } }), (e) => e.code === 'offline');
+});
+
+test('연결 옮기기 링크: 저장소와 토큰이 # 뒤로만 왕복하고, 깨진 링크는 거부', () => {
+  const link = transferLink('https://soomin007.github.io/workout-coach/#old', { repo: 'soomin007/workout-log', token: 'github_pat_11AB_cd+/=' });
+  assert.ok(link.startsWith('https://soomin007.github.io/workout-coach/#sync='));
+  assert.ok(!link.includes('github_pat'));
+  assert.deepEqual(parseTransfer(new URL(link).hash), { repo: 'soomin007/workout-log', token: 'github_pat_11AB_cd+/=' });
+  assert.equal(parseTransfer('#sync=abc'), null);
+  assert.equal(parseTransfer('#other'), null);
 });

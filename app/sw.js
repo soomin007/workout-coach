@@ -6,7 +6,7 @@ const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png',
   'js/main.js', 'js/ui/dom.js', 'js/ui/views.js',
   'js/core/catalog.js', 'js/core/coach.js', 'js/core/evidence.js', 'js/core/export.js', 'js/core/migrate.js',
-  'js/core/plan.js', 'js/core/quick.js', 'js/core/schema.js', 'js/core/session.js', 'js/core/store.js', 'js/core/sync.js', 'js/core/util.js',
+  'js/core/plan.js', 'js/core/quick.js', 'js/core/schema.js', 'js/core/session.js', 'js/core/store.js', 'js/core/sync.js', 'js/core/util.js', 'js/vendor/qrcode.js',
 ];
 
 self.addEventListener('install', (e) => {
