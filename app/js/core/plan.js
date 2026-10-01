@@ -59,16 +59,45 @@ function recentPT(state, part, now) {
   return state.history.some((h) => h.source === 'pt' && h.part === part && inWindow(h.date, now, 3));
 }
 
-export function recommendPart(state, now = new Date()) {
-  const c = state.check;
+// 오늘 컨디션. 컨디션 값은 그날 확인한 것만 믿는다: 어제 고른 근육통·피로가 오늘 추천을 움직이지 않게,
+// 오늘 확인하지 않은 항목은 기본값(보통 · 근육통 없음 · 통증 없음)으로 본다.
+// 시간·강도는 계획에 쓸 값으로 남기되, confirmed 에 없으면 시작할 때 다시 고르게 한다.
+export const CHECK_DEFAULTS = { energy: 'normal', upperDoms: 0, lowerDoms: 0, pain: 'none' };
+export const CHECK_KEYS = ['energy', 'upperDoms', 'lowerDoms', 'pain', 'minutes', 'intensity'];
+
+export function checkConfirmed(state, now = new Date()) {
+  const c = state.check || {};
+  return c.day === localISODate(now) && Array.isArray(c.confirmed) ? c.confirmed : [];
+}
+
+export function effectiveCheck(state, now = new Date()) {
+  const c = state.check || {};
+  const ok = checkConfirmed(state, now);
+  const out = { ...c };
+  for (const [k, v] of Object.entries(CHECK_DEFAULTS)) if (!ok.includes(k)) out[k] = v;
+  return out;
+}
+
+// 오늘 날짜로 저장된 기록 (직접 한 세션 + PT).
+export function todaysHistory(state, now = new Date()) {
+  const today = localISODate(now);
+  return state.history.filter((h) => h.date === today);
+}
+
+// extra: 오늘 이미 운동을 마친 뒤 추가로 할 때. 오늘 한 부위는 빼고, PT 요일 규칙은 건너뛴다.
+export function recommendPart(state, now = new Date(), { extra = false } = {}) {
+  const c = effectiveCheck(state, now);
   const detail = [];
   const today = localISODate(now);
-  const ptToday = state.history.some((h) => h.source === 'pt' && h.date === today);
+  const doneToday = todaysHistory(state, now);
+  const ptToday = doneToday.some((h) => h.source === 'pt');
+  if (doneToday.length && !extra) return { part: 'done', confidence: '높음', why: '오늘 운동을 이미 마쳤습니다. 추가 운동은 선택입니다.', detail: ['오늘 기록 있음'] };
   if (c.energy === 'very_tired') return { part: 'rest', confidence: '높음', why: '전신 피로가 매우 높아 회복을 우선합니다.', detail: ['매우 피곤 → 휴식'] };
   const dow = now.getDay();
-  if (state.settings.ptDay === dow && !ptToday) return { part: 'pt', confidence: '높음', why: '오늘은 정기 PT 날입니다. PT를 마친 뒤 기록하면 다음 추천에 반영합니다.', detail: ['PT 예정일'] };
-  if (ptToday) return { part: 'rest', confidence: '높음', why: '오늘 PT 기록이 있어 추가 웨이트보다 회복을 우선합니다.', detail: ['오늘 PT 기록 있음'] };
+  // 헬스장을 못 가는 날은 PT 도 없으므로 휴무 규칙이 PT 요일보다 먼저다.
   if (c.gymClosedDate === today) return { part: 'core', home: true, confidence: '높음', why: '오늘은 헬스장에 못 가서 집에서 할 수 있는 Core를 추천합니다.', detail: ['헬스장 휴무 → 홈 운동'] };
+  if (!extra && state.settings.ptDay === dow && !ptToday) return { part: 'pt', confidence: '높음', why: '오늘은 정기 PT 날입니다. PT를 마친 뒤 기록하면 다음 추천에 반영합니다.', detail: ['PT 예정일'] };
+  if (ptToday && !extra) return { part: 'rest', confidence: '높음', why: '오늘 PT 기록이 있어 추가 웨이트보다 회복을 우선합니다.', detail: ['오늘 PT 기록 있음'] };
   if (dow === 0 && state.settings.gymClosedSunday) return { part: 'core', home: true, confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무 → 홈 Core'] };
   const score = {};
   for (const p of ['push', 'pull', 'lower']) {
@@ -87,6 +116,12 @@ export function recommendPart(state, now = new Date()) {
   if (c.pain === 'back') { score.lower -= 4; score.pull -= 2; detail.push('허리 통증: Lower/Pull 우선순위 감소'); }
   if (c.pain === 'knee') { score.lower = -999; detail.push('무릎 통증: Lower 제외'); }
   if (c.energy === 'tired') { score.lower -= 1.5; detail.push('피곤: 하체 우선순위 감소'); }
+  if (extra) {
+    const doneParts = new Set(doneToday.map((h) => h.part));
+    for (const p of doneParts) if (p in score) { score[p] = -999; detail.push(`${p.toUpperCase()}: 오늘 이미 함`); }
+    // 다른 큰 부위가 모두 막혀 있으면 짧은 Core 를 권한다.
+    if (Object.values(score).every((v) => v <= -900)) return { part: 'core', confidence: '보통', why: '오늘 다른 부위를 이미 했거나 쉬어야 해서, 추가로 한다면 짧은 Core 를 권합니다.', detail };
+  }
   const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
   if (ranked[0][1] <= -900) return { part: 'rest', confidence: '높음', why: '지금 근육통/통증 조건에서는 웨이트 세션을 추천하지 않습니다.', detail };
   const part = ranked[0][0], gap = ranked[0][1] - ranked[1][1], n = state.history.filter((h) => h.part === part).length;
@@ -211,7 +246,7 @@ export function explainRecommendation(state, rec, now = new Date()) {
   const out = [];
   const label = { push: '가슴·어깨·삼두', pull: '등·이두', lower: '하체', core: '코어' };
   const names = (ms) => ms.map((m) => MUSCLE_NAMES[m] || m).join('·');
-  if (rec.part === 'rest' || rec.part === 'pt') return [rec.why];
+  if (rec.part === 'rest' || rec.part === 'pt' || rec.part === 'done') return [rec.why];
   if (rec.part === 'core') return [rec.why, '허리에 부담이 적은 버티기 동작 위주로 짧게 합니다.'];
   const d = daysSince(state, rec.part, now);
   out.push(d >= 99 ? `${label[rec.part]} 운동 기록이 아직 없어요.` : d === 0 ? `${josa(label[rec.part], '은', '는')} 오늘 이미 했지만 다른 부위가 더 지쳐 있어요.` : `${josa(label[rec.part], '을', '를')} ${d}일째 쉬었어요.`);
@@ -219,7 +254,7 @@ export function explainRecommendation(state, rec, now = new Date()) {
   if (lack.length) out.push(`이번 주 ${names(lack)} 세트가 목표의 절반도 안 됩니다.`);
   const enough = Object.keys(MUSCLE_BUDGET).filter((m) => muscleSets(state, m, now) >= MUSCLE_BUDGET[m]);
   if (enough.length) out.push(`${josa(names(enough), '은', '는')} 이번 주 목표 세트를 채웠어요.`);
-  const c = state.check;
+  const c = effectiveCheck(state, now);
   if (c.upperDoms >= 2 || c.lowerDoms >= 2) out.push('근육통이 있는 부위는 뒤로 미뤘어요.');
   if (c.pain && c.pain !== 'none') out.push('통증이 있는 부위에 부담되는 세션은 피했어요.');
   if (state.history.some((h) => h.source === 'pt' && inWindow(h.date, now, 3))) out.push('최근 PT에서 한 부위는 우선순위를 낮췄어요.');

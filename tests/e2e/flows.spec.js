@@ -21,10 +21,19 @@ const st = (page) => page.evaluate(() => window.__store.state);
 const sheet = (page) => page.locator('#sheet');
 const card = (page, id) => page.locator(`section.ex[data-exercise="${id}"]`);
 
-async function startPart(page, label, minutes = null) {
-  if (minutes) { await page.locator('[data-action="toggle-cond"]').click(); await page.locator('select[data-k="minutes"]').selectOption(String(minutes)); }
-  await page.getByRole('button', { name: '부위 직접 선택' }).click();
-  await sheet(page).getByRole('button', { name: label, exact: true }).click();
+// 시작 전 확인 시트: 부위 · 컨디션 · 시간 · 강도를 고르고 시작한다.
+async function fillStart(page, { part = null, energy = 'normal', minutes = 60, intensity = 'normal' } = {}) {
+  const sh = page.locator('#sheet');
+  if (part) await sh.locator(`.pick[data-k="part"] .chip[data-v="${part}"]`).click();
+  await sh.locator(`.pick[data-k="energy"] .chip[data-v="${energy}"]`).click();
+  await sh.locator(`.pick[data-k="minutes"] .chip[data-v="${minutes}"]`).click();
+  await sh.locator(`.pick[data-k="intensity"] .chip[data-v="${intensity}"]`).click();
+  await sh.getByTestId('start-go').click();
+}
+
+async function startPart(page, label, minutes = 60, extra = {}) {
+  await page.getByRole('button', { name: /부위 직접 선택|다른 부위 고르기/ }).click();
+  await fillStart(page, { part: label.toLowerCase(), minutes, ...extra });
   await expect(page.getByTestId('session-head')).toBeVisible();
 }
 
@@ -172,9 +181,9 @@ test('직접 새 운동을 만들면 카드 · 편측 입력 · 예상 시간이
 test('한 줄 입력으로 세트를 몰아서 기록하고 느낌까지 반영', async ({ page }) => {
   await startPart(page, 'Pull');
   const c = card(page, 'curl');
-  await c.getByRole('button', { name: '한 줄 입력' }).click();
+  await c.getByRole('button', { name: '한 줄 기록' }).click();
   await sheet(page).locator('input[name=t]').fill('8 12 11 한계');
-  await sheet(page).getByRole('button', { name: '확인' }).click();
+  await sheet(page).getByRole('button', { name: '기록', exact: true }).click();
   await expect(c.getByTestId('ex-summary')).toHaveText('8kg × 12회 · 8kg × 11회 · 한계');
   await c.locator('[data-action="expand"]').click();
   await expect(c.getByTestId('effort').locator('button.on')).toHaveText('한계');
@@ -298,7 +307,7 @@ test('키패드 완료(Enter)로 숫자 입력이 바로 적용되고 시트가 
   await expect(c.getByTestId('weight-1')).toContainText('빈 기구');
   await c.getByTestId('weight-0').getByRole('button', { name: '늘리기' }).click();
   await expect(c.getByTestId('weight-0')).toContainText('5kg');
-  await c.getByRole('button', { name: '한 줄 입력' }).click();
+  await c.getByRole('button', { name: '한 줄 기록' }).click();
   await sheet(page).locator('input[name=t]').fill('0 12 12');
   await sheet(page).locator('input[name=t]').press('Enter');
   await expect(sheet(page)).toBeHidden();
@@ -372,6 +381,8 @@ test('오늘 헬스장 못 가요 → 집에서 Core 추천, 헬스장 장비 �
   await page.getByTestId('gym-closed').click();
   await expect(page.getByTestId('rec-title')).toHaveText('Core');
   await page.getByRole('button', { name: '집에서 Core 시작' }).click();
+  await expect(sheet(page).locator('[name=home]')).toBeChecked();
+  await fillStart(page);
   await expect(page.getByTestId('session-head')).toContainText('진행 중 · 집');
   const s = await st(page);
   expect(s.session.home).toBe(true);
@@ -422,4 +433,83 @@ test('기록 수정에서 운동 시간을 고칠 수 있다', async ({ page }) 
   await sheet(page).getByRole('button', { name: '저장' }).click();
   expect((await st(page)).history.at(-1).durationSec).toBe(3300);
   await expect(page.locator('.hist-item').first()).toContainText('55분');
+});
+
+test('시작 전 확인: 오늘 고르지 않은 시간·강도는 비어 있고, 다 골라야 시작된다', async ({ page }) => {
+  // 어제 30분·일반으로 했던 상태
+  await page.evaluate(() => window.__store.commit((s) => { s.check.minutes = 30; s.check.intensity = 'normal'; s.check.day = '2000-01-01'; s.check.confirmed = ['minutes', 'intensity']; s.history.push({ id: 'old', date: '2026-09-01', part: 'push', source: 'manual', workSets: 5 }); }));
+  await page.getByRole('button', { name: '부위 직접 선택' }).click();
+  const sh = sheet(page);
+  await expect(sh.locator('.pick[data-k="minutes"] .chip.on')).toHaveCount(0);
+  await expect(sh.locator('.pick[data-k="intensity"] .chip.on')).toHaveCount(0);
+  await expect(sh).toContainText('지난번: 30분 · 일반');
+  const go = sh.getByTestId('start-go');
+  await expect(go).toBeDisabled();
+  await expect(go).toHaveText('4개 더 고르면 시작');
+  await sh.locator('.pick[data-k="part"] .chip[data-v="lower"]').click();
+  await sh.locator('.pick[data-k="energy"] .chip[data-v="good"]').click();
+  await sh.locator('.pick[data-k="minutes"] .chip[data-v="75"]').click();
+  await expect(go).toBeDisabled();
+  await sh.locator('.pick[data-k="intensity"] .chip[data-v="strength"]').click();
+  await expect(go).toHaveText('Lower 시작 · 75분 · 근력 중심');
+  await go.click();
+  await expect(page.getByTestId('session-mode')).toContainText('75분 · 근력 중심');
+  const s = await st(page);
+  expect([s.session.minutes, s.session.intensity]).toEqual([75, 'strength']);
+  expect(s.check.confirmed.sort()).toEqual(['energy', 'intensity', 'lowerDoms', 'minutes', 'pain', 'upperDoms']);
+});
+
+test('시작 전 확인: 오늘 이미 고른 값은 채워져 있어 한 번에 시작', async ({ page }) => {
+  await page.evaluate(() => window.__store.commit((s) => { s.settings.ptDay = null; }));
+  await page.getByRole('button', { name: '보통' }).click();
+  await page.locator('[data-action="toggle-cond"]').click();
+  await page.locator('select[data-k="minutes"]').selectOption('45');
+  await page.locator('select[data-k="intensity"]').selectOption('light');
+  await page.locator('[data-action="start"]').click();
+  const go = sheet(page).getByTestId('start-go');
+  await expect(go).toBeEnabled();
+  await expect(go).toContainText('45분 · 가볍게');
+  await go.click();
+  await expect(page.getByTestId('session-head')).toBeVisible();
+  expect((await st(page)).session.source).toBe('recommended');
+});
+
+test('오늘 운동을 마치면 추천 대신 완료 표시, 추가 운동은 오늘 한 부위를 뺀다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 8);
+  await c.locator('[data-action="done"]').first().click();
+  await page.getByRole('button', { name: /저장하고 종료/ }).click();
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  await expect(page.getByTestId('done-today')).toBeVisible();
+  await expect(page.getByTestId('rec-title')).toHaveText('Pull 완료');
+  await expect(page.locator('#view')).not.toContainText('오늘 추천');
+  await expect(page.locator('#view')).toContainText('추가 운동을 할까요?');
+  await page.getByRole('button', { name: '다른 부위 고르기' }).click();
+  await expect(sheet(page)).toContainText('추가 운동 설정');
+  await expect(sheet(page).locator('.pick[data-k="part"] .chip[data-v="pull"]')).toContainText('오늘 함');
+});
+
+test('한 줄 기록에 숫자가 아닌 글을 적어도 사라지지 않고 메모로 저장할 수 있다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await c.getByRole('button', { name: '한 줄 기록' }).click();
+  await sheet(page).locator('input[name=t]').fill('왼쪽 팔꿈치가 살짝 아팠음');
+  await sheet(page).getByRole('button', { name: '기록', exact: true }).click();
+  await expect(sheet(page).getByTestId('quick-error')).toBeVisible();
+  await expect(sheet(page).locator('input[name=t]')).toHaveValue('왼쪽 팔꿈치가 살짝 아팠음');
+  await sheet(page).getByRole('button', { name: '이 글을 메모로 저장' }).click();
+  await expect(c).toContainText('메모: 왼쪽 팔꿈치가 살짝 아팠음');
+  await expect(c.getByRole('button', { name: '메모 수정' })).toBeVisible();
+});
+
+test('중량 입력: 오늘 쓴 무게가 최근 무게 칩으로 떠서 한 번에 고른다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 9);
+  await c.locator('[data-action="done"]').first().click();
+  await c.getByTestId('weight-1').locator('.val').click();
+  await sheet(page).locator('.recent-vals').getByRole('button', { name: '9', exact: true }).click();
+  await expect(sheet(page)).toBeHidden();
+  await expect(c.getByTestId('weight-1')).toContainText('9kg');
 });

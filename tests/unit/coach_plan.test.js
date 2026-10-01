@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { importAny } from '../../app/js/core/migrate.js';
 import { freshState } from '../../app/js/core/schema.js';
 import { profileFor, lastPerformance, prescribe, warmupPlan } from '../../app/js/core/coach.js';
-import { buildPlan, recommendPart } from '../../app/js/core/plan.js';
+import { buildPlan, recommendPart, effectiveCheck, checkConfirmed } from '../../app/js/core/plan.js';
+import { setCheck } from '../../app/js/core/session.js';
 import { CORE_SLOTS } from '../../app/js/core/catalog.js';
 
 const v7 = () => importAny(JSON.parse(readFileSync(new URL('../fixtures/v7_synthetic.json', import.meta.url), 'utf8'))).state;
@@ -90,16 +91,45 @@ test('계획: 장비 끔 · 영구 사용 불가 운동은 제외', () => {
 test('추천: 매우 피곤 → 휴식, PT 요일 → PT, 일요일 휴무 → Core, 무릎 통증 → Lower 제외', () => {
   const s = freshState();
   const thu = new Date(2026, 8, 24, 10), sun = new Date(2026, 8, 27, 10), mon = new Date(2026, 8, 28, 10);
-  s.check.energy = 'very_tired';
+  setCheck(s, { energy: 'very_tired' }, { now: mon });
   assert.equal(recommendPart(s, mon).part, 'rest');
-  s.check.energy = 'normal';
+  setCheck(s, { energy: 'normal' }, { now: thu });
   assert.equal(recommendPart(s, thu).part, 'pt');
   assert.equal(recommendPart(s, sun).part, 'core');
-  s.check.pain = 'knee';
+  setCheck(s, { pain: 'knee' }, { now: mon });
   assert.notEqual(recommendPart(s, mon).part, 'lower');
-  s.check.pain = 'none';
+  setCheck(s, { pain: 'none' }, { now: thu });
   s.history.push({ id: 'pt', date: '2026-09-24', part: 'push', source: 'pt', workSets: 0 });
-  assert.equal(recommendPart(s, thu).part, 'rest', 'PT 기록 후에는 추가 세션 대신 휴식');
+  assert.equal(recommendPart(s, thu).part, 'done', 'PT 기록 후에는 오늘 완료로 본다');
+});
+
+test('추천: 오늘 운동을 마쳤으면 PT 요일이어도 완료 표시, 추가 운동은 오늘 한 부위를 뺀다', () => {
+  const s = freshState();
+  const thu = new Date(2026, 9, 1, 20);
+  s.settings.ptDay = 4;
+  assert.equal(recommendPart(s, thu).part, 'pt');
+  s.history.push({ id: 'x', date: '2026-10-01', part: 'lower', source: 'manual', workSets: 13 });
+  assert.equal(recommendPart(s, thu).part, 'done');
+  const extra = recommendPart(s, thu, { extra: true });
+  assert.ok(['push', 'pull', 'core'].includes(extra.part), extra.part);
+  s.history.push({ id: 'y', date: '2026-10-01', part: 'push', source: 'manual', workSets: 10 }, { id: 'z', date: '2026-10-01', part: 'pull', source: 'manual', workSets: 10 });
+  assert.equal(recommendPart(s, thu, { extra: true }).part, 'core', '큰 부위를 다 했으면 짧은 Core');
+});
+
+test('컨디션: 어제 고른 피로·근육통은 오늘 추천에 쓰지 않고, 시간·강도는 오늘 다시 골라야 확인된다', () => {
+  const s = freshState();
+  const d1 = new Date(2026, 8, 29, 10), d2 = new Date(2026, 8, 30, 10);
+  setCheck(s, { energy: 'very_tired', lowerDoms: 3, minutes: 30, intensity: 'normal' }, { now: d1 });
+  assert.equal(recommendPart(s, d1).part, 'rest');
+  assert.deepEqual([...checkConfirmed(s, d1)].sort(), ['energy', 'intensity', 'lowerDoms', 'minutes']);
+  assert.equal(effectiveCheck(s, d2).energy, 'normal');
+  assert.equal(effectiveCheck(s, d2).lowerDoms, 0);
+  assert.notEqual(recommendPart(s, d2).part, 'rest');
+  assert.deepEqual(checkConfirmed(s, d2), []);
+  setCheck(s, { intensity: 'strength' }, { now: d2 });
+  assert.deepEqual(checkConfirmed(s, d2), ['intensity']);
+  assert.equal(s.check.lowerDoms, 0, '날짜가 바뀌면 어제 근육통 값은 기본값으로');
+  assert.throws(() => setCheck(s, { minutes: 33 }, { now: d2 }));
 });
 
 test('추천 설명: 쉰 기간 · 부족한 근육 · 채운 근육을 문장으로', async () => {

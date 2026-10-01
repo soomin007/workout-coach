@@ -318,3 +318,16 @@ test('계획대로 완료: 채워진 값대로 남은 세트를 완료, 값이 �
   T.completeRemaining(s, null, { now });
   assert.ok(entryOf(s, 'pullup').sets.every((z) => z.done));
 });
+
+test('계획대로 완료로 실시간 기록 중 마지막 한 세트를 끝내면 지금 끝낸 것으로 본다', () => {
+  const s = sessionWith(freshState(), 'pull', ['curl']);
+  const c = entryOf(s, 'curl');
+  T.editSet(s, c.uid, 0, 'weight', 8);
+  const n0 = c.sets.length;
+  for (let i = 0; i < n0 - 1; i++) T.toggleSetDone(s, c.uid, i, { now: new Date(now.getTime() + i * 120000) });
+  const t = new Date(now.getTime() + n0 * 120000);
+  assert.equal(T.completeRemaining(s, c.uid, { now: t }), 1);
+  const last = entryOf(s, 'curl').sets.at(-1);
+  assert.equal(last.doneAt, t.getTime());
+  assert.equal(last.restBefore, 240);
+});

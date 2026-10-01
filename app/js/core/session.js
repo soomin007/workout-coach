@@ -3,7 +3,7 @@
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, catalogById } from './catalog.js';
 import { profileFor, lastPerformance, prescribe, warmupPlan } from './coach.js';
-import { buildPlan, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes } from './plan.js';
+import { buildPlan, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
 import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
 
@@ -49,6 +49,28 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
 
 function firstCompoundUid(s) {
   return s.exercises.find((e) => e.compound)?.uid || null;
+}
+
+// 오늘 컨디션 확인. 고른 항목을 오늘 확인한 것으로 표시한다. 날짜가 바뀌었으면 어제 확인한 값은 기본값으로 되돌린다.
+const CHECK_VALUES = {
+  energy: ['good', 'normal', 'tired', 'very_tired'], upperDoms: [0, 1, 2, 3], lowerDoms: [0, 1, 2, 3],
+  pain: ['none', 'shoulder', 'back', 'knee', 'ankle', 'other'], minutes: [30, 45, 60, 75, 90], intensity: ['light', 'normal', 'strength'],
+};
+export function setCheck(state, values, { now = new Date() } = {}) {
+  const c = state.check;
+  const today = localISODate(now);
+  if (c.day !== today) {
+    Object.assign(c, CHECK_DEFAULTS);
+    c.day = today; c.confirmed = [];
+  }
+  const ok = new Set(checkConfirmed(state, now));
+  for (const [k, raw] of Object.entries(values)) {
+    need(CHECK_KEYS.includes(k), 'bad_check', `알 수 없는 컨디션 항목: ${k}`);
+    const v = typeof CHECK_VALUES[k][0] === 'number' ? Number(raw) : raw;
+    need(CHECK_VALUES[k].includes(v), 'bad_check', '컨디션 값을 확인하세요.');
+    c[k] = v; ok.add(k);
+  }
+  c.confirmed = [...ok];
 }
 
 export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date() }) {
@@ -440,6 +462,14 @@ export function completeRemaining(state, uid = null, { now = new Date() } = {}) 
       if (z.type !== 'warmup' && setReps(z) === null) continue;
       z.done = true; z.doneAt = null; n++;
     }
+  }
+  // 실시간으로 기록하던 운동의 마지막 한 세트를 이 버튼으로 끝낸 경우는 지금 끝낸 것으로 본다
+  // (완료 시각이 없으면 운동 시간과 세트 간 휴식 기록에서 빠진다).
+  if (uid && n === 1) {
+    const e = targets[0];
+    const z = e.sets.find((x) => x.done && x.doneAt === null);
+    const prev = e.sets.filter((x) => x.done && x.doneAt).sort((a, b) => b.doneAt - a.doneAt)[0];
+    if (z && prev) { z.doneAt = now.getTime(); z.restBefore = Math.round((z.doneAt - prev.doneAt) / 1000); }
   }
   if (s.restTimer && (!uid || s.restTimer.uid === uid)) s.restTimer = null;
   s.lastActivityAt = now.getTime();

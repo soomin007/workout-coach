@@ -151,6 +151,16 @@ details.cue summary { cursor: pointer; color: var(--faint); }
 .sheet .list button .tiny { display: block; }
 .sheet .actions { display: flex; gap: 8px; margin-top: 12px; }
 .sheet .actions .btn { flex: 1; }
+.btn:disabled { opacity: .55; }
+/* 시작 전 확인 시트: 칩 묶음, 시작 버튼은 시트 아래에 붙여 둔다 */
+.startform .pick-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 12px; margin-bottom: 6px; }
+.startform .pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.startform .pick .chip { min-height: 40px; }
+.startform .pick .chip small { display: block; font-size: 10px; font-weight: 600; opacity: .75; }
+.startform .warnbox { margin-top: 12px; }
+.startform .actions { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom)); background: var(--surface);
+  padding-top: 10px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); margin-bottom: calc(-16px - env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.hero.done .kicker:first-child { color: var(--good); }
 .toast { position: fixed; left: 50%; bottom: calc(130px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; max-width: calc(100% - 32px);
   background: var(--text); color: var(--bg); border-radius: 10px; padding: 10px 14px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .toast.show { opacity: 1; }

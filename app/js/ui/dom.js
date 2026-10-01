@@ -104,11 +104,14 @@ export async function choiceSheet(title, items, { note = '' } = {}) {
   return sheet(`<h3>${esc(title)}</h3>${note ? `<p class="small">${esc(note)}</p>` : ''}<div class="list">${list}</div><div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`);
 }
 
-export async function numberSheet(title, value, { step = 'any', suffix = '', zeroLabel = '' } = {}) {
-  const r = await sheet(`<h3>${esc(title)}</h3>${zeroLabel ? `<p class="small">${esc(zeroLabel)}</p>` : ''}<div class="row"><input type="number" inputmode="decimal" enterkeyhint="done" step="${step}" min="0" name="n" value="${value ?? ''}" style="flex:1"><span class="small">${esc(suffix)}</span></div>
+// recent: 최근 값 칩. 누르면 그 값으로 바로 확인된다.
+export async function numberSheet(title, value, { step = 'any', suffix = '', zeroLabel = '', recent = [] } = {}) {
+  const chips = recent.length ? `<div class="tiny" style="margin-top:4px">최근 무게</div><div class="row recent-vals" style="margin:4px 0 8px">${recent.map((x) => `<button class="chip" data-sheet-value="v:${esc(x)}">${esc(x)}</button>`).join('')}</div>` : '';
+  const r = await sheet(`<h3>${esc(title)}</h3>${zeroLabel ? `<p class="small">${esc(zeroLabel)}</p>` : ''}${chips}<div class="row"><input type="number" inputmode="decimal" enterkeyhint="done" step="${step}" min="0" name="n" value="${value ?? ''}" style="flex:1"><span class="small">${esc(suffix)}</span></div>
     <div class="actions"><button class="btn" data-sheet-value="clear">비우기</button><button class="btn primary" data-sheet-value="ok">확인</button></div>`, { collect: (b) => b.querySelector('[name=n]').value });
   if (!r) return undefined;
   if (r.value === 'clear') return null;
+  if (r.value.startsWith('v:')) return Number(r.value.slice(2));
   const n = Number(r.data);
   return r.data === '' ? null : Number.isFinite(n) && n >= 0 ? n : undefined;
 }

@@ -5,11 +5,11 @@ import { applyQuickLine } from './core/quick.js';
 import { toCSV, toTXT } from './core/export.js';
 import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo, transferLink, parseTransfer } from './core/sync.js';
 import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
-import { profileFor } from './core/coach.js';
+import { profileFor, lastPerformance } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
 import { localISODate } from './core/util.js';
 import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
-import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, MODE_LABEL } from './ui/views.js';
+import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, INTENSITY, MODE_LABEL } from './ui/views.js';
 import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
@@ -104,16 +104,13 @@ const entry = (uid) => store.state.session?.exercises.find((e) => e.uid === uid)
 const actions = {
   'apply-update': () => location.reload(),
   tab: (d) => { ui.tab = d.tab; render(); window.scrollTo(0, 0); },
-  energy: (d) => run((s) => { s.check.energy = d.v; }),
-  start: (d) => startSession(d.part, d.source, '', d.home === '1'),
+  energy: (d) => run((s) => T.setCheck(s, { energy: d.v })),
+  start: (d) => startFlow({ part: d.part, home: d.home === '1', extra: d.extra === '1' }),
   'gym-closed': () => run((s) => { const t = localISODate(); s.check.gymClosedDate = s.check.gymClosedDate === t ? null : t; }),
   'complete-rest': (d) => run((s) => T.completeRemaining(s, d.uid), (n) => (n ? `${n}세트를 계획대로 완료했습니다. 다르게 한 세트만 고치세요.` : '완료할 세트가 없습니다.')),
-  'start-manual': async () => {
+  'start-manual': (d) => {
     const homeDefault = store.state.check.gymClosedDate === localISODate() || (new Date().getDay() === 0 && store.state.settings.gymClosedSunday);
-    const r = await sheet(`<h3>부위 직접 선택</h3><label class="setting"><span>집에서 (헬스장 없이)</span><input type="checkbox" name="home"${homeDefault ? ' checked' : ''}></label><textarea name="why" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등"></textarea>
-      <div class="list" style="margin-top:10px">${['push', 'pull', 'lower', 'core'].map((p) => `<button data-sheet-value="${p}">${PART_LABEL[p]}</button>`).join('')}</div>
-      <div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`, { collect: (b) => ({ why: b.querySelector('[name=why]').value, home: b.querySelector('[name=home]').checked }) });
-    if (r) startSession(r.value, 'manual', r.data.why, r.data.home);
+    startFlow({ part: null, home: homeDefault, extra: d.extra === '1' });
   },
   pt: () => logPT(),
   evidence: () => sheet(evidenceHtml()),
@@ -137,7 +134,7 @@ const actions = {
     if (!z) return;
     const title = d.f === 'weight' ? `${e.name} 중량 (kg)` : `${e.name} ${d.f === 'leftReps' ? '왼쪽 ' : d.f === 'rightReps' ? '오른쪽 ' : ''}${e.measure === 'seconds' ? '시간(초)' : '반복'}`;
     const zeroLabel = d.f === 'weight' && ['machine', 'per_side'].includes(e.loadMode) ? '원판을 하나도 안 꽂았으면 0 을 입력하세요 (빈 기구).' : d.f === 'weight' && e.loadMode === 'assist' ? '보조중량: 몸무게를 덜어 주는 무게입니다. 숫자가 클수록 쉽습니다.' : '';
-    const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1', zeroLabel });
+    const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1', zeroLabel, recent: d.f === 'weight' ? recentWeights(e) : [] });
     if (v === undefined) return;
     run((s) => T.editSet(s, d.uid, +d.i, d.f, v));
   },
@@ -161,12 +158,8 @@ const actions = {
   },
   'session-menu': () => sessionMenu(),
   'check-update': () => checkUpdate(),
-  quick: async (d) => {
-    const e = entry(d.uid);
-    const t = await textSheet(`${e.name} 한 줄 입력`, '', { placeholder: e.loadMode === 'bodyweight' ? '예: 10 10 8 한계' : '예: 50 10 10 8 한계', hint: '중량 다음 세트별 반복, 끝에 느낌(여유 · 적당 · 한계). 키보드 마이크로 말해도 됩니다. 입력한 세트는 완료로 표시됩니다.' });
-    if (t === null || !t.trim()) return;
-    run((s) => applyQuickLine(s, d.uid, t), (r) => `${r.count}세트를 기록했습니다.`);
-  },
+  quick: (d) => quickLine(d.uid),
+  memo: (d) => editMemo(d.uid),
   'set-menu': async (d) => {
     const e = entry(d.uid); const z = e?.sets[+d.i];
     if (!z) return;
@@ -207,7 +200,7 @@ const actions = {
 
 // change/input 이벤트용
 const changeActions = {
-  check: (d, el) => run((s) => { s.check[d.k] = ['upperDoms', 'lowerDoms', 'minutes'].includes(d.k) ? +el.value : el.value; }),
+  check: (d, el) => { if (el.value !== '') run((s) => T.setCheck(s, { [d.k]: el.value })); },
   'new-date': (d, el) => { ui.newDate = el.value || null; },
   'session-date': (d, el) => run((s) => T.setSessionDate(s, el.value), '운동 날짜를 바꿨습니다.'),
   setting: (d, el) => run((s) => { s.settings[d.k] = d.k === 'ptDay' ? (el.value === 'none' ? null : +el.value) : el.value === 'true'; }),
@@ -387,12 +380,99 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---------- 흐름 ----------
-async function startSession(part, source, overrideReason = '', home = false) {
+// 모든 시작은 이 확인 시트를 거친다: 지난번에 고른 시간·강도로 모르는 새 시작하지 않게
+// 부위 · 컨디션 · 가능 시간 · 강도를 오늘 값으로 고르게 한다 (2026-10-01 사용자 지적).
+async function startFlow({ part = null, home = false, extra = false } = {}) {
+  const rec = recommendPart(store.state, new Date(), { extra });
+  const recPart = ['push', 'pull', 'lower', 'core'].includes(rec.part) ? rec.part : null;
+  const promise = sheet(startSheetHtml(store.state, { part, rec: recPart, home, extra }), {
+    collect: (b) => {
+      const v = (k) => b.querySelector(`.pick[data-k="${k}"] .chip.on`)?.dataset.v ?? null;
+      return {
+        part: v('part'), check: Object.fromEntries(['energy', 'minutes', 'intensity', 'upperDoms', 'lowerDoms', 'pain'].map((k) => [k, v(k)]).filter(([, x]) => x !== null)),
+        home: b.querySelector('[name=home]').checked, date: b.querySelector('[name=date]').value, why: b.querySelector('[name=why]').value,
+      };
+    },
+  });
+  const form = document.querySelector('#sheet .startform');
+  if (form) {
+    const refresh = () => {
+      const v = (k) => form.querySelector(`.pick[data-k="${k}"] .chip.on`)?.dataset.v ?? null;
+      const missing = [...form.querySelectorAll('.pick[data-required]')].filter((g) => !g.querySelector('.chip.on')).length;
+      const go = form.querySelector('[data-testid=start-go]');
+      go.disabled = missing > 0;
+      go.textContent = missing ? `${missing}개 더 고르면 시작` : `${PART_LABEL[v('part')]} 시작 · ${v('minutes')}분 · ${INTENSITY[v('intensity')]}`;
+      const p = v('part');
+      const warn = [
+        v('energy') === 'very_tired' ? '매우 피곤한 날은 쉬는 편이 낫습니다. 한다면 가볍게 고르세요.' : null,
+        p === 'lower' && v('lowerDoms') === '3' ? '하체 근육통이 심한 날입니다. 다른 부위나 휴식을 권합니다.' : null,
+        ['push', 'pull'].includes(p) && v('upperDoms') === '3' ? '상체 근육통이 심한 날입니다. 다른 부위나 휴식을 권합니다.' : null,
+        p === 'push' && v('pain') === 'shoulder' ? '어깨가 불편한 날의 Push 는 통증이 없는 범위에서만 하세요.' : null,
+        p === 'lower' && v('pain') === 'knee' ? '무릎이 불편한 날의 Lower 는 통증이 없는 범위에서만 하세요.' : null,
+      ].filter(Boolean);
+      const w = form.querySelector('[data-testid=start-warn]');
+      w.textContent = warn.join(' ');
+      w.classList.toggle('hidden', !warn.length);
+    };
+    form.addEventListener('click', (ev) => {
+      const chip = ev.target.closest('.pick .chip');
+      if (!chip) return;
+      for (const x of chip.parentElement.querySelectorAll('.chip')) { x.classList.toggle('on', x === chip); x.setAttribute('aria-pressed', String(x === chip)); }
+      refresh();
+    });
+    refresh();
+  }
+  const r = await promise;
+  if (!r || r.value !== 'ok' || !r.data.part) return;
+  const { data } = r;
   if (store.state.session && T.sessionHasUserData(store.state) && !(await confirmSheet('진행 중인 세션 기록이 있습니다. 버리고 새로 시작할까요?', { ok: '버리고 시작', danger: true }))) return;
-  const date = ui.newDate || localISODate();
-  run((s) => T.createSession(s, { part, source, date, overrideReason, home }));
+  const source = !extra && data.part === recPart && !data.why.trim() ? 'recommended' : 'manual';
+  const date = data.date || ui.newDate || localISODate();
+  run((s) => { T.setCheck(s, data.check); T.createSession(s, { part: data.part, source, date, overrideReason: data.why, home: data.home }); });
   ui.newDate = null;
   window.scrollTo(0, 0);
+}
+
+// 한 줄 기록: 세트 무게·횟수를 몰아서 적는 칸. 숫자를 못 읽어도 적은 글을 버리지 않는다
+// (2026-10-01: 메모를 여기 적었다가 오류와 함께 글이 사라졌다).
+async function quickLine(uid, text = '', error = '') {
+  const e = entry(uid);
+  if (!e) return;
+  const r = await sheet(`<h3>${esc(e.name)} 한 줄 기록</h3>
+    ${error ? `<div class="warnbox" style="margin-top:0" data-testid="quick-error">${esc(error)}</div>` : ''}
+    <p class="small">세트의 무게와 횟수를 한 번에 적는 칸입니다. 중량 다음 세트별 반복, 끝에 느낌(여유 · 적당 · 한계). 키보드 마이크로 말해도 됩니다. 입력한 세트는 완료로 표시됩니다.</p>
+    <input type="text" name="t" enterkeyhint="done" placeholder="${e.loadMode === 'bodyweight' ? '예: 10 10 8 한계' : '예: 50 10 10 8 한계'}" value="${esc(text)}">
+    <div class="tiny" style="margin-top:6px">느낀 점이나 통증은 '메모'에 적으세요.</div>
+    <div class="actions">${error ? '<button class="btn" data-sheet-value="memo">이 글을 메모로 저장</button>' : '<button class="btn" data-sheet-value="__cancel">취소</button>'}<button class="btn primary" data-sheet-value="ok">기록</button></div>`,
+  { collect: (b) => b.querySelector('[name=t]').value });
+  if (!r) return;
+  const t = r.data;
+  if (!t.trim()) return;
+  if (r.value === 'memo') {
+    const cur = (entry(uid)?.memo || '').trim();
+    run((s) => T.setMemo(s, uid, cur ? `${cur}\n${t.trim()}` : t.trim()), '메모로 저장했습니다.');
+    return;
+  }
+  try {
+    const res = store.commit((s) => applyQuickLine(s, uid, t));
+    toast(`${res.count}세트를 기록했습니다.`);
+  } catch (err) {
+    return quickLine(uid, t, err.message || '숫자를 읽지 못했습니다.');
+  }
+}
+
+// 중량 입력 시트의 '최근 무게' 칩: 오늘 이 운동에서 쓴 무게 + 지난 기록의 무게. 기억하지 않고 골라 누르게 한다.
+function recentWeights(e) {
+  const today = e.sets.filter((z) => z.weight !== null && z.weight !== undefined && (z.done || z.touched)).map((z) => z.weight);
+  const last = (lastPerformance(store.state, e.exerciseId)?.sets || []).filter((z) => z.weight !== null && z.weight !== undefined).map((z) => z.weight);
+  return [...new Set([...today.reverse(), ...last])].slice(0, 6);
+}
+
+async function editMemo(uid) {
+  const e = entry(uid);
+  if (!e) return;
+  const t = await textSheet(`${e.name} 메모`, e.memo, { placeholder: '자극, 통증, 자세, 좌우 차이, 추천이 이상했던 점', multiline: true });
+  if (t !== null) run((s) => T.setMemo(s, uid, t));
 }
 
 function stepValue(d) {
@@ -439,7 +519,7 @@ async function exerciseMenu(uid) {
   }
   if (v === 'custom') return customExercise(uid);
   if (v === 'up' || v === 'down') return run((s) => T.moveExercise(s, uid, idx + (v === 'up' ? -1 : 1)));
-  if (v === 'memo') { const t = await textSheet('운동 메모', e.memo, { placeholder: '자극, 통증, 자세, 좌우 차이, 추천이 이상했던 점', multiline: true }); if (t !== null) run((s) => T.setMemo(s, uid, t)); return; }
+  if (v === 'memo') return editMemo(uid);
   if (v === 'pref') return editPref(e.exerciseId);
   if (v === 'remove') {
     if (T.entryHasUserData(e) && !(await confirmSheet('이 운동에 기록이 있습니다. 그래도 삭제할까요?', { ok: '삭제', danger: true }))) return;

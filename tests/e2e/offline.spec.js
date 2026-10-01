@@ -8,7 +8,8 @@ test('오프라인에서도 앱이 열리고 저장된 세션이 그대로', asy
   await page.reload();
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await page.getByRole('button', { name: '부위 직접 선택' }).click();
-  await page.locator('#sheet').getByRole('button', { name: 'Pull', exact: true }).click();
+  for (const [k, v] of [['part', 'pull'], ['energy', 'normal'], ['minutes', '60'], ['intensity', 'normal']]) await page.locator(`#sheet .pick[data-k="${k}"] .chip[data-v="${v}"]`).click();
+  await page.getByTestId('start-go').click();
   await expect(page.getByTestId('session-head')).toBeVisible();
   await context.setOffline(true);
   await page.reload();

@@ -22,11 +22,19 @@ async function measure(page) {
   });
 }
 
+// 시작 전 확인 시트: 부위 · 컨디션 · 시간 · 강도를 고르고 시작한다.
+async function fillStart(page, { part = null, energy = 'normal', minutes = 60, intensity = 'normal' } = {}) {
+  const sh = page.locator('#sheet');
+  if (part) await sh.locator(`.pick[data-k="part"] .chip[data-v="${part}"]`).click();
+  await sh.locator(`.pick[data-k="energy"] .chip[data-v="${energy}"]`).click();
+  await sh.locator(`.pick[data-k="minutes"] .chip[data-v="${minutes}"]`).click();
+  await sh.locator(`.pick[data-k="intensity"] .chip[data-v="${intensity}"]`).click();
+  await sh.getByTestId('start-go').click();
+}
+
 async function startPart(page, label, minutes) {
-  await page.locator('[data-action="toggle-cond"]').click();
-  await page.locator('select[data-k="minutes"]').selectOption(String(minutes));
   await page.getByRole('button', { name: '부위 직접 선택' }).click();
-  await page.locator('#sheet').getByRole('button', { name: label, exact: true }).click();
+  await fillStart(page, { part: label.toLowerCase(), minutes });
   await expect(page.getByTestId('session-head')).toBeVisible();
 }
 
@@ -74,4 +82,23 @@ test('긴 시트는 스크롤되고 닫기 버튼에 닿을 수 있다', async (
   await close.scrollIntoViewIfNeeded();
   await close.click();
   await expect(page.locator('#sheet')).toBeHidden();
+});
+
+test('시작 전 확인 시트: 가로 넘침 없이, 스크롤하지 않아도 시작 버튼이 화면 안에 보인다', async ({ page }, info) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '부위 직접 선택' }).click();
+  const box = page.locator('#sheet .sheet');
+  await expect(box.getByTestId('start-go')).toBeVisible();
+  const m = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    const over = [...document.querySelectorAll('#sheet .sheet *')].filter((el) => { const r = el.getBoundingClientRect(); return r.width && (r.right > vw + 0.5 || r.left < -0.5); }).length;
+    const go = document.querySelector('[data-testid=start-go]').getBoundingClientRect();
+    const sh = document.querySelector('#sheet .sheet');
+    return { over, goBottom: go.bottom, goTop: go.top, vh, scrollW: sh.scrollWidth, clientW: sh.clientWidth };
+  });
+  expect(m.over).toBe(0);
+  expect(m.scrollW).toBe(m.clientW);
+  expect(m.goBottom).toBeLessThanOrEqual(m.vh);
+  expect(m.goTop).toBeGreaterThan(m.vh * 0.6);
+  if (info.project.name === 'm360') await page.screenshot({ path: test.info().outputPath('start-sheet.png') });
 });
