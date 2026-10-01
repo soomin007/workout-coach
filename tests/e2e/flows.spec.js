@@ -513,3 +513,24 @@ test('중량 입력: 오늘 쓴 무게가 최근 무게 칩으로 떠서 한 번
   await expect(sheet(page)).toBeHidden();
   await expect(c.getByTestId('weight-1')).toContainText('9kg');
 });
+
+test('PT 요일이어도 오늘 PT 없어요를 누르면 일반 추천, 다시 누르면 PT 날', async ({ page }) => {
+  const dow = await page.evaluate(() => new Date().getDay());
+  await page.evaluate((d) => window.__store.commit((s) => { s.settings.ptDay = d; s.settings.gymClosedSunday = false; }), dow);
+  await expect(page.getByTestId('rec-title')).toHaveText('PT 날');
+  await page.getByTestId('no-pt').click();
+  await expect(page.getByTestId('rec-title')).not.toHaveText('PT 날');
+  await expect(page.getByTestId('no-pt')).toHaveText('오늘 PT 있어요');
+  await page.getByTestId('no-pt').click();
+  await expect(page.getByTestId('rec-title')).toHaveText('PT 날');
+});
+
+test('운동 설명: 하는 방법과 주의할 점, 화면 유지 버튼은 글자로', async ({ page }) => {
+  await startPart(page, 'Lower');
+  const g = card(page, 'squat').getByTestId('guide');
+  await g.locator('summary').click();
+  await expect(g).toContainText('하는 방법');
+  await expect(g).toContainText('주의할 점');
+  await expect(g.locator('ol li')).toHaveCount(3);
+  await expect(page.getByTestId('wakelock')).toHaveText(/화면 유지/);
+});

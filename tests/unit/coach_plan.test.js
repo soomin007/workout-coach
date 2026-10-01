@@ -147,3 +147,13 @@ test('추천 설명: 쉰 기간 · 부족한 근육 · 채운 근육을 문장�
   const { josa } = await import('../../app/js/core/plan.js');
   assert.deepEqual([josa('이두', '은', '는'), josa('하체', '을', '를'), josa('가슴·삼두', '은', '는'), josa('등·이두', '을', '를')], ['이두는', '하체를', '가슴·삼두는', '등·이두를']);
 });
+
+test('PT 요일은 확정이 아니다: 오늘 PT 없어요를 누르면 일반 추천', () => {
+  const s = freshState();
+  const thu = new Date(2026, 9, 1, 10);
+  s.settings.ptDay = 4;
+  assert.equal(recommendPart(s, thu).part, 'pt');
+  s.check.noPtDate = '2026-10-01';
+  assert.ok(['push', 'pull', 'lower'].includes(recommendPart(s, thu).part));
+  assert.equal(recommendPart(s, new Date(2026, 9, 8, 10)).part, 'pt', '다음 주 목요일은 다시 PT 날');
+});

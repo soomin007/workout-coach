@@ -5,6 +5,7 @@ import { recommendPart, explainRecommendation, daysSince, muscleSets, missingCor
 import { countWorkSets, timerSeconds } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
+import { guideFor } from '../core/guide.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
 const MODE_LABEL = Object.fromEntries(LOAD_MODES);
@@ -62,7 +63,7 @@ export function renderToday(state, ui, now = new Date()) {
       ${r.part === 'pt' ? '<button class="btn primary" data-action="pt">PT 기록</button>' : ''}
       <button class="btn" data-action="start-manual">부위 직접 선택</button>
     </div>
-    <div class="row" style="margin-top:6px"><button class="btn sm ${c.gymClosedDate === localISODate(now) ? 'lit' : 'ghost'}" data-action="gym-closed" data-testid="gym-closed">${c.gymClosedDate === localISODate(now) ? '헬스장 휴무 해제' : '오늘 헬스장 못 가요'}</button><button class="btn sm ghost" data-action="why">계산 자세히</button>${r.part !== 'pt' ? '<button class="btn sm ghost" data-action="pt">PT 기록</button>' : ''}</div>
+    <div class="row" style="margin-top:6px">${r.part === 'pt' || c.noPtDate === localISODate(now) ? `<button class="btn sm ${c.noPtDate === localISODate(now) ? 'lit' : 'ghost'}" data-action="no-pt" data-testid="no-pt">${c.noPtDate === localISODate(now) ? '오늘 PT 있어요' : '오늘 PT 없어요'}</button>` : ''}<button class="btn sm ${c.gymClosedDate === localISODate(now) ? 'lit' : 'ghost'}" data-action="gym-closed" data-testid="gym-closed">${c.gymClosedDate === localISODate(now) ? '헬스장 휴무 해제' : '오늘 헬스장 못 가요'}</button><button class="btn sm ghost" data-action="why">계산 자세히</button>${r.part !== 'pt' ? '<button class="btn sm ghost" data-action="pt">PT 기록</button>' : ''}</div>
   </section>
   ${renderDashboard(state, now)}`;
 }
@@ -203,12 +204,23 @@ function renderExercise(state, e, idx, ui, next) {
     </div>
     <div class="rx">${esc(e.prescription?.note || '')}</div>
     ${e.coach ? `<div class="coach" data-testid="coach">${esc(e.coach)}</div>` : ''}
-    <details class="cue"><summary>운동 설명${e.cue ? ' · 자세 큐' : ''}</summary>${esc(slotLabel(e.slot))} · ${esc(e.why)}${e.cue ? `<br>${esc(e.cue)}` : ''}</details>
+    ${guideHtml(e)}
     <div class="sets">${rows}</div>
     ${effort}
     ${e.memo ? `<div class="tiny" style="margin-top:6px">메모: ${esc(e.memo)}</div>` : ''}
     <div class="ex-actions">${allDone ? '' : `<button class="btn sm" data-action="complete-rest" data-uid="${e.uid}">계획대로 완료</button>`}<button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 기록</button><button class="btn sm" data-action="memo" data-uid="${e.uid}">${e.memo ? '메모 수정' : '메모'}</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button>${fold}</div>
   </section>`;
+}
+
+// 운동 설명: 하는 방법 · 주의할 점이 먼저, 근육 정보와 개인 체크 포인트는 뒤에.
+function guideHtml(e) {
+  const g = guideFor(e.exerciseId);
+  const muscles = [...e.primary.map((m) => MUSCLE_LABEL[m] || m)].join('·');
+  const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}>`;
+  return `<details class="cue" data-testid="guide"><summary>운동 방법 · 주의할 점</summary>
+    ${g ? `<div class="guide-h">하는 방법</div>${list(g.how, 'ol')}<div class="guide-h">주의할 점</div>${list(g.caution, 'ul')}` : '<div class="small">직접 만든 운동이라 설명이 없습니다. 메모에 자세 포인트를 적어 두세요.</div>'}
+    ${e.cue ? `<div class="guide-h">내 체크 포인트</div><div>${esc(e.cue)}</div>` : ''}
+    <div class="tiny" style="margin-top:6px">${esc(slotLabel(e.slot))} · 주로 ${esc(muscles)} · ${esc(e.why)}</div></details>`;
 }
 
 export function renderSession(state, ui, now = new Date()) {
@@ -226,7 +238,7 @@ export function renderSession(state, ui, now = new Date()) {
       <div class="head-right"><div class="clock" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
           <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${s.timer.running ? '❚❚' : '▶'}</button>
-          <button class="btn sm ghost${ui.wakeLock ? ' lit' : ''}" data-action="wakelock" aria-label="화면 켜짐 유지" title="화면 켜짐 유지">☀</button>
+          <button class="btn sm ghost${ui.wakeLock ? ' lit' : ''}" data-action="wakelock" data-testid="wakelock" aria-pressed="${ui.wakeLock ? 'true' : 'false'}">${ui.wakeLock ? '화면 유지 중' : '화면 유지'}</button>
           <button class="btn sm ghost" data-action="session-menu" aria-label="세션 메뉴">⋯</button>
         </div></div>
     </div>
@@ -296,7 +308,7 @@ export function renderSettings(state, ui) {
   <section class="card"><h3>일정 · 개인 정책</h3>
     <div class="grid2">
       <label class="field">일요일 헬스장 휴무<select data-action="setting" data-k="gymClosedSunday">${opt('true', '예', String(st.gymClosedSunday))}${opt('false', '아니오', String(st.gymClosedSunday))}</select></label>
-      <label class="field">정기 PT 요일<select data-action="setting" data-k="ptDay">${days.map(([v, l]) => opt(v, l, st.ptDay ?? 'none')).join('')}</select></label>
+      <label class="field">PT 요일 (보통)<select data-action="setting" data-k="ptDay">${days.map(([v, l]) => opt(v, l, st.ptDay ?? 'none')).join('')}</select></label>
     </div>
     <label class="setting"><span>허리 부하 큰 힙힌지 자동 추천 제외</span><input type="checkbox" data-action="setting-bool" data-k="avoidHinge"${st.avoidHinge !== false ? ' checked' : ''}></label>
     <label class="setting"><span>편측 하체: 왼쪽 먼저, 오른쪽은 왼쪽 반복 초과 금지 안내</span><input type="checkbox" data-action="setting-bool" data-k="leftFirst"${st.leftFirst !== false ? ' checked' : ''}></label>

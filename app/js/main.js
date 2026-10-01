@@ -106,6 +106,7 @@ const actions = {
   tab: (d) => { ui.tab = d.tab; render(); window.scrollTo(0, 0); },
   energy: (d) => run((s) => T.setCheck(s, { energy: d.v })),
   start: (d) => startFlow({ part: d.part, home: d.home === '1', extra: d.extra === '1' }),
+  'no-pt': () => run((s) => { const t = localISODate(); s.check.noPtDate = s.check.noPtDate === t ? null : t; }),
   'gym-closed': () => run((s) => { const t = localISODate(); s.check.gymClosedDate = s.check.gymClosedDate === t ? null : t; }),
   'complete-rest': (d) => run((s) => T.completeRemaining(s, d.uid), (n) => (n ? `${n}세트를 계획대로 완료했습니다. 다르게 한 세트만 고치세요.` : '완료할 세트가 없습니다.')),
   'start-manual': (d) => {
