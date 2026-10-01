@@ -177,7 +177,6 @@ export function adjustedSetCount(state, profile, part, minutes, slot, now = new 
   const over = prim.length && prim.every((m) => MUSCLE_BUDGET[m] && muscleSets(state, m, now) >= MUSCLE_BUDGET[m] + 2);
   if (over && !core && n > 2) n--;
   if (POLICY.initialWeeklyBudget[part] && weeklySets(state, part, now) >= POLICY.initialWeeklyBudget[part] + 5 && !core && n > 2) n--;
-  if (state.check.intensity === 'strength' && profile.compound && core && n < 4) n++;
   return Math.max(2, Math.min(4, n));
 }
 

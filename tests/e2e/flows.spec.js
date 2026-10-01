@@ -534,3 +534,30 @@ test('운동 설명: 하는 방법과 주의할 점, 화면 유지 버튼은 글
   await expect(g.locator('ol li')).toHaveCount(3);
   await expect(page.getByTestId('wakelock')).toHaveText(/화면 유지/);
 });
+
+test('근력 중심: 첫 메인 운동이 톱세트 + 백오프, 톱세트 뒤 남은 반복을 묻는다', async ({ page }) => {
+  await page.evaluate(() => window.__store.commit((s) => { s.performance.push({ sessionId: 'p', date: '2026-09-20', part: 'lower', exerciseId: 'squat', name: '프리 스쿼트', sets: [{ type: 'main', weight: 100, reps: 3, rir: 2, done: true }], effort: 'ok' }); }));
+  await startPart(page, 'Lower', 60, { intensity: 'strength' });
+  const c = card(page, 'squat');
+  await expect(c).toContainText('무거운 날');
+  await expect(c.locator('.set.main .no').first()).toContainText('톱');
+  await expect(c.locator('.set.main')).toHaveCount(3);
+  const topI = await c.locator('.set').evaluateAll((xs) => xs.findIndex((x) => x.querySelector('.no')?.textContent.startsWith('톱')));
+  await expect(c.getByTestId(`weight-${topI}`)).toContainText('97.5kg');
+  await expect(c.getByTestId(`weight-${topI + 1}`)).toContainText('87.5kg');
+  await c.locator('.set').nth(topI).locator('[data-action="done"]').click();
+  await c.getByTestId('top-rir').getByRole('button', { name: '2' }).click();
+  await expect(c.getByTestId('top-rir')).toHaveCount(0);
+  const s = await st(page);
+  expect(s.session.exercises[0].sets[topI].rir).toBe(2);
+});
+
+test('공중량: 레그프레스 기본값에 기구 무게를 적으면 총중량을 함께 보여 준다', async ({ page }) => {
+  await page.locator('#tabs').getByRole('button', { name: '설정' }).click();
+  await page.getByRole('button', { name: '운동 골라서 설정' }).click();
+  await sheet(page).getByRole('button', { name: /싱글 레그프레스/ }).click();
+  await expect(sheet(page).locator('select[name=loadMode]')).toHaveValue('per_side');
+  await sheet(page).locator('input[name=base]').fill('50');
+  await sheet(page).getByRole('button', { name: '저장' }).click();
+  expect((await st(page)).prefs.legpress.base).toBe(50);
+});

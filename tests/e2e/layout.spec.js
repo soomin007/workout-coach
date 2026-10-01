@@ -102,3 +102,15 @@ test('시작 전 확인 시트: 가로 넘침 없이, 스크롤하지 않아도 
   expect(m.goTop).toBeGreaterThan(m.vh * 0.6);
   if (info.project.name === 'm360') await page.screenshot({ path: test.info().outputPath('start-sheet.png') });
 });
+
+test('무거운 날 카드: 톱세트 표시와 안내가 화면 안에 들어온다', async ({ page }, info) => {
+  await page.goto('/');
+  await page.evaluate(() => window.__store.commit((s) => { s.performance.push({ sessionId: 'p', date: '2026-09-20', part: 'lower', exerciseId: 'squat', name: '프리 스쿼트', sets: [{ type: 'main', weight: 100, reps: 3, rir: 2, done: true }], effort: 'ok' }); }));
+  await page.getByRole('button', { name: '부위 직접 선택' }).click();
+  await fillStart(page, { part: 'lower', intensity: 'strength' });
+  await expect(page.getByTestId('session-head')).toBeVisible();
+  const m = await measure(page);
+  expect(m.overflow).toEqual([]);
+  expect(m.scrollW).toBe(m.vw);
+  if (info.project.name === 'm360') await page.locator('section.ex[data-exercise="squat"]').screenshot({ path: test.info().outputPath('heavy.png') });
+});

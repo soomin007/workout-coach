@@ -174,6 +174,7 @@ const actions = {
     if (v === 'rir') { const n = await numberSheet('남은 반복 (RIR)', z.rir, { step: '1' }); if (n !== undefined) run((s) => T.editSet(s, d.uid, +d.i, 'rir', n)); return; }
     run((s) => T.editSet(s, d.uid, +d.i, 'type', v));
   },
+  'top-rir': (d) => run((s) => T.editSet(s, d.uid, +d.i, 'rir', +d.v)),
   'set-count': (d) => run((s) => T.changeSetCount(s, d.uid, +d.d)),
   'ex-menu': (d) => exerciseMenu(d.uid),
   'rest-adj': (d) => { const rt = store.state.session?.restTimer; if (rt) run((s) => T.adjustRest(s, rt.uid, +d.d)); },
@@ -410,6 +411,8 @@ async function startFlow({ part = null, home = false, extra = false } = {}) {
         ['push', 'pull'].includes(p) && v('upperDoms') === '3' ? '상체 근육통이 심한 날입니다. 다른 부위나 휴식을 권합니다.' : null,
         p === 'push' && v('pain') === 'shoulder' ? '어깨가 불편한 날의 Push 는 통증이 없는 범위에서만 하세요.' : null,
         p === 'lower' && v('pain') === 'knee' ? '무릎이 불편한 날의 Lower 는 통증이 없는 범위에서만 하세요.' : null,
+        v('intensity') === 'strength' && (['tired', 'very_tired'].includes(v('energy')) || (v('pain') && v('pain') !== 'none'))
+          ? '피곤하거나 불편한 곳이 있는 날은 무거운 날보다 일반을 권합니다.' : null,
       ].filter(Boolean);
       const w = form.querySelector('[data-testid=start-warn]');
       w.textContent = warn.join(' ');
@@ -610,14 +613,16 @@ async function editPref(exerciseId) {
       <label class="field">좌우 따로<select name="unilateral"><option value="0">아니오</option><option value="1"${p.unilateral ? ' selected' : ''}>예</option></select></label>
       <label class="field">목표 최소<input type="number" name="lo" min="1" value="${p.range[0]}"></label>
       <label class="field">목표 최대<input type="number" name="hi" min="1" value="${p.range[1]}"></label>
+      <label class="field">기구 무게 kg (공중량)<input type="number" name="base" step="0.5" min="0" inputmode="decimal" placeholder="원판식만" value="${p.base ?? ''}"></label>
     </div>
+    <p class="tiny" style="margin-top:6px">기구 무게: 원판을 꽂는 레그프레스·스미스처럼 원판 없이도 무게가 있는 기구에 적습니다. 중량 방식이 한쪽당이면 총중량(기구 무게 + 원판 양쪽)을 함께 보여 줍니다.</p>
     <div class="actions"><button class="btn" data-sheet-value="reset">기본값으로</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
   { collect: (b) => Object.fromEntries([...b.querySelectorAll('[name]')].map((x) => [x.name, x.value])) });
   if (!r) return;
   if (r.value === 'reset') { run((s) => { delete s.prefs[exerciseId]; }, '기본값으로 되돌렸습니다. 새로 만드는 세션부터 적용됩니다.'); return; }
   const f = r.data;
   const lo = Math.max(1, +f.lo || 1), hi = Math.max(lo, +f.hi || lo);
-  run((s) => T.setPref(s, exerciseId, { loadMode: f.loadMode, increment: Math.max(0, +f.increment || 0), rest: +f.rest, unilateral: f.unilateral === '1', range: [lo, hi] }), '저장했습니다.');
+  run((s) => T.setPref(s, exerciseId, { loadMode: f.loadMode, increment: Math.max(0, +f.increment || 0), rest: +f.rest, unilateral: f.unilateral === '1', range: [lo, hi], base: f.base === '' ? null : Math.max(0, +f.base || 0) }), '저장했습니다.');
 }
 
 async function finishSession() {

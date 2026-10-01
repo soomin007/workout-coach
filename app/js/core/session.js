@@ -2,7 +2,7 @@
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, catalogById } from './catalog.js';
-import { profileFor, lastPerformance, prescribe, warmupPlan } from './coach.js';
+import { profileFor, lastPerformance, prescribe, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
 import { buildPlan, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
 import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
@@ -31,12 +31,12 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
   need(p, 'unknown_exercise', `알 수 없는 운동: ${exerciseId}`);
   const sl = slot || p.role;
   const n = setCount ?? adjustedSetCount(state, p, part ?? p.part, minutes ?? 60, sl);
-  const rx = prescribe(p, lastPerformance(state, p.id));
+  const rx = prescribe(p, lastPerformance(state, p.id, { heavy: false }));
   const level = warmupLevel ?? (p.compound ? 'short' : 'none');
   const entry = {
     uid: newId('x'), exerciseId: p.id, name: p.name, slot: sl, role: p.role,
     primary: [...p.primary], secondary: [...p.secondary],
-    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, loadMode: p.mode,
+    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, loadMode: p.mode, base: p.base,
     unilateral: p.unilateral, compound: p.compound, measure: p.measure, equipment: p.equipment,
     why: p.why, cue: p.cue, warmupLevel: level,
     prescription: rx, coach: '', effort: null, memo: '',
@@ -45,6 +45,27 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
   for (const w of warmupPlan(p, rx.weight, level)) entry.sets.push(makeSet('warmup', w.weight, w.reps));
   for (let i = 0; i < n; i++) entry.sets.push(makeSet('main', rx.weight, rx.reps));
   return entry;
+}
+
+// 무거운 날로 바꾸기: 톱세트 1개(3~5회 · RIR 2) + 백오프(약 10% 가볍게, 5~6회). 세트 수는 늘리지 않는다.
+// 세트 타입은 'main' 그대로 두어 주간 볼륨 계산은 같고, heavy 표시('top' | 'backoff')로 처방만 분리한다.
+export function makeHeavy(state, entry) {
+  const p = profileFor(state, entry.exerciseId);
+  if (!heavyEligible(p)) return false;
+  const rx = heavyPrescribe(p, state);
+  const mains = entry.sets.filter((z) => z.type !== 'warmup').length;
+  const nBack = Math.max(2, Math.min(3, mains - 1));
+  const bw = backoffWeight(rx.weight, p.inc);
+  entry.heavy = true;
+  entry.warmupLevel = 'heavy';
+  entry.prescription = { ...rx, note: `${rx.note} 이어서 백오프 ${nBack}세트${bw !== null ? ` ${bw}kg` : ''} × ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회.` };
+  entry.restToday = Math.max(entry.rest, HEAVY.rest);
+  const top = { ...makeSet('main', rx.weight, rx.reps), heavy: 'top' };
+  const backs = Array.from({ length: nBack }, () => ({ ...makeSet('main', bw, HEAVY.backoff[1]), heavy: 'backoff' }));
+  const warm = warmupPlan(p, rx.weight, 'heavy').map((w) => makeSet('warmup', w.weight, w.reps));
+  entry.sets = [...warm, top, ...backs];
+  entry.coach = ['squat', 'horizontal_push'].includes(entry.slot) ? '톱세트 전에 세이프티 바 높이를 확인하세요.' : '';
+  return true;
 }
 
 function firstCompoundUid(s) {
@@ -84,6 +105,10 @@ export function createSession(state, { part, source = 'manual', date = null, ove
     exercises: [],
   };
   state.session.exercises = plan.planned.map((x) => makeEntry(state, x.id, { slot: x.slot, setCount: x.sets, warmupLevel: x.warmupLevel, part, minutes }));
+  // 근력 중심: 첫 번째로 적용할 수 있는 메인 복합 운동 하나만 무거운 날로.
+  if (c.intensity === 'strength') {
+    for (const e of state.session.exercises) if (makeHeavy(state, e)) break;
+  }
   recalcEstimate(state);
   return state.session;
 }
@@ -135,6 +160,7 @@ export function replaceExercise(state, uid, newExerciseId, { now = new Date() } 
   const isFirst = firstCompoundUid(s) === uid || (p.compound && !s.exercises.slice(0, idx).some((e) => e.compound));
   const level = p.compound ? (isFirst ? 'full' : 'short') : 'none';
   const ne = makeEntry(state, newExerciseId, { slot, warmupLevel: level, part: s.part, minutes: s.minutes });
+  if (old.heavy) makeHeavy(state, ne); // 무거운 날 운동을 바꾸면 새 운동도 무거운 날로 (적용 못 하는 운동이면 평소대로)
   s.exercises[idx] = ne;
   recalcEstimate(state);
   return ne;
@@ -178,10 +204,19 @@ export function editSet(state, uid, setIndex, field, value) {
   need(v === null || (Number.isFinite(v) && v >= 0), 'bad_value', '숫자를 확인하세요.');
   set[field] = v;
   set.touched = true;
+  if (set.heavy === 'top' && field === 'weight') {
+    // 톱세트 무게를 고치면 손대지 않은 백오프는 그 무게의 약 90%로. 반복은 따로 둔다.
+    const bw = backoffWeight(v, entry.increment);
+    entry.sets.forEach((z) => { if (z.heavy === 'backoff' && !z.done && !z.touched) z.weight = bw; });
+    const p = profileFor(state, entry.exerciseId) || entry;
+    recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment });
+    return;
+  }
+  if (set.heavy === 'top') return;
   if ((field === 'weight' || field === 'reps') && set.type === 'main') {
     for (let j = setIndex + 1; j < entry.sets.length; j++) {
       const z = entry.sets[j];
-      if (z.type === 'main' && !z.done && !z.touched) z[field] = v;
+      if (z.type === 'main' && !z.done && !z.touched && (z.heavy || null) === (set.heavy || null)) z[field] = v;
     }
     if (field === 'weight' && entry.sets.findIndex((z) => z.type === 'main') === setIndex) {
       const p = profileFor(state, entry.exerciseId) || entry;
@@ -230,6 +265,7 @@ export function toggleSetDone(state, uid, setIndex, { now = new Date() } = {}) {
 function coachAfterSet(entry, j) {
   const z = entry.sets[j];
   const reps = setReps(z);
+  if (entry.heavy && z.heavy) return coachHeavy(entry, j, reps);
   const [lo, hi] = entry.range;
   const u = entry.measure === 'seconds' ? '초' : '회';
   if (reps === null) { entry.coach = ''; return; }
@@ -258,6 +294,30 @@ function coachAfterSet(entry, j) {
   }
   if (reps >= hi + 2 && entry.increment > 0 && z.weight !== null) {
     entry.coach = `상한보다 ${reps - hi}${u} 더 했습니다. 다음 세트는 ${assist ? '보조를 줄여도' : `${roundTo(z.weight + entry.increment, entry.increment)}kg로 올려도`} 좋습니다.`;
+    return;
+  }
+  entry.coach = '좋습니다. 같은 무게로 이어가세요.';
+}
+
+// 무거운 날 코칭: 톱세트 결과로 백오프 무게를 다시 잡는다. 백오프가 5회 아래로 떨어지면 한 단계 낮춘다.
+function coachHeavy(entry, j, reps) {
+  const z = entry.sets[j];
+  if (reps === null) { entry.coach = ''; return; }
+  const inc = entry.increment > 0 ? entry.increment : 2.5;
+  const rest = entry.sets.slice(j + 1).filter((x) => x.heavy === 'backoff' && !x.done && !x.touched);
+  if (z.heavy === 'top') {
+    const pct = reps < HEAVY.top[0] ? 0.85 : HEAVY.backoffPct;
+    const bw = backoffWeight(z.weight, inc, pct);
+    if (bw !== null) rest.forEach((x) => { x.weight = bw; });
+    entry.coach = reps < HEAVY.top[0]
+      ? `톱세트가 ${reps}회로 무거웠습니다. 백오프는 ${bw ?? '-'}kg로 낮춰 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회. 몇 회 더 할 수 있었는지 아래에서 골라 주세요.`
+      : `톱세트 ${z.weight ?? '-'}kg × ${reps}회. 몇 회 더 할 수 있었는지 아래에서 골라 주세요. 백오프는 ${bw ?? '-'}kg × ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회.`;
+    return;
+  }
+  if (reps < HEAVY.backoff[0] && z.weight !== null && rest.length) {
+    const w = Math.max(0, roundTo(z.weight - inc, inc));
+    rest.forEach((x) => { x.weight = w; });
+    entry.coach = `백오프가 ${HEAVY.backoff[0]}회 아래입니다. 남은 백오프를 ${w}kg로 낮췄습니다.`;
     return;
   }
   entry.coach = '좋습니다. 같은 무게로 이어가세요.';
@@ -354,7 +414,7 @@ export function stopRest(state) {
 
 // 명시적 사용자 선호 저장 (설정 화면 전용). 현재 세션의 같은 운동 항목에도 즉시 반영한다.
 export function setPref(state, exerciseId, patch) {
-  const allowed = ['loadMode', 'increment', 'rest', 'range', 'unilateral'];
+  const allowed = ['loadMode', 'increment', 'rest', 'range', 'unilateral', 'base'];
   const cur = { ...(state.prefs[exerciseId] || {}) };
   for (const [k, v] of Object.entries(patch)) { need(allowed.includes(k), 'bad_pref', k); cur[k] = v; }
   state.prefs[exerciseId] = cur;
@@ -365,6 +425,7 @@ export function setPref(state, exerciseId, patch) {
     if ('rest' in patch) e.rest = Number(patch.rest) || e.rest;
     if ('range' in patch) e.range = [...patch.range];
     if ('unilateral' in patch) e.unilateral = !!patch.unilateral;
+    if ('base' in patch) e.base = patch.base;
   }
   recalcEstimate(state);
 }
@@ -496,6 +557,7 @@ export function finishSession(state, { now = new Date() } = {}) {
       loadMode: e.loadMode, increment: e.increment, measure: e.measure, unilateral: e.unilateral,
       range: [...e.range], primary: [...e.primary], secondary: [...e.secondary],
       sets: structuredClone(done), effort: e.effort, memo: e.memo,
+      ...(e.heavy ? { heavy: true } : {}), ...(e.base ? { base: e.base } : {}),
     });
   }
   const summary = { part: s.part, date: s.date, workSets: work, durationSec: duration, exercises: s.exercises.filter((e) => e.sets.some((z) => z.done)).map((e) => ({ name: e.name, sets: e.sets.filter((z) => z.done && z.type === 'main').map((z) => ({ weight: z.weight, reps: setReps(z) })) })) };

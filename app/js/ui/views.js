@@ -6,6 +6,7 @@ import { countWorkSets, timerSeconds } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
 import { guideFor } from '../core/guide.js';
+import { HEAVY } from '../core/coach.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
 const MODE_LABEL = Object.fromEntries(LOAD_MODES);
@@ -103,7 +104,7 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
     <div class="pick-label">부위</div>${chips('part', parts, part, { required: true })}
     <div class="pick-label">컨디션</div>${chips('energy', ENERGY, val('energy'), { required: true })}
     <div class="pick-label">가능 시간</div>${chips('minutes', MINUTES.map((m) => [m, `${m}분`]), val('minutes'), { required: true })}
-    <div class="pick-label">강도</div>${chips('intensity', [['light', '가볍게', '세트 적게'], ['normal', '일반', ''], ['strength', '근력 중심', '큰 운동 세트 추가']], val('intensity'), { required: true })}
+    <div class="pick-label">강도</div>${chips('intensity', [['light', '가볍게', '세트 적게'], ['normal', '일반', ''], ['strength', '근력 중심', '첫 메인 운동 무겁게']], val('intensity'), { required: true })}
     ${last}
     <div class="pick-label">상체 근육통</div>${chips('upperDoms', DOMS, c.upperDoms)}
     <div class="pick-label">하체 근육통</div>${chips('lowerDoms', DOMS, c.lowerDoms)}
@@ -157,22 +158,28 @@ export function nextSet(session) {
   return null;
 }
 
+// 한쪽당 원판식에 공중량을 적어 두었으면 총중량도 보여 준다 (원판 양쪽 + 기구 무게).
+export function totalLoad(e, w) {
+  return e.loadMode === 'per_side' && e.base > 0 && w !== null && w !== undefined ? Math.round((e.base + 2 * w) * 10) / 10 : null;
+}
+
 function setSummary(e, z) {
-  const w = z.weight === null || z.weight === undefined ? '' : z.weight === 0 && ['machine', 'per_side'].includes(e.loadMode) ? '빈 기구 × ' : `${z.weight}kg × `;
+  const tot = totalLoad(e, z.weight);
+  const w = z.weight === null || z.weight === undefined ? '' : z.weight === 0 && ['machine', 'per_side'].includes(e.loadMode) ? `빈 기구${tot ? `(총 ${tot}kg)` : ''} × ` : `${z.weight}kg${tot ? `(총 ${tot}kg)` : ''} × `;
   const reps = z.split ? `L${z.leftReps ?? '-'}/R${z.rightReps ?? '-'}` : `${z.reps ?? '-'}`;
   return `${w}${reps}${unitOf(e)}`;
 }
 
 function renderSetRow(e, z, i, mainNo, isNext) {
   const warm = z.type === 'warmup';
-  const no = warm ? 'W' : z.type === 'backoff' ? 'B' : String(mainNo);
+  const no = warm ? 'W' : z.heavy === 'top' ? '톱' : z.type === 'backoff' || z.heavy === 'backoff' ? 'B' : String(mainNo);
   const u = unitOf(e);
   const repsBlock = z.split
     ? `<div class="lr">${stepper('step', e.uid, i, 'leftReps', `L ${z.leftReps ?? '-'}`, `left-${i}`)}${stepper('step', e.uid, i, 'rightReps', `R ${z.rightReps ?? '-'}`, `right-${i}`)}</div>`
     : stepper('step', e.uid, i, 'reps', `${z.reps ?? '-'}<small>${u}</small>`, `reps-${i}`);
   const w = stepper('step', e.uid, i, 'weight', weightLabel(e, z.weight), `weight-${i}`);
   const toggle = e.unilateral && !warm ? `<span></span><button class="split-toggle" data-action="split" data-uid="${e.uid}" data-i="${i}" data-on="${z.split ? 0 : 1}">${z.split ? '좌우 같게' : '좌우 다르게 입력'}</button>` : '';
-  const cls = `set ${z.type}${z.done ? ' done' : ''}${isNext ? ' next' : ''}`;
+  const cls = `set ${z.type}${z.heavy === 'top' ? ' top' : ''}${z.done ? ' done' : ''}${isNext ? ' next' : ''}`;
   const noBtn = `<button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>`;
   const doneBtn = `<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료" aria-pressed="${z.done}">${z.done ? '✓' : ''}</button>`;
   if (z.split) return `<div class="${cls}" data-set="${i}">${noBtn}${w}<span></span>${doneBtn}<span></span>${repsBlock}${toggle}</div>`;
@@ -195,17 +202,21 @@ function renderExercise(state, e, idx, ui, next) {
   const effort = allDone
     ? `<div class="effort-ask">마지막 세트 어땠나요? <span class="tiny">다음 처방에 반영됩니다</span></div><div class="effort" data-testid="effort">${EFFORTS.map((k) => `<button class="${e.effort === k ? 'on' : ''}" data-action="effort" data-uid="${e.uid}" data-v="${k}">${EFFORT_LABEL[k]}</button>`).join('')}</div>`
     : '';
+  const top = e.heavy ? e.sets.find((z) => z.heavy === 'top') : null;
+  const topRir = top && top.done && top.rir === null
+    ? `<div class="effort-ask">톱세트에서 몇 회 더 할 수 있었나요? <span class="tiny">다음 무거운 날 무게에 반영됩니다</span></div><div class="effort" data-testid="top-rir">${[[0, '0 (한계)'], [1, '1'], [2, '2'], [3, '3 이상']].map(([v, l]) => `<button data-action="top-rir" data-uid="${e.uid}" data-i="${e.sets.indexOf(top)}" data-v="${v}">${l}</button>`).join('')}</div>` : '';
   const fold = allDone && e.effort ? `<button class="btn sm ghost" data-action="collapse" data-uid="${e.uid}">접기</button>` : '';
   return `<section class="card ex${allDone ? ' complete' : ''}${next && next.e.uid === e.uid ? ' current' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
     <div class="ex-head">
       <div><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
-      <div class="ex-meta">목표 ${e.range[0]}~${e.range[1]}${unitOf(e)} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
+      <div class="ex-meta">${e.heavy ? `<b class="heavy-tag">무거운 날</b> 톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 → 백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회` : `목표 ${e.range[0]}~${e.range[1]}${unitOf(e)}`} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}${e.loadMode === 'per_side' && e.base > 0 ? ` · 공중량 ${e.base}kg` : ''}</div></div>
       <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
     </div>
     <div class="rx">${esc(e.prescription?.note || '')}</div>
     ${e.coach ? `<div class="coach" data-testid="coach">${esc(e.coach)}</div>` : ''}
     ${guideHtml(e)}
     <div class="sets">${rows}</div>
+    ${topRir}
     ${effort}
     ${e.memo ? `<div class="tiny" style="margin-top:6px">메모: ${esc(e.memo)}</div>` : ''}
     <div class="ex-actions">${allDone ? '' : `<button class="btn sm" data-action="complete-rest" data-uid="${e.uid}">계획대로 완료</button>`}<button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 기록</button><button class="btn sm" data-action="memo" data-uid="${e.uid}">${e.memo ? '메모 수정' : '메모'}</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button>${fold}</div>
