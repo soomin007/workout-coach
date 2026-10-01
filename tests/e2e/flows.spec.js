@@ -552,12 +552,12 @@ test('근력 중심: 첫 메인 운동이 톱세트 + 백오프, 톱세트 뒤 �
   expect(s.session.exercises[0].sets[topI].rir).toBe(2);
 });
 
-test('공중량: 레그프레스 기본값에 기구 무게를 적으면 총중량을 함께 보여 준다', async ({ page }) => {
+test('레그프레스: 기본값이 원판 합계, 공중량 칸은 없다', async ({ page }) => {
   await page.locator('#tabs').getByRole('button', { name: '설정' }).click();
   await page.getByRole('button', { name: '운동 골라서 설정' }).click();
   await sheet(page).getByRole('button', { name: /싱글 레그프레스/ }).click();
-  await expect(sheet(page).locator('select[name=loadMode]')).toHaveValue('per_side');
-  await sheet(page).locator('input[name=base]').fill('50');
+  await expect(sheet(page).locator('select[name=loadMode]')).toHaveValue('plates');
+  await expect(sheet(page).locator('input[name=base]')).toHaveCount(0);
   await sheet(page).getByRole('button', { name: '저장' }).click();
-  expect((await st(page)).prefs.legpress.base).toBe(50);
+  expect((await st(page)).prefs.legpress.loadMode).toBe('plates');
 });

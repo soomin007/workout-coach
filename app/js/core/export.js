@@ -2,7 +2,7 @@
 import { setReps, EFFORT_LABEL } from './schema.js';
 import { PART_LABEL } from './catalog.js';
 
-const LOAD_LABEL = { total: '총중량', per_side: '한쪽당', per_dumbbell: '덤벨 1개당', machine: '머신', bodyweight: '체중', assist: '보조' };
+const LOAD_LABEL = { total: '총중량', per_side: '한쪽당', plates: '원판 합계', per_dumbbell: '덤벨 1개당', machine: '머신', bodyweight: '체중', assist: '보조' };
 
 export function toCSV(state) {
   const rows = [['session_id', 'date', 'part', 'exercise_id', 'name', 'slot', 'load_mode', 'increment', 'set', 'type', 'weight', 'reps', 'left_reps', 'right_reps', 'rir', 'rest_before_sec', 'effort', 'memo']];

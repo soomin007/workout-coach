@@ -9,7 +9,7 @@ import { profileFor, lastPerformance } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
 import { localISODate } from './core/util.js';
 import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
-import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, INTENSITY, MODE_LABEL } from './ui/views.js';
+import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
@@ -134,7 +134,7 @@ const actions = {
     const e = entry(d.uid); const z = e?.sets[+d.i];
     if (!z) return;
     const title = d.f === 'weight' ? `${e.name} 중량 (kg)` : `${e.name} ${d.f === 'leftReps' ? '왼쪽 ' : d.f === 'rightReps' ? '오른쪽 ' : ''}${e.measure === 'seconds' ? '시간(초)' : '반복'}`;
-    const zeroLabel = d.f === 'weight' && ['machine', 'per_side'].includes(e.loadMode) ? '원판을 하나도 안 꽂았으면 0 을 입력하세요 (빈 기구).' : d.f === 'weight' && e.loadMode === 'assist' ? '보조중량: 몸무게를 덜어 주는 무게입니다. 숫자가 클수록 쉽습니다.' : '';
+    const zeroLabel = d.f === 'weight' && e.loadMode === 'plates' ? '양쪽에 꽂은 원판을 더한 무게입니다. 예: 한쪽 20 + 20 → 40. 원판이 없으면 0 (빈 기구).' : d.f === 'weight' && EMPTY_OK.includes(e.loadMode) ? '원판을 하나도 안 꽂았으면 0 을 입력하세요 (빈 기구).' : d.f === 'weight' && e.loadMode === 'assist' ? '보조중량: 몸무게를 덜어 주는 무게입니다. 숫자가 클수록 쉽습니다.' : '';
     const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1', zeroLabel, recent: d.f === 'weight' ? recentWeights(e) : [] });
     if (v === undefined) return;
     run((s) => T.editSet(s, d.uid, +d.i, d.f, v));
@@ -613,16 +613,15 @@ async function editPref(exerciseId) {
       <label class="field">좌우 따로<select name="unilateral"><option value="0">아니오</option><option value="1"${p.unilateral ? ' selected' : ''}>예</option></select></label>
       <label class="field">목표 최소<input type="number" name="lo" min="1" value="${p.range[0]}"></label>
       <label class="field">목표 최대<input type="number" name="hi" min="1" value="${p.range[1]}"></label>
-      <label class="field">기구 무게 kg (공중량)<input type="number" name="base" step="0.5" min="0" inputmode="decimal" placeholder="원판식만" value="${p.base ?? ''}"></label>
     </div>
-    <p class="tiny" style="margin-top:6px">기구 무게: 원판을 꽂는 레그프레스·스미스처럼 원판 없이도 무게가 있는 기구에 적습니다. 중량 방식이 한쪽당이면 총중량(기구 무게 + 원판 양쪽)을 함께 보여 줍니다.</p>
+    <p class="tiny" style="margin-top:6px">한쪽당: 한쪽에 꽂은 원판만 적습니다(스미스). 원판 합계: 양쪽 원판을 더해 적습니다(레그프레스). 증량 단위도 같은 기준입니다.</p>
     <div class="actions"><button class="btn" data-sheet-value="reset">기본값으로</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
   { collect: (b) => Object.fromEntries([...b.querySelectorAll('[name]')].map((x) => [x.name, x.value])) });
   if (!r) return;
   if (r.value === 'reset') { run((s) => { delete s.prefs[exerciseId]; }, '기본값으로 되돌렸습니다. 새로 만드는 세션부터 적용됩니다.'); return; }
   const f = r.data;
   const lo = Math.max(1, +f.lo || 1), hi = Math.max(lo, +f.hi || lo);
-  run((s) => T.setPref(s, exerciseId, { loadMode: f.loadMode, increment: Math.max(0, +f.increment || 0), rest: +f.rest, unilateral: f.unilateral === '1', range: [lo, hi], base: f.base === '' ? null : Math.max(0, +f.base || 0) }), '저장했습니다.');
+  run((s) => T.setPref(s, exerciseId, { loadMode: f.loadMode, increment: Math.max(0, +f.increment || 0), rest: +f.rest, unilateral: f.unilateral === '1', range: [lo, hi] }), '저장했습니다.');
 }
 
 async function finishSession() {

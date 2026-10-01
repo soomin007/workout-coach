@@ -22,8 +22,6 @@ export function profileFor(state, exerciseId) {
     equipment: base.equipment || 'none',
     priority: base.priority || 50,
     risk: base.risk || null,
-    // 기구 자체 무게(공중량). 한쪽당 원판식 기구에서 총중량 표시용. 처방은 원판 무게로만 한다.
-    base: Number.isFinite(+p.base) && p.base !== null && p.base !== '' ? +p.base : (base.base ?? null),
     why: base.why || '사용자 추가 운동',
     cue: base.cue || '',
     custom: !catalogById(exerciseId),
@@ -100,7 +98,7 @@ export function warmupPlan(profile, weight, level) {
 // ---------- 무거운 날 (근력 중심) ----------
 // RTS식 톱세트 + 백오프 (docs/research/strength_day_proposal.md, 2026-10-01 사용자 결정 A·B·C 모두 권장안).
 export const HEAVY = { top: [3, 5], target: 4, rir: 2, backoffPct: 0.9, backoff: [5, 6], rest: 240 };
-const HEAVY_MODES = ['total', 'per_side', 'per_dumbbell', 'machine'];
+const HEAVY_MODES = ['total', 'per_side', 'plates', 'per_dumbbell', 'machine'];
 
 // 무거운 날을 적용할 수 있는 운동: 중량을 다는 복합 운동, 반복으로 세는 것.
 export function heavyEligible(profile) {

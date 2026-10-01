@@ -5,7 +5,8 @@ export const PARTS = ['push', 'pull', 'lower', 'core'];
 export const PART_LABEL = { push: 'Push', pull: 'Pull', lower: 'Lower', core: 'Core' };
 
 export const LOAD_MODES = [
-  ['total', '총중량'], ['per_side', '한쪽당'], ['per_dumbbell', '덤벨 1개당'],
+  // plates: 원판식 머신(레그프레스 등). 양쪽 원판을 더한 값이고 기구 자체 무게는 넣지 않는다(공중량은 알 수 없음).
+  ['total', '총중량'], ['per_side', '한쪽당'], ['plates', '원판 합계'], ['per_dumbbell', '덤벨 1개당'],
   ['machine', '머신 표시값'], ['bodyweight', '체중'], ['assist', '보조중량'],
 ];
 
@@ -111,7 +112,7 @@ export const DB = {
     { id: 'smith_squat', name: '스미스 스쿼트', role: 'secondary_squat', primary: ['quads', 'glute'], secondary: [], sets: 3, range: [8, 10], rest: 180, inc: 5, mode: 'per_side', priority: 95, equipment: 'smith', compound: true, why: '안정적인 하체 추가 볼륨' },
     { id: 'bulgarian', name: '불가리안 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], secondary: ['hamstring'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, unilateral: true, why: '편측 하체와 좌우 균형', cue: '왼쪽부터 시작하고 오른쪽 반복수는 왼쪽을 넘기지 않기. 상체를 과하게 숙이지 말고 척추 중립.' },
     { id: 'legcurl', name: '레그컬', role: 'hamstring', primary: ['hamstring'], secondary: [], sets: 3, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 95, equipment: 'leg_curl', why: '햄스트링 직접 볼륨' },
-    { id: 'legpress', name: '싱글 레그프레스', role: 'secondary_lower', primary: ['quads', 'glute'], secondary: [], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'per_side', priority: 88, equipment: 'leg_press', unilateral: true, why: '편측 하체 추가 볼륨', cue: '왼쪽 무릎/대퇴사두 우세와 오른쪽 둔근 우세를 관찰. 무릎 궤적·골반 회전·뒤꿈치 들림 체크.' },
+    { id: 'legpress', name: '싱글 레그프레스', role: 'secondary_lower', primary: ['quads', 'glute'], secondary: [], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'plates', priority: 88, equipment: 'leg_press', unilateral: true, why: '편측 하체 추가 볼륨', cue: '왼쪽 무릎/대퇴사두 우세와 오른쪽 둔근 우세를 관찰. 무릎 궤적·골반 회전·뒤꿈치 들림 체크.' },
     { id: 'abduction', name: '힙 어브덕션 (다리 벌리기)', aliases: ['힙 어브덕션'], role: 'glute_med', primary: ['glute'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 78, equipment: 'abduction', why: '둔근 보조' },
     { id: 'bw_split_squat', name: '맨몸 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], secondary: [], sets: 3, range: [10, 15], rest: 75, inc: 0, mode: 'bodyweight', priority: 45, equipment: 'none', compound: true, unilateral: true, why: '집에서 하는 편측 하체' },
     { id: 'glute_bridge', name: '글루트 브릿지', role: 'glute_med', primary: ['glute'], secondary: ['hamstring'], sets: 2, range: [12, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 40, equipment: 'none', why: '집에서 하는 둔근 운동', cue: '허리를 꺾지 말고 엉덩이를 조여서 올리기.' },

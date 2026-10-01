@@ -36,7 +36,7 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
   const entry = {
     uid: newId('x'), exerciseId: p.id, name: p.name, slot: sl, role: p.role,
     primary: [...p.primary], secondary: [...p.secondary],
-    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, loadMode: p.mode, base: p.base,
+    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, loadMode: p.mode,
     unilateral: p.unilateral, compound: p.compound, measure: p.measure, equipment: p.equipment,
     why: p.why, cue: p.cue, warmupLevel: level,
     prescription: rx, coach: '', effort: null, memo: '',
@@ -414,7 +414,7 @@ export function stopRest(state) {
 
 // 명시적 사용자 선호 저장 (설정 화면 전용). 현재 세션의 같은 운동 항목에도 즉시 반영한다.
 export function setPref(state, exerciseId, patch) {
-  const allowed = ['loadMode', 'increment', 'rest', 'range', 'unilateral', 'base'];
+  const allowed = ['loadMode', 'increment', 'rest', 'range', 'unilateral'];
   const cur = { ...(state.prefs[exerciseId] || {}) };
   for (const [k, v] of Object.entries(patch)) { need(allowed.includes(k), 'bad_pref', k); cur[k] = v; }
   state.prefs[exerciseId] = cur;
@@ -425,7 +425,6 @@ export function setPref(state, exerciseId, patch) {
     if ('rest' in patch) e.rest = Number(patch.rest) || e.rest;
     if ('range' in patch) e.range = [...patch.range];
     if ('unilateral' in patch) e.unilateral = !!patch.unilateral;
-    if ('base' in patch) e.base = patch.base;
   }
   recalcEstimate(state);
 }
@@ -557,7 +556,7 @@ export function finishSession(state, { now = new Date() } = {}) {
       loadMode: e.loadMode, increment: e.increment, measure: e.measure, unilateral: e.unilateral,
       range: [...e.range], primary: [...e.primary], secondary: [...e.secondary],
       sets: structuredClone(done), effort: e.effort, memo: e.memo,
-      ...(e.heavy ? { heavy: true } : {}), ...(e.base ? { base: e.base } : {}),
+      ...(e.heavy ? { heavy: true } : {}),
     });
   }
   const summary = { part: s.part, date: s.date, workSets: work, durationSec: duration, exercises: s.exercises.filter((e) => e.sets.some((z) => z.done)).map((e) => ({ name: e.name, sets: e.sets.filter((z) => z.done && z.type === 'main').map((z) => ({ weight: z.weight, reps: setReps(z) })) })) };

@@ -10,6 +10,8 @@ import { HEAVY } from '../core/coach.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
 const MODE_LABEL = Object.fromEntries(LOAD_MODES);
+// 0kg 를 '빈 기구'로 읽는 방식 (원판을 하나도 안 꽂은 상태)
+export const EMPTY_OK = ['machine', 'per_side', 'plates'];
 const PART_OPTS = ['push', 'pull', 'lower', 'core'];
 const opt = (v, label, cur) => `<option value="${esc(v)}"${String(v) === String(cur) ? ' selected' : ''}>${esc(label)}</option>`;
 const slotLabel = slotName;
@@ -141,7 +143,7 @@ function weightLabel(e, w) {
   if (w === null || w === undefined) return e.loadMode === 'bodyweight' ? '체중' : '<small>kg 입력</small>';
   if (e.loadMode === 'bodyweight') return `+${w}<small>kg</small>`;
   if (e.loadMode === 'assist') return `${w}<small>보조</small>`;
-  if (w === 0 && (e.loadMode === 'machine' || e.loadMode === 'per_side')) return '<small>빈 기구</small>';
+  if (w === 0 && EMPTY_OK.includes(e.loadMode)) return '<small>빈 기구</small>';
   return `${w}<small>kg</small>`;
 }
 
@@ -158,14 +160,8 @@ export function nextSet(session) {
   return null;
 }
 
-// 한쪽당 원판식에 공중량을 적어 두었으면 총중량도 보여 준다 (원판 양쪽 + 기구 무게).
-export function totalLoad(e, w) {
-  return e.loadMode === 'per_side' && e.base > 0 && w !== null && w !== undefined ? Math.round((e.base + 2 * w) * 10) / 10 : null;
-}
-
 function setSummary(e, z) {
-  const tot = totalLoad(e, z.weight);
-  const w = z.weight === null || z.weight === undefined ? '' : z.weight === 0 && ['machine', 'per_side'].includes(e.loadMode) ? `빈 기구${tot ? `(총 ${tot}kg)` : ''} × ` : `${z.weight}kg${tot ? `(총 ${tot}kg)` : ''} × `;
+  const w = z.weight === null || z.weight === undefined ? '' : z.weight === 0 && EMPTY_OK.includes(e.loadMode) ? '빈 기구 × ' : `${z.weight}kg × `;
   const reps = z.split ? `L${z.leftReps ?? '-'}/R${z.rightReps ?? '-'}` : `${z.reps ?? '-'}`;
   return `${w}${reps}${unitOf(e)}`;
 }
@@ -209,7 +205,7 @@ function renderExercise(state, e, idx, ui, next) {
   return `<section class="card ex${allDone ? ' complete' : ''}${next && next.e.uid === e.uid ? ' current' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
     <div class="ex-head">
       <div><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
-      <div class="ex-meta">${e.heavy ? `<b class="heavy-tag">무거운 날</b> 톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 → 백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회` : `목표 ${e.range[0]}~${e.range[1]}${unitOf(e)}`} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}${e.loadMode === 'per_side' && e.base > 0 ? ` · 공중량 ${e.base}kg` : ''}</div></div>
+      <div class="ex-meta">${e.heavy ? `<b class="heavy-tag">무거운 날</b> 톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 → 백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회` : `목표 ${e.range[0]}~${e.range[1]}${unitOf(e)}`} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
       <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
     </div>
     <div class="rx">${esc(e.prescription?.note || '')}</div>

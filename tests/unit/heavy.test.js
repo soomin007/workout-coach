@@ -87,11 +87,9 @@ test('세션을 마치면 무거운 날 표시가 기록에 남는다', () => {
   assert.equal(rec.sets.find((z) => z.heavy === 'top').weight, 97.5);
 });
 
-test('공중량: 레그프레스는 한쪽당 원판 방식, 설정한 기구 무게가 세션 항목에 실린다', () => {
+test('레그프레스: 양쪽 원판 합계로 적고 5kg씩 올린다', () => {
   const s = freshState();
-  assert.equal(profileFor(s, 'legpress').mode, 'per_side');
-  T.setPref(s, 'legpress', { base: 50 });
-  assert.equal(profileFor(s, 'legpress').base, 50);
-  const e = T.makeEntry(s, 'legpress', { part: 'lower', minutes: 60 });
-  assert.equal(e.base, 50);
+  const p = profileFor(s, 'legpress');
+  assert.deepEqual([p.mode, p.inc], ['plates', 5]);
+  assert.throws(() => T.setPref(s, 'legpress', { base: 50 }), '공중량 설정은 없다');
 });
