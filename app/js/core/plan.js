@@ -7,6 +7,9 @@ export const POLICY = {
   initialWeeklyBudget: { push: 10, pull: 12, lower: 12 },
   minGapHours: 36,
   secondarySetCredit: 0.5,
+  // 보조 종목 로테이션: 지난 같은 부위 세션에 했던 보조 종목은 이만큼 감점해, 비슷한 후보끼리 번갈아 나오게 한다.
+  // 메인(핵심 슬롯)은 진행을 추적해야 하므로 돌리지 않는다 (Kassiano 2022: 체계적 변화는 이득, 잦은 무작위 교체는 손해).
+  accessoryRepeatPenalty: 1.5,
 };
 
 const DAY = 86400000;
@@ -30,9 +33,24 @@ export function muscleSets(state, muscle, now = new Date()) {
   return Math.round(n * 10) / 10;
 }
 
-function muscleNeed(state, m, now) {
+// extra: 오늘 계획에 이미 들어간 세트 (근육 → 세트 수). 같은 자극을 겹쳐 고르지 않게 한다.
+function muscleNeed(state, m, now, extra = null) {
   const b = MUSCLE_BUDGET[m] || 8;
-  return Math.max(-1, Math.min(1.5, (b - muscleSets(state, m, now)) / Math.max(1, b)));
+  return Math.max(-1, Math.min(1.5, (b - muscleSets(state, m, now) - (extra?.[m] || 0)) / Math.max(1, b)));
+}
+
+function addPlannedSets(extra, profile, sets) {
+  for (const m of profile.primary || []) extra[m] = (extra[m] || 0) + sets;
+  for (const m of profile.secondary || []) extra[m] = (extra[m] || 0) + sets * POLICY.secondarySetCredit;
+}
+
+// 지난 같은 부위 세션(오늘 이전)에 한 운동 id.
+export function lastSessionExercises(state, part, now = new Date()) {
+  const today = localISODate(now);
+  const xs = (state.performance || []).filter((p) => p.part === part && p.date < today);
+  if (!xs.length) return new Set();
+  const last = xs.reduce((a, p) => (p.date > a.date ? p : a));
+  return new Set(xs.filter((p) => p.sessionId === last.sessionId).map((p) => p.exerciseId));
 }
 
 function partNeed(state, part, now) {
@@ -149,16 +167,20 @@ export function partPool(state, part) {
   return ids.map((id) => profileFor(state, id)).filter(Boolean);
 }
 
-function optionNeedScore(state, profile, now) {
+function optionNeedScore(state, profile, now, extra = null) {
   const prim = profile.primary || [];
-  const deficit = prim.length ? prim.reduce((a, m) => a + muscleNeed(state, m, now), 0) / prim.length : 0;
+  const deficit = prim.length ? prim.reduce((a, m) => a + muscleNeed(state, m, now, extra), 0) / prim.length : 0;
   return deficit * 10 + (profile.priority || 0) / 20;
 }
 
 export function chooseForSlot(state, part, slot, used, now = new Date(), opts = {}) {
   return partPool(state, part)
     .filter((e) => supportsSlot(e, slot) && isAvailable(state, e, opts) && !used.has(e.id))
-    .sort((a, b) => ((b.role === slot ? 20 : 0) - (a.role === slot ? 20 : 0)) || (optionNeedScore(state, b, now) - optionNeedScore(state, a, now)) || (b.priority - a.priority))[0] || null;
+    .sort((a, b) => ((b.role === slot ? 20 : 0) - (a.role === slot ? 20 : 0)) || (slotScore(state, b, now, opts) - slotScore(state, a, now, opts)) || (b.priority - a.priority))[0] || null;
+}
+
+function slotScore(state, p, now, opts) {
+  return optionNeedScore(state, p, now, opts.extra) - (opts.recent?.has(p.id) ? POLICY.accessoryRepeatPenalty : 0);
 }
 
 export function estimateMinutes(profile, sets, withFullWarmup = false) {
@@ -199,20 +221,28 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   for (let i = planned.length - 1; i >= 0 && est > minutes * 1.05; i--) {
     if (planned[i].sets > 2) { planned[i].sets--; est = total(); }
   }
-  const opts = [];
-  const provisional = new Set(used);
-  for (const slot of OPTIONAL_SLOTS[part] || []) {
-    const e = chooseForSlot(state, part, slot, provisional, now, where);
-    if (e) { opts.push({ p: e, slot, score: optionNeedScore(state, e, now) + (e.role === slot ? 5 : 0) }); provisional.add(e.id); }
-  }
-  opts.sort((a, b) => b.score - a.score);
-  for (const o of opts) {
-    if (planned.length >= maxCount) break;
+  // 보조 종목: 오늘 계획된 세트까지 포함한 부족분으로 하나씩 고른다(고를 때마다 다시 계산).
+  const extra = {};
+  for (const x of planned) addPlannedSets(extra, x.p, x.sets);
+  const sel = { ...where, extra, recent: lastSessionExercises(state, part, now) };
+  let open = [...(OPTIONAL_SLOTS[part] || [])];
+  while (open.length && planned.length < maxCount) {
+    const provisional = new Set(used);
+    const cands = [];
+    for (const slot of open) {
+      const e = chooseForSlot(state, part, slot, provisional, now, sel);
+      if (e) { cands.push({ p: e, slot, score: slotScore(state, e, now, sel) + (e.role === slot ? 5 : 0) }); provisional.add(e.id); }
+    }
+    if (!cands.length) break;
+    cands.sort((a, b) => b.score - a.score);
+    const o = cands[0];
+    open = open.filter((x) => x !== o.slot);
     const sets = Math.min(2, adjustedSetCount(state, o.p, part, minutes, o.slot, now));
     const cost = estimateMinutes(o.p, sets, false);
     if (est + cost <= minutes * 1.06 || (minutes >= 60 && planned.length < 5)) {
       planned.push({ p: o.p, slot: o.slot, sets });
       used.add(o.p.id);
+      addPlannedSets(extra, o.p, sets);
       est += cost;
     }
   }

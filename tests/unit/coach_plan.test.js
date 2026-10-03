@@ -157,3 +157,17 @@ test('PT 요일은 확정이 아니다: 오늘 PT 없어요를 누르면 일반 
   assert.ok(['push', 'pull', 'lower'].includes(recommendPart(s, thu).part));
   assert.equal(recommendPart(s, new Date(2026, 9, 8, 10)).part, 'pt', '다음 주 목요일은 다시 PT 날');
 });
+
+test('등 보조 종목: 메인이 광배를 채우면 상부 등(T바)을 먼저, 지난번에 했으면 랫풀과 번갈아', () => {
+  const at = new Date(2026, 9, 20, 18, 0);
+  const ids = (s) => buildPlan(s, 'pull', 45, at).planned.map((x) => x.id);
+  const s = freshState();
+  const first = ids(s);
+  assert.ok(first.includes('pullup') && first.includes('row'), '메인 수직·수평 당기기는 매번 유지');
+  assert.ok(first.includes('tbar') && !first.includes('lat'), '풀업과 겹치는 랫풀보다 상부 등 보조');
+  // 지난 Pull 세션(2주 전, 주간 볼륨 창 밖)에 T바를 했다면 이번엔 랫풀
+  s.performance.push({ sessionId: 'p1', date: '2026-10-06', part: 'pull', exerciseId: 'tbar', primary: ['upper_back'], secondary: ['back', 'biceps'], sets: [{ type: 'main', weight: 20, reps: 10, done: true }] });
+  const second = ids(s);
+  assert.ok(second.includes('lat') && !second.includes('tbar'), second.join(','));
+  assert.ok(second.includes('pullup') && second.includes('row'));
+});
