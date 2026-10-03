@@ -2,10 +2,11 @@
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, catalogById } from './catalog.js';
-import { profileFor, lastPerformance, prescribe, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
+import { profileFor, lastPerformance, prescribe, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
 import { buildPlan, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
 import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
+import { plannedPrefatigue, actualOrder, fatigueClass } from './order.js';
 
 export class TransitionError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -113,11 +114,40 @@ export function createSession(state, { part, source = 'manual', date = null, ove
   return state.session;
 }
 
+// 순서·세트 수가 바뀌면 각 운동 앞의 같은 근육 세트 수(선행 피로)를 다시 세고,
+// 피로 조건(먼저/지친 뒤)이 바뀐 운동만 처방을 다시 계산한다. 손댄 운동과 무거운 날은 그대로 둔다.
+// 반환: 처방이 바뀐 항목들.
+export function applyOrderContext(state) {
+  const s = state.session;
+  if (!s) return [];
+  const changed = [];
+  s.exercises.forEach((e, i) => {
+    const pf = plannedPrefatigue(s.exercises, i);
+    const cls = fatigueClass(pf);
+    const was = e.orderClass;
+    e.prefatigue = pf;
+    if (was === cls) return;
+    e.orderClass = cls;
+    if (e.heavy || entryHasUserData(e)) return;
+    const p = profileFor(state, e.exerciseId);
+    if (!p) return;
+    const rx = prescribeForOrder(p, state, pf);
+    const prev = e.prescription;
+    e.prescription = rx;
+    for (const z of e.sets) if (z.type === 'main' && !z.done && !z.touched) { z.weight = rx.weight; z.reps = rx.reps; }
+    recomputeWarmups(e, p);
+    if (was !== undefined && (prev?.weight !== rx.weight || prev?.reps !== rx.reps)) changed.push(e);
+  });
+  return changed;
+}
+
 export function recalcEstimate(state) {
   const s = state.session;
-  if (!s) return;
+  if (!s) return [];
+  const changed = applyOrderContext(state);
   const f = firstCompoundUid(s);
   s.estimatedMinutes = Math.round(s.exercises.reduce((a, e) => a + estimateMinutes({ compound: e.compound, rest: e.restToday ?? e.rest }, e.sets.filter((z) => z.type !== 'warmup').length, e.uid === f), 0));
+  return changed;
 }
 
 // 사용자가 손댄(또는 완료한) 흔적이 있는가. 교체·삭제 전 확인 여부 판단용.
@@ -360,6 +390,7 @@ export function moveExercise(state, uid, toIndex) {
   const to = Math.max(0, Math.min(s.exercises.length - 1, toIndex));
   const [e] = s.exercises.splice(idx, 1);
   s.exercises.splice(to, 0, e);
+  return recalcEstimate(state);
 }
 
 export function removeExercise(state, uid) {
@@ -550,15 +581,19 @@ export function finishSession(state, { now = new Date() } = {}) {
   const s = sessionOf(state);
   const duration = activeDurationSec(s, now);
   const work = countWorkSets(s);
+  const ord = actualOrder(s.exercises.map((e) => ({ key: e.uid, primary: e.primary, secondary: e.secondary, sets: e.sets })));
   for (const e of s.exercises) {
     const done = e.sets.filter((z) => z.done);
     if (!done.length) continue;
+    const o = ord.get(e.uid);
     state.performance.push({
       sessionId: s.id, date: s.date, part: s.part, exerciseId: e.exerciseId, name: e.name, slot: e.slot,
       loadMode: e.loadMode, increment: e.increment, measure: e.measure, unilateral: e.unilateral,
       range: [...e.range], primary: [...e.primary], secondary: [...e.secondary],
       sets: structuredClone(done), effort: e.effort, memo: e.memo,
       ...(e.heavy ? { heavy: true } : {}),
+      ...(e.grip ? { grip: e.grip } : {}),
+      ...(o ? { order: o.order, prefatigue: o.prefatigue } : {}),
     });
   }
   const summary = { part: s.part, date: s.date, workSets: work, durationSec: duration, exercises: s.exercises.filter((e) => e.sets.some((z) => z.done)).map((e) => ({ name: e.name, sets: e.sets.filter((z) => z.done && z.type === 'main').map((z) => ({ weight: z.weight, reps: setReps(z) })) })) };

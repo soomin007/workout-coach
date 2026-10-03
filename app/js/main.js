@@ -522,7 +522,7 @@ async function exerciseMenu(uid) {
     return run((s) => T.markUnavailable(s, uid, { persistent: v === 'unavail-perm' }), (ne) => (ne ? `${name} → ${ne.name}` : '같은 동작의 대체 운동이 없습니다. 운동 변경이나 자동 보완을 써 보세요.'));
   }
   if (v === 'custom') return customExercise(uid);
-  if (v === 'up' || v === 'down') return run((s) => T.moveExercise(s, uid, idx + (v === 'up' ? -1 : 1)));
+  if (v === 'up' || v === 'down') return run((s) => T.moveExercise(s, uid, idx + (v === 'up' ? -1 : 1)), (ch) => (ch?.length ? `순서가 바뀌어 ${ch.map((e) => e.name).join(', ')} 목표를 다시 잡았습니다.` : ''));
   if (v === 'memo') return editMemo(uid);
   if (v === 'pref') return editPref(e.exerciseId);
   if (v === 'remove') {

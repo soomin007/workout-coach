@@ -6,6 +6,7 @@ export function esc(x) {
 
 let toastTimer = null;
 export function toast(msg, ms = 2200) {
+  if (!msg) return;
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');

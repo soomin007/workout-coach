@@ -1,6 +1,7 @@
 // v10 상태 구조. 네 계층: 카탈로그(catalog.js) / prefs / session / history+performance.
 import { EQUIPMENT, PARTS } from './catalog.js';
 import { parseDateLocal, toNum } from './util.js';
+import { actualOrder } from './order.js';
 
 export const SCHEMA_VERSION = 10;
 export const EFFORTS = ['easy', 'ok', 'hard'];
@@ -71,6 +72,7 @@ export function normalizeState(src) {
   n.performance = Array.isArray(x.performance)
     ? x.performance.filter((p) => p && parseDateLocal(p.date) && Array.isArray(p.sets)).map((p) => ({ ...p, sets: p.sets.map(normalizeSet) }))
     : [];
+  backfillOrder(n.performance);
   if (x.session && typeof x.session === 'object') {
     const s = x.session;
     n.session = {
@@ -80,6 +82,22 @@ export function normalizeState(src) {
     };
   } else n.session = null;
   return n;
+}
+
+// 순서 기록(order · prefatigue)이 없는 옛 기록에, 세트 완료 시각이 남아 있으면 소급해서 채운다.
+// 시각이 없는 세션(이관 기록 등)은 비워 둔다: 조건을 모르는 기록으로 남는다.
+function backfillOrder(perf) {
+  const groups = new Map();
+  for (const p of perf) {
+    if (p.prefatigue !== undefined || !p.sessionId) continue;
+    if (!groups.has(p.sessionId)) groups.set(p.sessionId, []);
+    groups.get(p.sessionId).push(p);
+  }
+  for (const xs of groups.values()) {
+    if (!xs.every((p) => p.sets.some((z) => z.done && z.type === 'main' && Number.isFinite(z.doneAt)))) continue;
+    const ord = actualOrder(xs.map((p, i) => ({ key: i, primary: p.primary, secondary: p.secondary, sets: p.sets })));
+    xs.forEach((p, i) => { const o = ord.get(i); if (o) { p.order = o.order; p.prefatigue = o.prefatigue; } });
+  }
 }
 
 export function looksLikeV10(x) {
