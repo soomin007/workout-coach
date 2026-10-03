@@ -242,7 +242,7 @@ export function renderSession(state, ui, now = new Date()) {
     <div class="session-head">
       <div><div class="kicker" data-testid="session-mode">진행 중${s.home ? ' · 집' : ''} · ${s.minutes}분 · ${esc(INTENSITY[s.intensity] || '일반')}${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
         <div class="small" data-testid="session-meta">예상 ${s.estimatedMinutes}분 · 운동 ${s.exercises.length}개 · 본세트 ${work}/${total}</div></div>
-      <div class="head-right"><div class="clock" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>
+      <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨 · 세트를 끝내면 다시 갑니다</div>'}
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
           <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${s.timer.running ? '❚❚' : '▶'}</button>
           <button class="btn sm ghost${ui.wakeLock ? ' lit' : ''}" data-action="wakelock" data-testid="wakelock" aria-pressed="${ui.wakeLock ? 'true' : 'false'}">${ui.wakeLock ? '화면 유지 중' : '화면 유지'}</button>

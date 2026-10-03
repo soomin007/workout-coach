@@ -331,3 +331,13 @@ test('계획대로 완료로 실시간 기록 중 마지막 한 세트를 끝내
   assert.equal(last.doneAt, t.getTime());
   assert.equal(last.restBefore, 240);
 });
+
+test('타이머: 일시정지한 채 세트를 끝내면 자동으로 다시 간다', () => {
+  const s = sessionWith(freshState(), 'pull', ['pullup']);
+  T.toggleSessionTimer(s, { now: new Date(now.getTime() + 60000) });
+  assert.equal(s.session.timer.running, false);
+  const t2 = new Date(now.getTime() + 300000);
+  T.toggleSetDone(s, entryOf(s, 'pullup').uid, mi(s, 'pullup'), { now: t2 });
+  assert.equal(s.session.timer.running, true);
+  assert.equal(T.timerSeconds(s.session.timer, t2.getTime() + 10000), 60 + 10);
+});

@@ -256,6 +256,8 @@ export function toggleSetDone(state, uid, setIndex, { now = new Date() } = {}) {
   z.restBefore = prevDone ? Math.round((t - prevDone.doneAt) / 1000) : null;
   z.done = true; z.doneAt = t;
   s.lastActivityAt = t;
+  // 일시정지를 잊어도 세트를 끝내면 운동 중이라는 뜻이니 상단 타이머를 다시 켠다.
+  if (s.timer && !s.timer.running) { s.timer.running = true; s.timer.start = t; }
   if (z.type === 'main') coachAfterSet(entry, setIndex);
   // 워밍업 뒤에는 짧게 (최대 60초)
   s.restTimer = { uid, setIndex, startedAt: t, seconds: z.type === 'warmup' ? Math.min(60, effectiveRest(entry)) : effectiveRest(entry) };
