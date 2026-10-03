@@ -561,3 +561,35 @@ test('레그프레스: 기본값이 원판 합계, 공중량 칸은 없다', asy
   await sheet(page).getByRole('button', { name: '저장' }).click();
   expect((await st(page)).prefs.legpress.loadMode).toBe('plates');
 });
+
+test('그립: 카드의 그림 칩을 누르면 그립별 그림 · 자극 부위 · 잡는 법이 나오고, 고른 그립이 자극 부위와 함께 유지된다', async ({ page }) => {
+  await startPart(page, 'Pull', 60);
+  const row = card(page, 'row');
+  await expect(row.getByTestId('grip-chip')).toContainText('V핸들');
+  await row.getByTestId('grip-chip').click();
+  const opts = sheet(page).locator('.grip-opt');
+  await expect(opts).toHaveCount(3);
+  await expect(sheet(page).locator('.grip-opt svg.grip-art')).toHaveCount(3);
+  const wide = sheet(page).locator('.grip-opt[data-grip="overhand_wide"]');
+  await expect(wide).toContainText('주로 상부등');
+  await wide.getByRole('button', { name: '이 그립으로' }).click();
+  await expect(row.getByTestId('grip-chip')).toContainText('넓은 오버핸드');
+  await expect(row.getByTestId('grip-chip')).toContainText('주로 상부등');
+  await page.reload();
+  await expect(card(page, 'row').getByTestId('grip-chip')).toContainText('넓은 오버핸드');
+  // 세트를 하나 끝내면 그립은 보기만 할 수 있다
+  await card(page, 'row').locator('.set:not(.warmup) [data-action="done"]').first().click();
+  await card(page, 'row').getByTestId('grip-chip').click();
+  await expect(sheet(page).getByRole('button', { name: '이 그립으로' })).toHaveCount(0);
+  await sheet(page).getByRole('button', { name: '닫기' }).click();
+  const s = await st(page);
+  expect(s.session.exercises.find((e) => e.exerciseId === 'row')).toMatchObject({ grip: 'overhand_wide', primary: ['upper_back'] });
+});
+
+test('타이머: 일시정지하면 글자로 알려 주고, 세트를 끝내면 다시 간다', async ({ page }) => {
+  await startPart(page, 'Pull', 60);
+  await page.locator('[data-action="timer"]').click();
+  await expect(page.getByTestId('timer-paused')).toBeVisible();
+  await card(page, 'pullup').locator('[data-action="done"]').first().click();
+  await expect(page.getByTestId('timer-paused')).toHaveCount(0);
+});

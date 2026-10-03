@@ -6,6 +6,8 @@ import { countWorkSets, timerSeconds } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
 import { guideFor } from '../core/guide.js';
+import { gripById, gripArm } from '../core/grips.js';
+import { gripArt } from './gripart.js';
 import { HEAVY } from '../core/coach.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
@@ -208,6 +210,7 @@ function renderExercise(state, e, idx, ui, next) {
       <div class="ex-meta">${e.heavy ? `<b class="heavy-tag">무거운 날</b> 톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 → 백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회` : `목표 ${e.range[0]}~${e.range[1]}${unitOf(e)}`} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
       <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
     </div>
+    ${gripChip(e)}
     <div class="rx">${esc(e.prescription?.note || '')}</div>
     ${e.coach ? `<div class="coach" data-testid="coach">${esc(e.coach)}</div>` : ''}
     ${guideHtml(e)}
@@ -219,12 +222,44 @@ function renderExercise(state, e, idx, ui, next) {
   </section>`;
 }
 
+const muscleNames = (xs) => xs.map((m) => MUSCLE_LABEL[m] || m).join(', ');
+
+// 그립을 고를 수 있는 운동: 작은 그림 + 지금 그립 이름. 누르면 그립 시트(그림 · 자극 부위 · 잡는 법).
+function gripChip(e) {
+  const g = e.grip ? gripById(e.exerciseId, e.grip) : null;
+  if (!g) return '';
+  return `<button class="grip-chip" data-action="grip" data-uid="${e.uid}" data-testid="grip-chip"><span class="grip-thumb" aria-hidden="true">${gripArt(g, { arm: gripArm(e.exerciseId) })}</span>
+    <span class="grip-txt"><b>그립 · ${esc(g.name)}</b><span class="tiny">주로 ${esc(muscleNames(e.primary))} · 눌러서 그림 보기 · 바꾸기</span></span></button>`;
+}
+
+// 그립 시트 본문. done: 이미 완료한 세트가 있으면 보기만 한다.
+export function gripSheetHtml(e, grips, done) {
+  const opts = grips.map((g) => {
+    const cur = g.id === e.grip;
+    const prim = g.primary || (cur ? e.primary : null);
+    return `<div class="grip-opt${cur ? ' on' : ''}" data-grip="${esc(g.id)}">
+      ${gripArt(g, { arm: gripArm(e.exerciseId) })}
+      <div class="grip-name">${esc(g.name)}${cur ? ' <span class="tag">지금</span>' : ''}</div>
+      ${prim ? `<div class="tiny">주로 ${esc(muscleNames(prim))}</div>` : ''}
+      <p class="small">${esc(g.emphasis)}</p>
+      <ol>${g.how.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+      ${cur || done ? '' : `<button class="btn primary" data-sheet-value="${esc(g.id)}">이 그립으로</button>`}
+    </div>`;
+  }).join('');
+  return `<h3>${esc(e.name)} 그립</h3>
+    <p class="small">그림은 내 눈으로 내려다본 손입니다. 점선은 내 어깨 위치. 그립마다 다룰 수 있는 무게가 달라서, 처방은 같은 그립 기록끼리 비교합니다.${done ? ' 이미 완료한 세트가 있어 이번에는 보기만 할 수 있습니다.' : ''}</p>
+    <div class="grip-list">${opts}</div>
+    <div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`;
+}
+
 // 운동 설명: 하는 방법 · 주의할 점이 먼저, 근육 정보와 개인 체크 포인트는 뒤에.
 function guideHtml(e) {
   const g = guideFor(e.exerciseId);
   const muscles = [...e.primary.map((m) => MUSCLE_LABEL[m] || m)].join('·');
   const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}>`;
+  const gr = e.grip ? gripById(e.exerciseId, e.grip) : null;
   return `<details class="cue" data-testid="guide"><summary>운동 방법 · 주의할 점</summary>
+    ${gr ? `<div class="guide-h">지금 그립: ${esc(gr.name)} (${esc(gr.hold)})</div>${list(gr.how, 'ul')}` : ''}
     ${g ? `<div class="guide-h">하는 방법</div>${list(g.how, 'ol')}<div class="guide-h">주의할 점</div>${list(g.caution, 'ul')}` : '<div class="small">직접 만든 운동이라 설명이 없습니다. 메모에 자세 포인트를 적어 두세요.</div>'}
     ${e.cue ? `<div class="guide-h">내 체크 포인트</div><div>${esc(e.cue)}</div>` : ''}
     <div class="tiny" style="margin-top:6px">${esc(slotLabel(e.slot))} · 주로 ${esc(muscles)} · ${esc(e.why)}</div></details>`;

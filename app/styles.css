@@ -104,6 +104,34 @@ details.more summary { cursor: pointer; min-height: 32px; display: flex; align-i
 .heavy-tag { color: var(--warn); font-weight: 800; margin-right: 2px; }
 .rx { margin-top: 8px; font-size: 13px; color: var(--muted); }
 .coach { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font-size: 13px; }
+/* 그립: 카드의 작은 그림 + 이름, 시트의 큰 그림 */
+.grip-chip { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 8px; padding: 6px 10px 6px 6px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); min-height: var(--tap); }
+.grip-chip .tiny { display: block; }
+.grip-thumb { flex: 0 0 72px; }
+.grip-thumb .grip-art { width: 72px; margin: 0; }
+.grip-thumb .grip-art text, .grip-thumb .grip-art .guide { display: none; }
+.grip-txt { min-width: 0; }
+.grip-list { display: grid; gap: 10px; }
+.grip-opt { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px 12px; background: var(--surface2); }
+.grip-opt.on { border-color: var(--accent); }
+.grip-opt .grip-name { font-weight: 800; margin-top: 2px; }
+.grip-opt .tag { font-size: 11px; color: var(--accent-ink); background: var(--accent); border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+.grip-opt p { margin: 6px 0 0; }
+.grip-opt ol { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.grip-opt .btn { width: 100%; margin-top: 10px; }
+.grip-art { display: block; width: 100%; max-width: 300px; height: auto; margin: 0 auto; }
+.grip-art .bar { stroke: var(--muted); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.grip-art .bar.thin { stroke-width: 3; }
+.grip-art .cable { stroke: var(--faint); stroke-width: 2; }
+.grip-art .rope { stroke: var(--warn); stroke-width: 5; stroke-linecap: round; fill: none; }
+.grip-art .knob { fill: var(--warn); }
+.grip-art .hand { fill: var(--accent); fill-opacity: .3; stroke: var(--accent); stroke-width: 2; }
+.grip-art .arm { fill: var(--accent); fill-opacity: .1; stroke: var(--accent); stroke-opacity: .45; stroke-width: 1.5; }
+.grip-art .finger { stroke: var(--accent); stroke-width: 1.6; }
+.grip-art .guide { stroke: var(--faint); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.grip-art text { fill: var(--muted); font-size: 11px; }
+.grip-art .cap { fill: var(--text); font-size: 13px; font-weight: 700; }
 details.cue { margin-top: 6px; font-size: 13px; color: var(--muted); }
 details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; min-height: 32px; display: flex; align-items: center; }
 .cue .guide-h { margin-top: 8px; font-size: 12px; font-weight: 800; color: var(--text); }

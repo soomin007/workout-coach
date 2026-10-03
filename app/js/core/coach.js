@@ -3,6 +3,7 @@ import { catalogById } from './catalog.js';
 import { setReps, EFFORT_RIR } from './schema.js';
 import { roundTo, clamp } from './util.js';
 import { ORDER, fatigueClass } from './order.js';
+import { gripOf, gripById } from './grips.js';
 
 // 카탈로그(또는 사용자 운동) + 사용자 명시 선호 → 운동 프로필. 세션 값은 섞지 않는다.
 export function profileFor(state, exerciseId) {
@@ -156,10 +157,19 @@ export function backoffWeight(topWeight, inc, pct = HEAVY.backoffPct) {
 // ---------- 운동 순서 (선행 피로) ----------
 // 같은 조건(앞 피로 있음/없음)의 최근 기록을 고른다. 없으면 가장 최근 기록과 함께 조건 차이(shift)를 돌려준다.
 // 조건을 모르는 옛 기록은 어느 쪽과도 같다고 보지 않는다 (shift 없이 그대로 쓴다).
-export function recordForOrder(state, exerciseId, cls) {
-  const xs = (state.performance || []).map((p, i) => ({ p, i }))
+// grip 을 주면 같은 그립 기록만 본다. 그 그립 기록이 없으면 다른 그립 기록을 쓰되 otherGrip 으로 알린다.
+export function recordForOrder(state, exerciseId, cls, grip = null) {
+  const all = (state.performance || []).map((p, i) => ({ p, i }))
     .filter(({ p }) => p.exerciseId === exerciseId && !p.heavy)
     .sort((a, b) => b.p.date.localeCompare(a.p.date) || b.i - a.i).map((x) => x.p);
+  const same = grip ? all.filter((p) => gripOf(p) === grip) : all;
+  const otherGrip = grip && !same.length && all.length ? gripOf(all[0]) : null;
+  const xs = same.length ? same : all;
+  const r = pickByOrder(xs, cls);
+  return { ...r, otherGrip };
+}
+
+function pickByOrder(xs, cls) {
   const latest = xs[0] || null;
   if (!cls || !latest) return { rec: latest, shift: null };
   const same = xs.slice(0, ORDER.lookback).find((p) => fatigueClass(p.prefatigue) === cls);
@@ -171,9 +181,15 @@ export function recordForOrder(state, exerciseId, cls) {
 // 순서를 반영한 처방. pf: 오늘 이 운동 앞에서 같은 근육을 할 세트 수.
 // - 지난번은 지친 상태, 오늘은 먼저: 지난번 미달을 퇴보로 읽지 않고 첫 세트(가장 덜 지친 세트) 기준으로 잡는다.
 // - 지난번은 먼저, 오늘은 지친 상태: 무게는 그대로 두고 목표 반복을 낮춘다. 증량 처방은 미룬다.
-export function prescribeForOrder(profile, state, pf) {
-  const cls = fatigueClass(pf);
-  const { rec, shift } = recordForOrder(state, profile.id, cls);
+export function prescribeForOrder(profile, state, pf, grip = null) {
+  const { rec, shift, otherGrip } = recordForOrder(state, profile.id, fatigueClass(pf), grip);
+  const rx = orderAdjusted(profile, rec, shift, pf);
+  if (!otherGrip) return rx;
+  const from = gripById(profile.id, otherGrip)?.short || '다른 그립';
+  return { ...rx, kind: rx.kind === 'first' ? 'first' : 'grip_change', note: `이 그립은 첫 기록입니다. 지난번 ${from} 기록 기준이라, 첫 세트로 무게를 다시 맞추세요. ${rx.note}` };
+}
+
+function orderAdjusted(profile, rec, shift, pf) {
   const rx = prescribe(profile, rec);
   if (!shift || rx.kind === 'first' || isAssist(profile.mode)) return { ...rx, shift: null };
   const [lo, hi] = profile.range;

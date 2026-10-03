@@ -2,11 +2,12 @@
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, catalogById } from './catalog.js';
-import { profileFor, lastPerformance, prescribe, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
+import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
 import { buildPlan, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
 import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
 import { plannedPrefatigue, actualOrder, fatigueClass } from './order.js';
+import { lastGrip, gripById, gripMuscles } from './grips.js';
 
 export class TransitionError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -32,11 +33,12 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
   need(p, 'unknown_exercise', `알 수 없는 운동: ${exerciseId}`);
   const sl = slot || p.role;
   const n = setCount ?? adjustedSetCount(state, p, part ?? p.part, minutes ?? 60, sl);
-  const rx = prescribe(p, lastPerformance(state, p.id, { heavy: false }));
+  const grip = lastGrip(state, p.id);
+  const rx = prescribeForOrder(p, state, null, grip);
   const level = warmupLevel ?? (p.compound ? 'short' : 'none');
   const entry = {
     uid: newId('x'), exerciseId: p.id, name: p.name, slot: sl, role: p.role,
-    primary: [...p.primary], secondary: [...p.secondary],
+    ...gripMuscles(p.id, grip, p), ...(grip ? { grip } : {}),
     range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, loadMode: p.mode,
     unilateral: p.unilateral, compound: p.compound, measure: p.measure, equipment: p.equipment,
     why: p.why, cue: p.cue, warmupLevel: level,
@@ -129,16 +131,38 @@ export function applyOrderContext(state) {
     if (was === cls) return;
     e.orderClass = cls;
     if (e.heavy || entryHasUserData(e)) return;
-    const p = profileFor(state, e.exerciseId);
-    if (!p) return;
-    const rx = prescribeForOrder(p, state, pf);
     const prev = e.prescription;
-    e.prescription = rx;
-    for (const z of e.sets) if (z.type === 'main' && !z.done && !z.touched) { z.weight = rx.weight; z.reps = rx.reps; }
-    recomputeWarmups(e, p);
-    if (was !== undefined && (prev?.weight !== rx.weight || prev?.reps !== rx.reps)) changed.push(e);
+    const rx = represcribe(state, e);
+    if (rx && was !== undefined && (prev?.weight !== rx.weight || prev?.reps !== rx.reps)) changed.push(e);
   });
   return changed;
+}
+
+// 처방을 다시 계산해 아직 손대지 않은 본세트와 워밍업에 채운다 (순서 · 그립이 바뀔 때).
+function represcribe(state, e) {
+  const p = profileFor(state, e.exerciseId);
+  if (!p) return null;
+  const rx = prescribeForOrder(p, state, e.prefatigue ?? null, e.grip || null);
+  e.prescription = rx;
+  for (const z of e.sets) if (z.type === 'main' && !z.done && !z.touched) { z.weight = rx.weight; z.reps = rx.reps; }
+  recomputeWarmups(e, p);
+  return rx;
+}
+
+// 그립 바꾸기. 자극 부위와 처방(같은 그립 기록 기준)이 따라 바뀐다.
+// 완료한 세트가 있으면 막는다: 한 운동 기록 안에 두 그립이 섞이면 다음 처방이 틀어진다.
+export function setGrip(state, uid, gripId) {
+  const { entry } = findEntry(state, uid);
+  const g = gripById(entry.exerciseId, gripId);
+  need(g, 'unknown_grip', '이 운동에 없는 그립입니다.');
+  need(!entry.sets.some((z) => z.done), 'grip_after_done', '이미 완료한 세트가 있어 그립을 바꾸면 기록이 섞입니다. 이 운동을 마친 뒤 다음 세션에서 바꿔 주세요.');
+  if (entry.grip === gripId) return entry;
+  const p = profileFor(state, entry.exerciseId);
+  entry.grip = gripId;
+  Object.assign(entry, gripMuscles(entry.exerciseId, gripId, p));
+  if (!entry.heavy) represcribe(state, entry);
+  recalcEstimate(state);
+  return entry;
 }
 
 export function recalcEstimate(state) {

@@ -114,3 +114,23 @@ test('무거운 날 카드: 톱세트 표시와 안내가 화면 안에 들어�
   expect(m.scrollW).toBe(m.vw);
   if (info.project.name === 'm360') await page.locator('section.ex[data-exercise="squat"]').screenshot({ path: test.info().outputPath('heavy.png') });
 });
+
+test('그립 칩과 그립 시트: 가로 넘침 없이 그림이 화면 안에 들어온다', async ({ page }, info) => {
+  await page.goto('/');
+  await startPart(page, 'Pull', 60);
+  let m = await measure(page);
+  expect(m.overflow).toEqual([]);
+  expect(m.scrollW).toBe(m.vw);
+  await page.locator('section.ex[data-exercise="row"] [data-testid="grip-chip"]').click();
+  const sh = await page.evaluate(() => {
+    const box = document.querySelector('#sheet .sheet');
+    const vw = document.documentElement.clientWidth;
+    const over = [...box.querySelectorAll('*')].filter((el) => { const r = el.getBoundingClientRect(); return r.width && (r.right > vw + 0.5 || r.left < -0.5); }).map((el) => el.tagName);
+    const art = box.querySelector('svg.grip-art').getBoundingClientRect();
+    return { over, scrollW: box.scrollWidth, clientW: box.clientWidth, artW: art.width };
+  });
+  expect(sh.over).toEqual([]);
+  expect(sh.scrollW).toBe(sh.clientW);
+  expect(sh.artW).toBeGreaterThan(200);
+  if (info.project.name === 'm360') await page.locator('#sheet .sheet').screenshot({ path: test.info().outputPath('grip-sheet.png') });
+});

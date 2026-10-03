@@ -9,7 +9,8 @@ import { profileFor, lastPerformance } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
 import { localISODate } from './core/util.js';
 import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
-import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
+import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
+import { gripsFor, gripById } from './core/grips.js';
 import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
@@ -119,6 +120,7 @@ const actions = {
   wakelock: () => toggleWakeLock(),
   repair: () => run((s) => T.repairSession(s), (n) => (n ? `핵심 동작 ${n}개를 채웠습니다.` : '채울 수 있는 운동이 없습니다.')),
   'add-ex': () => addExercise(),
+  grip: (d) => pickGrip(d.uid),
   'change-part': async () => {
     const p = await choiceSheet('어느 부위로 바꿀까요?', ['push', 'pull', 'lower', 'core'].filter((x) => x !== store.state.session.part).map((x) => ({ value: x, label: PART_LABEL[x] })));
     if (!p) return;
@@ -529,6 +531,16 @@ async function exerciseMenu(uid) {
     if (T.entryHasUserData(e) && !(await confirmSheet('이 운동에 기록이 있습니다. 그래도 삭제할까요?', { ok: '삭제', danger: true }))) return;
     run((s) => T.removeExercise(s, uid));
   }
+}
+
+async function pickGrip(uid) {
+  const e = entry(uid);
+  const grips = gripsFor(e?.exerciseId);
+  if (!grips) return;
+  const done = e.sets.some((z) => z.done);
+  const v = await sheet(gripSheetHtml(e, grips, done));
+  if (!v) return;
+  run((s) => T.setGrip(s, uid, v), (ne) => `${gripById(ne.exerciseId, ne.grip)?.name}(으)로 바꿨습니다. 처방도 이 그립 기록 기준입니다.`);
 }
 
 async function confirmReplace(e) {
