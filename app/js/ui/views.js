@@ -8,6 +8,7 @@ import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
 import { guideFor } from '../core/guide.js';
 import { gripById, gripArm } from '../core/grips.js';
 import { gripArt } from './gripart.js';
+import { bodyMap } from './bodymap.js';
 import { HEAVY } from '../core/coach.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
@@ -176,12 +177,12 @@ function renderSetRow(e, z, i, mainNo, isNext) {
     ? `<div class="lr">${stepper('step', e.uid, i, 'leftReps', `L ${z.leftReps ?? '-'}`, `left-${i}`)}${stepper('step', e.uid, i, 'rightReps', `R ${z.rightReps ?? '-'}`, `right-${i}`)}</div>`
     : stepper('step', e.uid, i, 'reps', `${z.reps ?? '-'}<small>${u}</small>`, `reps-${i}`);
   const w = stepper('step', e.uid, i, 'weight', weightLabel(e, z.weight), `weight-${i}`);
-  const toggle = e.unilateral && !warm ? `<span></span><button class="split-toggle" data-action="split" data-uid="${e.uid}" data-i="${i}" data-on="${z.split ? 0 : 1}">${z.split ? '좌우 같게' : '좌우 다르게 입력'}</button>` : '';
+  const toggle = e.unilateral && !warm ? `<button class="split-toggle" data-action="split" data-uid="${e.uid}" data-i="${i}" data-on="${z.split ? 0 : 1}">${z.split ? '좌우 같게' : '좌우 다르게 입력'}</button>` : '';
   const cls = `set ${z.type}${z.heavy === 'top' ? ' top' : ''}${z.done ? ' done' : ''}${isNext ? ' next' : ''}`;
   const noBtn = `<button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>`;
   const doneBtn = `<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료" aria-pressed="${z.done}">${z.done ? '✓' : ''}</button>`;
-  if (z.split) return `<div class="${cls}" data-set="${i}">${noBtn}${w}<span></span>${doneBtn}<span></span>${repsBlock}${toggle}</div>`;
-  return `<div class="${cls}" data-set="${i}">${noBtn}${w}${repsBlock}${doneBtn}${toggle}</div>`;
+  if (z.split) return `<div class="${cls}" data-set="${i}">${doneBtn}${noBtn}${w}<span></span>${repsBlock}${toggle}</div>`;
+  return `<div class="${cls}" data-set="${i}">${doneBtn}${noBtn}${w}${repsBlock}${toggle}</div>`;
 }
 
 function renderExercise(state, e, idx, ui, next) {
@@ -206,7 +207,9 @@ function renderExercise(state, e, idx, ui, next) {
   const fold = allDone && e.effort ? `<button class="btn sm ghost" data-action="collapse" data-uid="${e.uid}">접기</button>` : '';
   return `<section class="card ex${allDone ? ' complete' : ''}${next && next.e.uid === e.uid ? ' current' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
     <div class="ex-head">
-      <div><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
+      <button class="ex-thumb" data-action="ex-detail" data-id="${esc(e.exerciseId)}" aria-label="${esc(e.name)} 설명 보기">${bodyMap(e)}</button>
+      <div class="ex-head-txt"><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
+      <div class="ex-progress" data-testid="ex-progress">${mains.filter((z) => z.done).length}/${mains.length} 완료</div>
       <div class="ex-meta">${e.heavy ? `<b class="heavy-tag">무거운 날</b> 톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 → 백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회` : `목표 ${e.range[0]}~${e.range[1]}${unitOf(e)}`} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
       <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
     </div>
@@ -305,13 +308,28 @@ export function renderSession(state, ui, now = new Date()) {
   </section>`;
 }
 
+// 하단 고정 영역 (Leap 의 "다음 세트 기록" 버튼 + 휴식 팝업을 한 줄로). 세션이 없으면 null.
+// 다음 세트가 시간형이면 버튼이 타이머를 연다. 다 끝났으면 저장 버튼.
 export function renderRestbar(state, now = Date.now()) {
-  const rt = state.session?.restTimer;
-  if (!rt) return null;
-  const left = Math.ceil((rt.startedAt + rt.seconds * 1000 - now) / 1000);
-  const n = nextSet(state.session);
-  const nx = n ? `다음 · ${esc(n.e.name)} ${esc(setSummary(n.e, n.z))}` : '마지막 세트까지 끝났어요';
-  return { over: left < 0, html: `<div class="rest-info"><span class="lbl" data-testid="rest-next">${nx}</span><span class="t" data-testid="rest-time">${left >= 0 ? fmtClock(left) : '+' + fmtClock(-left)}</span></div><button class="btn sm" data-action="rest-adj" data-d="-15">−15</button><button class="btn sm" data-action="rest-adj" data-d="30">+30</button><button class="btn sm" data-action="rest-stop">끝</button>` };
+  const s = state.session;
+  if (!s) return null;
+  const rt = s.restTimer;
+  const n = nextSet(s);
+  let rest = '', over = false;
+  if (rt) {
+    const left = Math.ceil((rt.startedAt + rt.seconds * 1000 - now) / 1000);
+    over = left < 0;
+    const nx = n ? `다음 · ${esc(n.e.name)} ${esc(setSummary(n.e, n.z))}` : '마지막 세트까지 끝났어요';
+    rest = `<div class="rest-row"><div class="rest-info"><span class="lbl" data-testid="rest-next">${nx}</span><span class="t" data-testid="rest-time">${left >= 0 ? fmtClock(left) : '+' + fmtClock(-left)}</span></div><button class="btn sm" data-action="rest-adj" data-d="-15">−15</button><button class="btn sm" data-action="rest-adj" data-d="30">+30</button><button class="btn sm" data-action="rest-stop">건너뛰기</button></div>`;
+  }
+  let main;
+  if (!n) main = `<button class="btn good dock-btn" data-action="finish" data-testid="dock-finish">저장하고 종료 (${countWorkSets(s)}세트)</button>`;
+  else {
+    const no = n.z.type === 'warmup' ? '워밍업' : `${n.e.sets.filter((z) => z.type !== 'warmup').indexOf(n.z) + 1}세트`;
+    const timed = n.e.measure === 'seconds' && n.z.type !== 'warmup';
+    main = `<button class="btn primary dock-btn" data-action="${timed ? 'hold' : 'next-set'}" data-uid="${n.e.uid}" data-i="${n.i}" data-testid="dock-next"><b>${timed ? '타이머로 다음 세트' : '다음 세트 기록'}</b><span>${esc(n.e.name)} ${no} · ${esc(setSummary(n.e, n.z))}</span></button>`;
+  }
+  return { over, html: `${rest}${main}` };
 }
 
 // ---------- 기록 ----------

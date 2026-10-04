@@ -208,14 +208,15 @@ test('세트 완료 · 느낌 버튼: ✓ 한 번으로 계획대로 기록되�
   expect(e.sets.at(-1).rir).toBe(2);
 });
 
-test('휴식 타이머: +30 반영, 끝 누르면 사라짐', async ({ page }) => {
+test('휴식 타이머: +30 반영, 건너뛰기 누르면 휴식 줄이 사라지고 다음 세트 버튼은 남는다', async ({ page }) => {
   await startPart(page, 'Pull');
   await card(page, 'curl').locator('[data-action="done"]').first().click();
   const t0 = (await st(page)).session.restTimer.seconds;
   await page.locator('#restbar').getByRole('button', { name: '+30' }).click();
   expect((await st(page)).session.restTimer.seconds).toBe(t0 + 30);
-  await page.locator('#restbar').getByRole('button', { name: '끝' }).click();
-  await expect(page.locator('#restbar')).toBeHidden();
+  await page.locator('#restbar').getByRole('button', { name: '건너뛰기' }).click();
+  await expect(page.getByTestId('rest-time')).toHaveCount(0);
+  await expect(page.getByTestId('dock-next')).toBeVisible();
 });
 
 test('입력 중 새로고침해도 세션이 그대로 복원된다', async ({ page }) => {
@@ -640,4 +641,21 @@ test('운동 탭: 운동 중이 아니어도 검색 · 부위 칩으로 찾고, 
   await expect(d).toContainText('아직 기록이 없습니다');
   await sheet(page).getByRole('button', { name: '닫기' }).click();
   await expect(page.locator('#sheet')).toBeHidden();
+});
+
+test('하단 다음 세트 기록: 누를 때마다 다음 세트를 처방값으로 완료하고, 다 끝나면 저장 버튼이 된다', async ({ page }) => {
+  await startPart(page, 'Core', 30);
+  const before = (await st(page)).session;
+  const total = before.exercises.reduce((a, e) => a + e.sets.filter((z) => e.measure !== 'seconds').length, 0);
+  // 시간형이 아닌 첫 운동의 첫 세트
+  const first = before.exercises.find((e) => e.measure !== 'seconds');
+  await expect(page.getByTestId('dock-next')).toBeVisible();
+  const label = await page.getByTestId('dock-next').textContent();
+  expect(label).toContain(before.exercises[0].name);
+  if (before.exercises[0].measure !== 'seconds') {
+    await page.getByTestId('dock-next').click();
+    const z = (await st(page)).session.exercises[0].sets.find((x) => x.done);
+    expect(z.reps).toBe(first.prescription.reps);
+  }
+  expect(total).toBeGreaterThan(0);
 });

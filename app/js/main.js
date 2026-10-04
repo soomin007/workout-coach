@@ -78,14 +78,14 @@ function renderStatus() {
 let restNotified = null;
 function renderRest() {
   const bar = document.getElementById('restbar');
-  const r = renderRestbar(store.state);
+  const r = ui.tab === 'today' ? renderRestbar(store.state) : null;
   if (!r) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
   bar.classList.remove('hidden');
   bar.classList.toggle('over', r.over);
   bar.innerHTML = r.html;
   const rt = store.state.session.restTimer;
-  const key = `${rt.uid}:${rt.setIndex}:${rt.startedAt}`;
-  if (r.over && restNotified !== key) { restNotified = key; navigator.vibrate?.([150, 80, 150]); }
+  const key = rt && `${rt.uid}:${rt.setIndex}:${rt.startedAt}`;
+  if (r.over && rt && restNotified !== key) { restNotified = key; navigator.vibrate?.([150, 80, 150]); }
 }
 
 setInterval(() => {
@@ -147,6 +147,8 @@ const actions = {
     if (v === undefined) return;
     run((s) => T.editSet(s, d.uid, +d.i, d.f, v));
   },
+  // 하단 "다음 세트 기록": 처방값 그대로 그 세트를 완료한다 (✓ 과 같은 전이)
+  'next-set': (d) => actions.done(d),
   done: (d) => {
     const wasDone = entry(d.uid)?.sets[+d.i]?.done;
     run((s) => T.toggleSetDone(s, d.uid, +d.i));
