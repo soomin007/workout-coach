@@ -18,7 +18,7 @@ export function freshState() {
     savedAt: null,
     lastBackup: null,
     check: { energy: 'normal', upperDoms: 0, lowerDoms: 0, pain: 'none', minutes: 60, intensity: 'normal', gymClosedDate: null, noPtDate: null, day: null, confirmed: [] },
-    settings: { gymClosedSunday: true, ptDay: 4, avoidHinge: true, leftFirst: true, equipment, unavailableExercises: [], homeEquipment: [] },
+    settings: { goal: 'hypertrophy', gymClosedSunday: true, ptDay: 4, avoidHinge: true, leftFirst: true, equipment, unavailableExercises: [], homeEquipment: [] },
     // 사용자가 설정에서 명시적으로 바꾼 운동별 기본값만. 세션 중 코치 조정은 절대 쓰지 않는다.
     prefs: {},
     customExercises: [],

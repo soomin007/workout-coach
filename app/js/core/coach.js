@@ -5,17 +5,29 @@ import { roundTo, clamp } from './util.js';
 import { ORDER, fatigueClass } from './order.js';
 import { gripOf, gripById } from './grips.js';
 
+// 목표(설정)에 따른 기본 반복 범위 · 휴식 (정책 14절). 사용자가 운동별로 정한 범위가 있으면 그것이 우선.
+// 근력: 복합 운동만 낮은 반복 · 긴 휴식. 근육량: 카탈로그 그대로. 근지구력: 12~20회 · 짧은 휴식.
+export const GOALS = { hypertrophy: '근육량 늘리기', strength: '더 강해지기', endurance: '근지구력' };
+export function goalRange(goal, base) {
+  const [lo, hi] = base.range || [8, 12];
+  if ((base.measure || 'reps') !== 'reps') return { range: [lo, hi], rest: base.rest || 90 };
+  if (goal === 'strength' && base.compound) return { range: hi <= 8 ? [Math.max(3, lo - 2), Math.max(5, hi - 2)] : [5, 8], rest: Math.max(base.rest || 90, 180) };
+  if (goal === 'endurance') return { range: [Math.max(lo, 12), Math.max(hi, 20)], rest: Math.min(base.rest || 90, 75) };
+  return { range: [lo, hi], rest: base.rest || 90 };
+}
+
 // 카탈로그(또는 사용자 운동) + 사용자 명시 선호 → 운동 프로필. 세션 값은 섞지 않는다.
 export function profileFor(state, exerciseId) {
   const base = catalogById(exerciseId) || (state.customExercises || []).find((x) => x.id === exerciseId);
   if (!base) return null;
   const p = state.prefs?.[exerciseId] || {};
+  const g = goalRange(state.settings?.goal || 'hypertrophy', base);
   return {
     id: base.id, name: base.name, part: base.part, role: base.role,
     primary: base.primary || [], secondary: base.secondary || [],
     sets: base.sets || 2,
-    range: Array.isArray(p.range) && p.range.length === 2 ? [...p.range] : [...(base.range || [8, 12])],
-    rest: Number.isFinite(+p.rest) && p.rest !== null ? +p.rest : (base.rest || 90),
+    range: Array.isArray(p.range) && p.range.length === 2 ? [...p.range] : [...g.range],
+    rest: Number.isFinite(+p.rest) && p.rest !== null ? +p.rest : g.rest,
     inc: Number.isFinite(+p.increment) && p.increment !== null ? +p.increment : (base.inc ?? 0),
     mode: p.loadMode || base.mode || 'machine',
     unilateral: p.unilateral ?? !!base.unilateral,

@@ -308,3 +308,10 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .ex-detail .body-map { max-width: 220px; }
 .grip-photo { display: block; width: 100%; max-width: 220px; aspect-ratio: 1; border-radius: 14px; margin: 0 auto 6px; }
 .credit a { color: inherit; }
+
+/* 목표 카드 (Leap: 큰 카드 · 선택 시 굵은 테두리와 체크) */
+.goal-list { display: grid; gap: 8px; margin-top: 10px; }
+.goal-opt { position: relative; display: grid; gap: 2px; text-align: left; padding: 14px 44px 14px 14px; border-radius: 16px; border: 2px solid var(--line); background: var(--surface); min-height: 64px; }
+.goal-opt b { font-size: 16px; }
+.goal-opt.on { border-color: var(--text); }
+.goal-check { position: absolute; right: 14px; top: 50%; margin-top: -13px; width: 26px; height: 26px; border-radius: 50%; background: var(--text); color: var(--bg); display: grid; place-content: center; font-weight: 900; font-size: 14px; }

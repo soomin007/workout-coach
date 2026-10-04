@@ -126,6 +126,7 @@ const actions = {
   'add-ex': () => addExercise(),
   grip: (d) => pickGrip(d.uid),
   hold: (d) => holdSet(d.uid),
+  goal: (d) => run((s) => { s.settings.goal = d.v; }, '목표를 바꿨습니다. 다음 세션부터 반영됩니다.'),
   'lib-group': (d) => { ui.libGroup = d.g; render(); },
   'ex-detail': (d) => openExerciseDetail(d.id),
   'change-part': async () => {

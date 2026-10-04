@@ -10,7 +10,7 @@ import { gripById, gripArm } from '../core/grips.js';
 import { gripArt } from './gripart.js';
 import { bodyMap } from './bodymap.js';
 import { exerciseImages, MEDIA_CREDIT } from '../core/media.js';
-import { HEAVY } from '../core/coach.js';
+import { HEAVY, GOALS } from '../core/coach.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
 const MODE_LABEL = Object.fromEntries(LOAD_MODES);
@@ -373,8 +373,13 @@ export function renderRecords(state, ui, now = new Date()) {
 
 // ---------- 설정 ----------
 
+const GOAL_HINT = { hypertrophy: '보통 8~12회. 지금까지의 기본값입니다.', strength: '복합 운동을 5~8회로 무겁게, 휴식은 길게.', endurance: '12~20회로 가볍게, 휴식은 짧게.' };
+
 export function renderSettings(state, ui) {
   const st = state.settings;
+  const goal = st.goal || 'hypertrophy';
+  const goalCard = `<section class="card"><h3>목표</h3><div class="small">운동마다 목표 횟수 범위가 바뀝니다. 운동별로 직접 정한 범위가 있으면 그것이 우선입니다.</div>
+    <div class="goal-list">${Object.entries(GOALS).map(([k, l]) => `<button class="goal-opt${goal === k ? ' on' : ''}" data-action="goal" data-v="${k}" aria-pressed="${goal === k}"><b>${l}</b><span class="small">${GOAL_HINT[k]}</span>${goal === k ? '<span class="goal-check">✓</span>' : ''}</button>`).join('')}</div></section>`;
   const days = [['none', '고정 없음'], [1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토']];
   const equip = Object.entries(EQUIPMENT).filter(([k]) => k !== 'none').map(([k, n]) => `<label class="setting"><span>${esc(n)}</span><input type="checkbox" data-action="equip" data-k="${k}"${st.equipment[k] !== false ? ' checked' : ''}></label>`).join('');
   const unav = (st.unavailableExercises || []).map((id) => `<div class="setting"><span>${esc(catalogById(id)?.name || state.customExercises.find((c) => c.id === id)?.name || id)}</span><button class="btn sm" data-action="unavail-remove" data-id="${esc(id)}">다시 사용</button></div>`).join('') || '<div class="small">없음</div>';
@@ -382,7 +387,7 @@ export function renderSettings(state, ui) {
   const prefIds = Object.keys(state.prefs || {});
   const prefs = prefIds.map((id) => { const x = all.find((y) => y.id === id); const p = state.prefs[id]; return `<div class="setting"><span>${esc(x?.name || id)}<span class="tiny" style="display:block">${[p.loadMode && MODE_LABEL[p.loadMode], p.increment !== undefined && `증량 ${p.increment}`, p.rest && `휴식 ${p.rest}초`, p.range && `${p.range[0]}~${p.range[1]}회`].filter(Boolean).join(' · ')}</span></span><button class="btn sm" data-action="pref-edit" data-id="${esc(id)}">수정</button></div>`; }).join('') || '<div class="small">기본값 그대로 사용 중</div>';
   const storage = ui.storage || {};
-  return `
+  return `${goalCard}
   <section class="card"><h3>일정 · 개인 정책</h3>
     <div class="grid2">
       <label class="field">일요일 헬스장 휴무<select data-action="setting" data-k="gymClosedSunday">${opt('true', '예', String(st.gymClosedSunday))}${opt('false', '아니오', String(st.gymClosedSunday))}</select></label>

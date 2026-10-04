@@ -206,3 +206,17 @@ test('코어: 30분이면 굽히기(윗배 · 아랫배)가 먼저, 버티기가
   const firstHold = p.findIndex((x) => ['core_anti_extension', 'core_anti_rotation', 'core_lateral'].includes(x.slot));
   assert.ok(p.slice(firstHold).every((x) => !x.slot.startsWith('core_flexion')), '굽히기는 버티기보다 앞');
 });
+
+test('목표: 근력이면 복합 운동만 낮은 반복 · 긴 휴식, 근지구력이면 12~20회, 운동별 직접 설정이 우선', () => {
+  const s = freshState();
+  assert.deepEqual(profileFor(s, 'lat').range, [8, 12]);
+  s.settings.goal = 'strength';
+  assert.deepEqual(profileFor(s, 'lat').range, [5, 8]);
+  assert.ok(profileFor(s, 'lat').rest >= 180);
+  assert.deepEqual(profileFor(s, 'curl').range, [8, 12], '고립 운동은 그대로');
+  s.settings.goal = 'endurance';
+  assert.deepEqual(profileFor(s, 'curl').range, [12, 20]);
+  assert.deepEqual(profileFor(s, 'plank').range, [20, 45], '시간형은 그대로');
+  s.prefs.curl = { range: [6, 10] };
+  assert.deepEqual(profileFor(s, 'curl').range, [6, 10]);
+});
