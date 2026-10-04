@@ -13,7 +13,7 @@ import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, h
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
-import { renderLibrary, exerciseDetailHtml } from './ui/library.js';
+import { renderLibrary, exerciseDetailHtml, addExercisesHtml, bindAddSheet } from './ui/library.js';
 import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
@@ -645,11 +645,18 @@ async function customExercise(uid) {
 
 async function addExercise() {
   const s = store.state.session;
-  const used = new Set(s.exercises.map((e) => e.exerciseId));
-  const pool = partPool(store.state, s.part).filter((x) => isAvailable(store.state, x) && !used.has(x.id));
-  const v = await choiceSheet('추가할 운동', [{ value: '__new', label: '+ 목록에 없는 운동 새로 만들기' }, ...pool.map((x) => ({ value: x.id, label: x.name, hint: `${slotName(x.role)} · ${MODE_LABEL[x.mode]}` }))]);
-  if (!v) return;
-  if (v !== '__new') { run((st) => T.addExercise(st, v), (e) => `${e.name} 추가`); return; }
+  let picked = () => [];
+  const p = sheet(addExercisesHtml(store.state, s), { collect: () => picked() });
+  const root = document.querySelector('#sheet .add-sheet');
+  if (root) picked = bindAddSheet(root);
+  const chosen = await p;
+  if (!chosen) return;
+  if (chosen.value === 'add') {
+    const ids = chosen.data;
+    if (ids.length) run((st) => ids.map((id) => T.addExercise(st, id)), (es) => `${es.map((e) => e.name).join(', ')} 추가`);
+    return;
+  }
+  if (chosen.value !== '__new') return;
   const slots = [...(CORE_SLOTS[s.part] || []), ...(OPTIONAL_SLOTS[s.part] || [])];
   const muscles = PART_MUSCLES[s.part] || ['core'];
   const r = await sheet(`<h3>새 운동 만들기</h3>

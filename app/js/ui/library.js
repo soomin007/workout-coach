@@ -3,6 +3,7 @@
 import { esc } from './dom.js';
 import { ALL_CATALOG, EQUIPMENT, MUSCLE_LABEL, LOAD_MODES } from '../core/catalog.js';
 import { profileFor, prescribeForOrder } from '../core/coach.js';
+import { isAvailable } from '../core/plan.js';
 import { guideFor } from '../core/guide.js';
 import { gripsFor, gripById, gripArm, lastGrip, gripOf } from '../core/grips.js';
 import { setReps, EFFORT_LABEL } from '../core/schema.js';
@@ -89,4 +90,49 @@ export function exerciseDetailHtml(state, id) {
     <div class="pane hidden" data-pane="hist">${hist}</div>
     <div class="actions"><button class="btn primary" data-sheet-value="__cancel">닫기</button></div>
   </div>`;
+}
+
+// 운동 추가 시트 (Leap: 검색 · 최근 · 다중 선택 · 선택한 썸네일 줄 · "운동 N개 추가").
+// 오늘 부위 운동이 먼저, 그다음 나머지. 이미 세션에 있거나 쓸 수 없는 운동은 뺀다.
+export function addExercisesHtml(state, session) {
+  const used = new Set(session.exercises.map((e) => e.exerciseId));
+  const pool = allExercises(state).filter((p) => !used.has(p.id) && isAvailable(state, p, { home: !!session.home }));
+  pool.sort((a, b) => ((b.part === session.part) - (a.part === session.part)) || (b.priority - a.priority));
+  const thumb = (p) => (exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy">` : bodyMap(p));
+  const items = pool.map((p) => `<button type="button" class="add-item" data-id="${esc(p.id)}" data-search="${esc(searchText(p))}" aria-pressed="false">
+      <span class="add-check" aria-hidden="true"></span><span class="lib-thumb" aria-hidden="true">${thumb(p)}</span>
+      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(names(p.primary))}${p.part !== session.part ? ` · ${esc(p.part.toUpperCase())}` : ''}</span></span></button>`).join('');
+  return `<div class="add-sheet" data-testid="add-sheet">
+    <h3>운동 추가</h3>
+    <input type="search" class="lib-search add-search" placeholder="운동 · 근육 · 장비 검색" aria-label="운동 검색">
+    <div class="add-list">${items || '<div class="small">더 추가할 수 있는 운동이 없습니다.</div>'}</div>
+    <div class="add-tray" aria-live="polite"></div>
+    <div class="actions"><button class="btn" data-sheet-value="__new">+ 목록에 없는 운동 새로 만들기</button></div>
+    <div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button><button class="btn primary" data-sheet-value="add" data-testid="add-go" disabled>운동을 골라 주세요</button></div>
+  </div>`;
+}
+
+// 시트 안의 선택 · 검색 동작. 반환: 선택한 id 를 읽는 함수.
+export function bindAddSheet(root) {
+  const go = root.querySelector('[data-testid=add-go]');
+  const tray = root.querySelector('.add-tray');
+  const picked = () => [...root.querySelectorAll('.add-item.on')].map((x) => x.dataset.id);
+  const sync = () => {
+    const ids = picked();
+    go.disabled = !ids.length;
+    go.textContent = ids.length ? `운동 ${ids.length}개 추가` : '운동을 골라 주세요';
+    tray.innerHTML = ids.map((id) => root.querySelector(`.add-item[data-id="${id}"] .lib-thumb`).innerHTML).map((h) => `<span class="tray-thumb">${h}</span>`).join('');
+  };
+  root.addEventListener('click', (ev) => {
+    const it = ev.target.closest('.add-item');
+    if (!it) return;
+    it.classList.toggle('on');
+    it.setAttribute('aria-pressed', String(it.classList.contains('on')));
+    sync();
+  });
+  root.querySelector('.add-search').addEventListener('input', (ev) => {
+    const q = ev.target.value.trim().toLowerCase();
+    root.querySelectorAll('.add-item').forEach((x) => x.classList.toggle('hidden', !!q && !x.dataset.search.includes(q)));
+  });
+  return picked;
 }

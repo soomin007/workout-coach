@@ -687,3 +687,23 @@ test('시작 전 미리보기: 운동 목록과 처방을 보고, 다시 추천�
   await expect(pv).toHaveCount(0);
   expect((await st(page)).session.timer.running).toBe(true);
 });
+
+test('운동 추가: 검색하고 여러 개를 골라 한 번에 추가한다', async ({ page }) => {
+  await startPart(page, 'Pull', 60);
+  const n0 = (await st(page)).session.exercises.length;
+  await page.locator('[data-action="session-menu"]').click();
+  await sheet(page).getByRole('button', { name: '+ 운동 추가' }).click();
+  const add = sheet(page).getByTestId('add-sheet');
+  await expect(add.getByTestId('add-go')).toBeDisabled();
+  await add.locator('.add-search').fill('컬');
+  const visible = add.locator('.add-item:not(.hidden)');
+  await expect(visible.first()).toBeVisible();
+  await visible.first().click();
+  await add.locator('.add-search').fill('');
+  await add.locator('.add-item:not(.on)').first().click();
+  await expect(add.getByTestId('add-go')).toHaveText('운동 2개 추가');
+  await expect(add.locator('.tray-thumb')).toHaveCount(2);
+  await add.getByTestId('add-go').click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  expect((await st(page)).session.exercises.length).toBe(n0 + 2);
+});

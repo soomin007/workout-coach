@@ -328,3 +328,15 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .pv-txt { display: grid; min-width: 0; }
 .pv-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-bottom: 6px; }
 .pv-actions .btn { min-height: 52px; font-size: 16px; }
+
+/* 운동 추가 시트 */
+.add-list { display: grid; gap: 6px; margin-top: 10px; max-height: 52vh; overflow: auto; }
+.add-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--surface2); border: 2px solid transparent; border-radius: 16px; padding: 8px 10px; }
+.add-item.on { border-color: var(--good); }
+.add-check { flex: 0 0 24px; height: 24px; border-radius: 7px; border: 2px solid var(--faint); display: grid; place-content: center; }
+.add-item.on .add-check { background: var(--good); border-color: var(--good); }
+.add-item.on .add-check::after { content: '✓'; color: #fff; font-weight: 900; font-size: 14px; }
+.add-item .lib-thumb { flex: 0 0 56px; height: 56px; padding: 0; }
+.add-tray { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; min-height: 0; }
+.tray-thumb { width: 44px; height: 44px; border-radius: 10px; overflow: hidden; background: var(--surface2); display: grid; place-content: center; }
+.tray-thumb .body-map { width: 40px; }
