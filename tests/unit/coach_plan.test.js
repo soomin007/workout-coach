@@ -197,3 +197,12 @@ test('추가 운동: 일요일(헬스장 휴무)에 Core 를 마쳤으면 Core �
   for (const p of ['push', 'pull', 'lower', 'core']) s.history.push({ id: `w_${p}`, date: '2026-10-07', part: p, source: 'manual', workSets: 6 });
   assert.equal(recommendPart(s, wed, { extra: true }).part, 'rest');
 });
+
+test('코어: 30분이면 굽히기(윗배 · 아랫배)가 먼저, 버티기가 뒤인 4~6종목', () => {
+  const p = buildPlan(freshState(), 'core', 30, new Date(2026, 9, 11, 18, 0), { home: true }).planned;
+  assert.ok(p.length >= 4 && p.length <= 6, String(p.length));
+  assert.deepEqual(p.slice(0, 2).map((x) => x.slot), ['core_flexion', 'core_flexion_lower']);
+  assert.ok(p.some((x) => x.slot === 'core_anti_extension') && p.some((x) => x.slot === 'core_lateral'));
+  const firstHold = p.findIndex((x) => ['core_anti_extension', 'core_anti_rotation', 'core_lateral'].includes(x.slot));
+  assert.ok(p.slice(firstHold).every((x) => !x.slot.startsWith('core_flexion')), '굽히기는 버티기보다 앞');
+});

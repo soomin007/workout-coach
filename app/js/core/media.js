@@ -4,7 +4,7 @@
 // 맞는 그림이 없는 운동(케이블 리어델트 플라이 등)은 근육 지도만 쓴다.
 
 // hold: 시작 · 끝 두 장이 아니라 한 장(main)인 버티기 운동
-const HOLD = new Set(['plank', 'bird-dog-hold', 'side-plank', 'high-plank']);
+const HOLD = new Set(['plank', 'bird-dog-hold', 'side-plank', 'high-plank', 'hollow-body-hold']);
 
 export const EX_MEDIA = {
   bench: 'bench-press', incline_db: 'incline-db-press', chest_press: 'chest-press-machine', smith_incline: 'smith-machine-incline-bench-press',
@@ -16,6 +16,8 @@ export const EX_MEDIA = {
   legpress: 'single-leg-press', abduction: 'hip-abduction', bw_split_squat: 'split-squat', glute_bridge: 'glute-bridge',
   calf: 'single-leg-calf-raise', deadbug: 'dead-bug', plank: 'plank', bird_dog: 'bird-dog-hold', pallof: 'cable-pallof-press',
   side_plank: 'side-plank', reverse_crunch: 'reverse-crunches', crunch: 'crunches', shoulder_tap: 'high-plank',
+  cable_crunch: 'cable-crunch', leg_raise: 'lying-leg-raise', hanging_leg_raise: 'hanging-leg-raise', bicycle_crunch: 'bicycle-crunch',
+  russian_twist: 'russian-twist', hollow_hold: 'hollow-body-hold',
 };
 
 // 그립마다 다른 그림이 있으면 그것으로 (grips.js 의 그립 id)

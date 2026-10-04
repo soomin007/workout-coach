@@ -210,7 +210,7 @@ export function adjustedSetCount(state, profile, part, minutes, slot, now = new 
 // 반환: { planned: [{ id, slot, sets, warmupLevel }], estimatedMinutes }
 export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   const used = new Set(), planned = [];
-  const maxCount = part === 'core' ? 4 : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
+  const maxCount = part === 'core' ? (minutes <= 20 ? 4 : 6) : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
   for (const slot of CORE_SLOTS[part] || []) {
     const e = chooseForSlot(state, part, slot, used, now, where);
     if (!e) continue;
@@ -282,7 +282,7 @@ export function explainRecommendation(state, rec, now = new Date()) {
   const label = { push: '가슴·어깨·삼두', pull: '등·이두', lower: '하체', core: '코어' };
   const names = (ms) => ms.map((m) => MUSCLE_NAMES[m] || m).join('·');
   if (rec.part === 'rest' || rec.part === 'pt' || rec.part === 'done') return [rec.why];
-  if (rec.part === 'core') return [rec.why, '허리에 부담이 적은 버티기 동작 위주로 짧게 합니다.'];
+  if (rec.part === 'core') return [rec.why, '굽히는 운동으로 복근을 직접 자극하고, 버티기 운동으로 마무리합니다.'];
   const d = daysSince(state, rec.part, now);
   out.push(d >= 99 ? `${label[rec.part]} 운동 기록이 아직 없어요.` : d === 0 ? `${josa(label[rec.part], '은', '는')} 오늘 이미 했지만 다른 부위가 더 지쳐 있어요.` : `${josa(label[rec.part], '을', '를')} ${d}일째 쉬었어요.`);
   const lack = (PART_MUSCLES[rec.part] || []).filter((m) => muscleSets(state, m, now) < (MUSCLE_BUDGET[m] || 8) * 0.5);

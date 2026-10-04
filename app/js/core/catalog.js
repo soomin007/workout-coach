@@ -37,19 +37,19 @@ export const CORE_SLOTS = {
   push: ['horizontal_push', 'vertical_push', 'lateral_delt', 'triceps'],
   pull: ['vertical_pull', 'horizontal_pull', 'rear_delt', 'biceps'],
   lower: ['squat', 'unilateral', 'hamstring', 'calf'],
-  core: ['core_anti_extension', 'core_anti_rotation', 'core_lateral'],
+  core: ['core_flexion', 'core_flexion_lower', 'core_anti_extension', 'core_lateral'],
 };
 export const OPTIONAL_SLOTS = {
   push: ['secondary_chest_press', 'chest_isolation', 'chest_finisher'],
   pull: ['secondary_vertical_pull', 'secondary_back', 'biceps_secondary'],
   lower: ['secondary_squat', 'secondary_lower', 'glute_med'],
-  core: ['core_flexion'],
+  core: ['core_rotation', 'core_anti_rotation'],
 };
 export const SESSION_ORDER = {
   push: ['horizontal_push', 'secondary_chest_press', 'vertical_push', 'chest_isolation', 'lateral_delt', 'triceps', 'chest_finisher'],
   pull: ['vertical_pull', 'secondary_vertical_pull', 'horizontal_pull', 'secondary_back', 'rear_delt', 'biceps', 'biceps_secondary'],
   lower: ['squat', 'secondary_squat', 'unilateral', 'hamstring', 'secondary_lower', 'glute_med', 'calf'],
-  core: ['core_anti_extension', 'core_anti_rotation', 'core_lateral', 'core_flexion'],
+  core: ['core_flexion', 'core_flexion_lower', 'core_rotation', 'core_anti_extension', 'core_anti_rotation', 'core_lateral'],
 };
 export const SLOT_COMPAT = {
   horizontal_push: ['horizontal_push', 'secondary_chest_press', 'chest_finisher'],
@@ -64,7 +64,7 @@ export const SLOT_COMPAT = {
   unilateral: ['unilateral', 'secondary_lower'], hamstring: ['hamstring'],
   secondary_lower: ['secondary_lower', 'unilateral', 'secondary_squat'], glute_med: ['glute_med'], calf: ['calf'],
   core_anti_extension: ['core_anti_extension'], core_anti_rotation: ['core_anti_rotation'],
-  core_lateral: ['core_lateral'], core_flexion: ['core_flexion'],
+  core_lateral: ['core_lateral'], core_flexion: ['core_flexion'], core_flexion_lower: ['core_flexion_lower', 'core_flexion'], core_rotation: ['core_rotation'],
 };
 
 export const SLOT_LABEL = {
@@ -74,7 +74,7 @@ export const SLOT_LABEL = {
   rear_delt: '후면 어깨', biceps: '이두', biceps_secondary: '이두 보조',
   squat: '스쿼트', secondary_squat: '스쿼트 보조', unilateral: '편측 하체', hamstring: '햄스트링', secondary_lower: '하체 보조',
   glute_med: '중둔근', calf: '종아리',
-  core_anti_extension: '항신전', core_anti_rotation: '항회전', core_lateral: '항측굴', core_flexion: '복부 굴곡',
+  core_anti_extension: '항신전', core_anti_rotation: '항회전', core_lateral: '항측굴', core_flexion: '윗배 굽히기', core_flexion_lower: '아랫배 말아 올리기', core_rotation: '옆구리 비틀기',
 };
 export const slotName = (x) => SLOT_LABEL[x] || String(x || '').replaceAll('_', ' ');
 
@@ -119,15 +119,22 @@ export const DB = {
     { id: 'calf', name: '한발 카프레이즈', role: 'calf', primary: ['calf'], secondary: [], sets: 2, range: [12, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 75, equipment: 'none', unilateral: true, why: '종아리 보완', cue: '반동 없이 천천히. 통증/잠김/불안정이 있으면 중단.' },
   ],
   core: [
-    { id: 'deadbug', name: '데드버그', role: 'core_anti_extension', primary: ['core'], secondary: [], sets: 3, range: [8, 12], rest: 60, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', why: '허리를 바닥에 붙인 채 버티는 항신전', cue: '허리가 뜨기 직전까지만 팔다리를 뻗기. 숨을 내쉬며 천천히.' },
-    { id: 'plank', name: '플랭크', role: 'core_anti_extension', primary: ['core'], secondary: [], sets: 3, range: [20, 45], measure: 'seconds', rest: 60, inc: 0, mode: 'bodyweight', priority: 85, equipment: 'none', why: '몸통 전면 버티기' },
-    { id: 'shoulder_tap', name: '플랭크 숄더 탭', role: 'core_anti_rotation', primary: ['core'], secondary: ['front_delt'], sets: 3, range: [10, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', why: '무릎을 대지 않는 항회전. 한 손을 뗄 때 몸통이 돌아가지 않게 버틴다' },
+    // 2026-10-04 개편 (정책 8절): 굽히는 운동(윗배 · 아랫배)을 핵심으로, 버티기(항신전 · 항측굴)는 그 뒤에. 동작이 있는 운동을 먼저.
+    { id: 'crunch', name: '크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 3, range: [12, 20], rest: 45, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', why: '윗배(복직근) 직접 자극. 복직근 활성이 가장 높은 기본 동작' },
+    { id: 'cable_crunch', name: '케이블 크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 60, inc: 2.5, mode: 'machine', priority: 95, equipment: 'cable', why: '무게를 올려 가며 진행할 수 있는 윗배 운동' },
+    { id: 'reverse_crunch', name: '리버스 크런치', aliases: ['리버스 크런치 / 레그레이즈'], role: 'core_flexion_lower', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 45, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', why: '아랫배: 골반을 말아 올리는 동작' },
+    { id: 'leg_raise', name: '라잉 레그레이즈', role: 'core_flexion_lower', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 45, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', why: '아랫배: 누워서 다리를 들어 올리기' },
+    { id: 'hanging_leg_raise', name: '행잉 레그레이즈', role: 'core_flexion_lower', primary: ['core'], secondary: [], sets: 3, range: [8, 15], rest: 60, inc: 0, mode: 'bodyweight', priority: 85, equipment: 'pullup', why: '철봉에 매달려 다리를 드는 강한 아랫배 운동' },
+    { id: 'bicycle_crunch', name: '바이시클 크런치', role: 'core_rotation', primary: ['core'], secondary: [], sets: 2, range: [16, 30], rest: 45, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', why: '옆구리(복사근): 굽히면서 비틀기. 양쪽 한 번씩이 2회' },
+    { id: 'russian_twist', name: '러시안 트위스트', role: 'core_rotation', primary: ['core'], secondary: [], sets: 2, range: [16, 30], rest: 45, inc: 0, mode: 'bodyweight', priority: 75, equipment: 'none', why: '옆구리 비틀기' },
+    { id: 'hollow_hold', name: '할로우 홀드', role: 'core_anti_extension', primary: ['core'], secondary: [], sets: 3, range: [15, 40], measure: 'seconds', rest: 45, inc: 0, mode: 'bodyweight', priority: 95, equipment: 'none', why: '허리를 바닥에 붙인 채 몸을 바나나처럼 버티는 강한 항신전. 쉬운 버전이 데드버그' },
+    { id: 'deadbug', name: '데드버그', role: 'core_anti_extension', primary: ['core'], secondary: [], sets: 3, range: [8, 12], rest: 45, inc: 0, mode: 'bodyweight', priority: 85, equipment: 'none', why: '허리를 바닥에 붙인 채 버티는 항신전 (할로우 홀드가 어려울 때)', cue: '허벅지만 뻐근하면 무릎을 더 굽히고 범위를 줄이기.' },
+    { id: 'plank', name: '플랭크', role: 'core_anti_extension', primary: ['core'], secondary: [], sets: 3, range: [20, 45], measure: 'seconds', rest: 45, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', why: '몸통 전면 버티기' },
+    { id: 'shoulder_tap', name: '플랭크 숄더 탭', role: 'core_anti_rotation', primary: ['core'], secondary: ['front_delt'], sets: 2, range: [10, 20], rest: 45, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', why: '무릎을 대지 않는 항회전. 한 손을 뗄 때 몸통이 돌아가지 않게 버틴다' },
     // kneeling: 무릎을 바닥에 대는 운동. 오늘 무릎 통증을 골랐으면 뺀다. 매트를 깔아도 무릎이 아팠다는 사용자 보고(2026-10-04)로 우선순위를 낮췄다.
-    { id: 'bird_dog', name: '버드독', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 3, range: [6, 10], rest: 60, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', unilateral: true, kneeling: true, why: '골반 회전을 막는 항회전 (McGill 빅3)', cue: '뻗은 자세에서 2~3초 멈추기. 골반이 돌아가지 않게.' },
-    { id: 'pallof', name: '팰로프 프레스', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 3, range: [10, 12], rest: 60, inc: 2.5, mode: 'machine', priority: 90, equipment: 'cable', unilateral: true, why: '케이블 당김에 버티는 항회전' },
-    { id: 'side_plank', name: '사이드 플랭크', role: 'core_lateral', primary: ['core'], secondary: [], sets: 2, range: [15, 40], measure: 'seconds', rest: 60, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '옆구리 항측굴 (McGill 빅3)' },
-    { id: 'reverse_crunch', name: '리버스 크런치 / 레그레이즈', role: 'core_flexion', primary: ['core'], secondary: [], sets: 2, range: [10, 15], rest: 60, inc: 0, mode: 'bodyweight', priority: 70, equipment: 'none', why: '하복부 (선택, 허리 불편하면 제외)' },
-    { id: 'crunch', name: '크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 2, range: [10, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 60, equipment: 'none', why: '복직근 (선택, 허리 불편하면 제외)' },
+    { id: 'bird_dog', name: '버드독', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [6, 10], rest: 45, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', unilateral: true, kneeling: true, why: '골반 회전을 막는 항회전 (McGill 빅3)', cue: '뻗은 자세에서 2~3초 멈추기. 골반이 돌아가지 않게.' },
+    { id: 'pallof', name: '팰로프 프레스', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [10, 12], rest: 45, inc: 2.5, mode: 'machine', priority: 90, equipment: 'cable', unilateral: true, why: '케이블 당김에 버티는 항회전' },
+    { id: 'side_plank', name: '사이드 플랭크', role: 'core_lateral', primary: ['core'], secondary: [], sets: 2, range: [15, 40], measure: 'seconds', rest: 45, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '옆구리 항측굴 (McGill 빅3)' },
   ],
 };
 
