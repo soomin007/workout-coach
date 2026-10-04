@@ -8,6 +8,7 @@ import { gripsFor, gripById, gripArm, lastGrip, gripOf } from '../core/grips.js'
 import { setReps, EFFORT_LABEL } from '../core/schema.js';
 import { gripArt } from './gripart.js';
 import { bodyMap } from './bodymap.js';
+import { exerciseImages } from '../core/media.js';
 
 const MODE_LABEL = Object.fromEntries(LOAD_MODES);
 const MUSCLE_X = { ...MUSCLE_LABEL, core: '복근', brachialis: '상완근' };
@@ -35,7 +36,7 @@ export function renderLibrary(state, ui) {
   const list = items.map((p) => {
     const text = searchText(p);
     return `<button class="lib-item${q && !text.includes(q) ? ' hidden' : ''}" data-action="ex-detail" data-id="${esc(p.id)}" data-search="${esc(text)}">
-      <span class="lib-thumb" aria-hidden="true">${bodyMap(p)}</span>
+      <span class="lib-thumb" aria-hidden="true">${exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy" decoding="async">` : bodyMap(p)}</span>
       <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(names(p.primary))} · ${esc(EQUIPMENT[p.equipment] || '맨몸')}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
     </button>`;
   }).join('');
@@ -70,7 +71,9 @@ export function exerciseDetailHtml(state, id) {
     ['무게 적는 법', MODE_LABEL[p.mode] || p.mode],
   ].map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
   const gripHtml = grips ? `<div class="guide-h">그립</div><div class="grip-list compact">${grips.map((x) => `<div class="grip-opt${x.id === gNow ? ' on' : ''}">${gripArt(x, { arm: gripArm(id) })}<div class="grip-name">${esc(x.name)}${x.id === gNow ? ' <span class="tag">지난번</span>' : ''}</div><p class="small">${esc(x.emphasis)}</p></div>`).join('')}</div>` : '';
-  const desc = `${bodyMap(p, { label: `${p.name} 근육 지도` })}
+  const imgs = exerciseImages(id, gNow);
+  const frames = imgs.length ? `<div class="ex-frames${imgs.length === 1 ? ' one' : ''}" data-testid="ex-frames">${imgs.map((src, k) => `<figure><img src="${src}" alt="${esc(p.name)} ${imgs.length === 1 ? '자세' : k ? '끝 자세' : '시작 자세'}" loading="lazy"><figcaption>${imgs.length === 1 ? '자세' : k ? '끝' : '시작'}</figcaption></figure>`).join('')}</div>` : '';
+  const desc = `${frames}${bodyMap(p, { label: `${p.name} 근육 지도` })}
     <div class="facts">${facts}</div>
     ${g ? `<div class="guide-h">하는 방법</div>${list(g.how, 'ol')}<div class="guide-h">주의할 점</div>${list(g.caution, 'ul')}` : '<p class="small">직접 만든 운동이라 설명이 없습니다.</p>'}
     ${p.cue ? `<div class="guide-h">내 체크 포인트</div><p>${esc(p.cue)}</p>` : ''}

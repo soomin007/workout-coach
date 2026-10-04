@@ -1,0 +1,3 @@
+운동 동작 그림: Exercise data by RepDB (repdb.co)
+https://github.com/sergei-argutin/exercise-dataset (무료 등급, 앱 안 사용 · 출처 표기 · 데이터셋 재배포 금지)
+우리 카탈로그 운동에 맞는 것만 골라 320px 로 줄였다. 짝은 app/js/core/media.js.

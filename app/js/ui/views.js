@@ -9,6 +9,7 @@ import { guideFor } from '../core/guide.js';
 import { gripById, gripArm } from '../core/grips.js';
 import { gripArt } from './gripart.js';
 import { bodyMap } from './bodymap.js';
+import { exerciseImages, MEDIA_CREDIT } from '../core/media.js';
 import { HEAVY } from '../core/coach.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
@@ -207,7 +208,7 @@ function renderExercise(state, e, idx, ui, next) {
   const fold = allDone && e.effort ? `<button class="btn sm ghost" data-action="collapse" data-uid="${e.uid}">접기</button>` : '';
   return `<section class="card ex${allDone ? ' complete' : ''}${next && next.e.uid === e.uid ? ' current' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
     <div class="ex-head">
-      <button class="ex-thumb" data-action="ex-detail" data-id="${esc(e.exerciseId)}" aria-label="${esc(e.name)} 설명 보기">${bodyMap(e)}</button>
+      <button class="ex-thumb" data-action="ex-detail" data-id="${esc(e.exerciseId)}" aria-label="${esc(e.name)} 설명 보기">${thumbHtml(e.exerciseId, e.grip, e)}</button>
       <div class="ex-head-txt"><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
       <div class="ex-progress" data-testid="ex-progress">${mains.filter((z) => z.done).length}/${mains.length} 완료</div>
       <div class="ex-meta">${e.heavy ? `<b class="heavy-tag">무거운 날</b> 톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 → 백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회` : `목표 ${e.range[0]}~${e.range[1]}${unitOf(e)}`} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
@@ -234,6 +235,12 @@ function holdButton(e, allDone) {
   return `<button class="btn hold-btn" data-action="hold" data-uid="${e.uid}" data-testid="hold-start">타이머로 하기 · ${secs}초${e.unilateral ? ' × 좌우' : ''}</button>`;
 }
 
+// 운동 썸네일: 동작 그림 첫 장(그립별 그림 우선), 없으면 근육 지도
+export function thumbHtml(exerciseId, grip, muscles) {
+  const src = exerciseImages(exerciseId, grip)[0];
+  return src ? `<img class="ex-img" src="${src}" alt="" loading="lazy" decoding="async">` : bodyMap(muscles);
+}
+
 const muscleNames = (xs) => xs.map((m) => MUSCLE_LABEL[m] || m).join(', ');
 
 // 그립을 고를 수 있는 운동: 작은 그림 + 지금 그립 이름. 누르면 그립 시트(그림 · 자극 부위 · 잡는 법).
@@ -249,7 +256,9 @@ export function gripSheetHtml(e, grips, done) {
   const opts = grips.map((g) => {
     const cur = g.id === e.grip;
     const prim = g.primary || (cur ? e.primary : null);
+    const img = exerciseImages(e.exerciseId, g.id).slice(-1)[0];
     return `<div class="grip-opt${cur ? ' on' : ''}" data-grip="${esc(g.id)}">
+      ${img ? `<img class="grip-photo" src="${img}" alt="" loading="lazy">` : ''}
       ${gripArt(g, { arm: gripArm(e.exerciseId) })}
       <div class="grip-name">${esc(g.name)}${cur ? ' <span class="tag">지금</span>' : ''}</div>
       ${prim ? `<div class="tiny">주로 ${esc(muscleNames(prim))}</div>` : ''}
@@ -394,7 +403,8 @@ export function renderSettings(state, ui) {
   ${syncCard(ui.sync)}
   <section class="card"><h3>추천 근거</h3><button class="btn" data-action="evidence">근거와 앱 정책 보기</button></section>
   <section class="card"><h3>앱 정보</h3><div class="small" data-testid="app-version">버전 ${esc(ui.version || '확인 중')}</div><div class="tiny">${ui.sync ? '데이터는 이 기기와 GitHub 저장소에 저장됩니다.' : '데이터는 이 기기에만 저장됩니다.'}</div>
-    <button class="btn sm" data-action="check-update" style="margin-top:8px">업데이트 확인</button></section>`;
+    <button class="btn sm" data-action="check-update" style="margin-top:8px">업데이트 확인</button>
+    <div class="tiny credit" data-testid="media-credit" style="margin-top:10px">운동 그림: <a href="${MEDIA_CREDIT.url}" target="_blank" rel="noopener">${esc(MEDIA_CREDIT.text)}</a></div></section>`;
 }
 
 function syncCard(sy) {

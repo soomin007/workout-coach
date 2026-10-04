@@ -640,6 +640,8 @@ test('운동 탭: 운동 중이 아니어도 검색 · 부위 칩으로 찾고, 
   await list.locator('.lib-item[data-id="row"]').click();
   const d = sheet(page).getByTestId('ex-detail');
   await expect(d.locator('svg.body-map')).toBeVisible();
+  await expect(d.getByTestId('ex-frames').locator('img')).toHaveCount(2);
+  expect(await d.getByTestId('ex-frames').locator('img').first().evaluate((im) => im.complete && im.naturalWidth > 0)).toBe(true);
   await expect(d).toContainText('하는 방법');
   await expect(d.locator('.grip-opt')).toHaveCount(3);
   await d.getByRole('tab', { name: '기록' }).click();
@@ -647,6 +649,8 @@ test('운동 탭: 운동 중이 아니어도 검색 · 부위 칩으로 찾고, 
   await expect(d).toContainText('아직 기록이 없습니다');
   await sheet(page).getByRole('button', { name: '닫기' }).click();
   await expect(page.locator('#sheet')).toBeHidden();
+  await page.locator('#tabs').getByRole('button', { name: '설정' }).click();
+  await expect(page.getByTestId('media-credit')).toContainText('Exercise data by RepDB');
 });
 
 test('하단 다음 세트 기록: 누를 때마다 다음 세트를 처방값으로 완료하고, 다 끝나면 저장 버튼이 된다', async ({ page }) => {
