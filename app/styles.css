@@ -1,21 +1,30 @@
 :root {
-  --bg: #0f1216; --surface: #171b21; --surface2: #1f252d; --line: #2a313b;
-  --text: #e8ecf1; --muted: #9aa4b2; --faint: #6b7584;
-  --accent: #5b9dff; --accent-ink: #0b1a33; --good: #3ecf8e; --good-ink: #06281b;
-  --warn: #f5b454; --bad: #ff6b6b; --violet: #b69cff;
-  --radius: 14px; --tap: 44px;
-  --hand-fill: #2a3d63; --arm-fill: #1f2b42;
-  color-scheme: dark;
+  /* 밝은 테마가 기본 (2026-10-04 사용자 결정, Leap 앱 참고): 밝은 회색 바탕 · 흰 카드 · 진한 파랑 하나 */
+  --bg: #f1f2f5; --surface: #ffffff; --surface2: #f2f3f6; --line: #e3e6eb; --card-line: transparent;
+  --text: #121419; --muted: #5d6573; --faint: #9399a4;
+  --accent: #3449d6; --accent-ink: #ffffff; --good: #3b8f3f; --good-ink: #ffffff;
+  --warn: #b45309; --bad: #d1343a; --violet: #6d28d9;
+  --hand-fill: #d6e3fd; --arm-fill: #e9effc; --body-off: #d3d6dc;
+  --radius: 18px; --tap: 44px;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #f3f5f8; --surface: #ffffff; --surface2: #eef1f5; --line: #dde2e9;
-    --text: #17212f; --muted: #5b6676; --faint: #8a94a3;
-    --accent: #2563eb; --accent-ink: #ffffff; --good: #0f8a5f; --good-ink: #ffffff;
-    --warn: #b45309; --bad: #c0262d; --violet: #6d28d9;
-    --hand-fill: #d6e3fd; --arm-fill: #e9effc;
-    color-scheme: light;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --surface: #171b21; --surface2: #1f252d; --line: #2a313b; --card-line: #2a313b;
+    --text: #e8ecf1; --muted: #9aa4b2; --faint: #6b7584;
+    --accent: #6f80ff; --accent-ink: #0b1233; --good: #3ecf8e; --good-ink: #06281b;
+    --warn: #f5b454; --bad: #ff6b6b; --violet: #b69cff;
+    --hand-fill: #2a3d63; --arm-fill: #1f2b42; --body-off: #3a414d;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --surface: #171b21; --surface2: #1f252d; --line: #2a313b; --card-line: #2a313b;
+  --text: #e8ecf1; --muted: #9aa4b2; --faint: #6b7584;
+  --accent: #6f80ff; --accent-ink: #0b1233; --good: #3ecf8e; --good-ink: #06281b;
+  --warn: #f5b454; --bad: #ff6b6b; --violet: #b69cff;
+  --hand-fill: #2a3d63; --arm-fill: #1f2b42; --body-off: #3a414d;
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); }
@@ -32,7 +41,7 @@ button { cursor: pointer; }
 
 .wrap { max-width: 560px; margin-left: auto; margin-right: auto; padding-left: 16px; padding-right: 16px; padding-top: 12px; padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+.card { background: var(--surface); border: 1px solid var(--card-line); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
 .card h2 { font-size: 20px; margin: 0 0 6px; }
 .card h3 { font-size: 16px; margin: 0 0 8px; }
 .kicker { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
@@ -50,7 +59,6 @@ button { cursor: pointer; }
 .btn.block { width: 100%; }
 .btn.sm { min-height: 36px; padding-left: 10px; padding-right: 10px; font-size: 13px; }
 .chip { min-height: 38px; border: 1px solid var(--line); background: transparent; border-radius: 999px; padding-left: 12px; padding-right: 12px; font-size: 14px; font-weight: 600; }
-.chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
 .badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 8px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
 .badge.good { color: var(--good); } .badge.warn { color: var(--warn); } .badge.bad { color: var(--bad); }
 
@@ -185,10 +193,11 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .restbar .rest-info { display: grid; min-width: 0; flex: 1; }
 .restbar .lbl { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .restbar .t { text-align: left; }
-.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(3, 1fr);
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, 1fr);
   padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--line); }
-.tabs button { min-height: 58px; border: 0; background: transparent; color: var(--muted); font-weight: 700; }
-.tabs button.on { color: var(--text); box-shadow: inset 0 3px 0 var(--accent); }
+.tabs button { min-height: 58px; border: 0; background: transparent; color: var(--faint); font-weight: 700; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.tabs button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tabs button.on { color: var(--accent); }
 
 /* 시트 */
 .sheet-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.5); display: flex; align-items: flex-end; justify-content: center; }
@@ -229,3 +238,37 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 /* QR 은 어두운 테마에서도 흰 바탕이어야 카메라가 읽는다 (SVG 에 흰 배경 포함) */
 .qr { max-width: 260px; margin: 12px auto; border-radius: 10px; overflow: hidden; }
 .qr svg { display: block; width: 100%; height: auto; }
+
+/* 근육 지도 */
+.body-map { display: block; width: 100%; max-width: 280px; height: auto; margin: 0 auto; }
+.body-map polygon, .body-map ellipse { stroke: var(--surface); stroke-width: 1.4; stroke-linejoin: round; }
+.body-map .m-prim { fill: var(--accent); }
+.body-map .m-sec { fill: color-mix(in srgb, var(--accent) 42%, var(--surface)); }
+.body-map .m-off { fill: var(--body-off); }
+
+/* 운동 탭 (라이브러리) */
+.lib-head h2 { font-size: 26px; margin: 4px 0 10px; }
+.lib-search { -webkit-appearance: none; appearance: none; width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); padding-left: 18px; padding-right: 18px; }
+.lib-search:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+.lib-groups { margin: 10px 0 12px; }
+.chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.lib-list { display: grid; gap: 8px; }
+.lib-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--card-line); border-radius: var(--radius); padding: 10px 12px; min-height: 72px; }
+.lib-thumb { flex: 0 0 76px; background: var(--surface2); border-radius: 12px; padding: 4px; }
+.lib-thumb .body-map { width: 68px; }
+.lib-txt { display: grid; gap: 2px; min-width: 0; }
+.lib-txt b { font-size: 16px; }
+/* 운동 상세 시트 */
+.seg { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.seg button { min-height: 44px; border: 0; background: transparent; font-weight: 800; color: var(--faint); }
+.seg button.on { color: var(--text); box-shadow: inset 0 -3px 0 var(--accent); }
+.ex-detail h3 { font-size: 22px; }
+.ex-detail .body-map { max-width: 300px; margin: 6px auto 10px; }
+.facts { display: grid; gap: 6px; margin: 8px 0; }
+.fact { display: flex; gap: 12px; font-size: 14px; }
+.fact span { flex: 0 0 84px; color: var(--muted); }
+.ex-detail ol, .ex-detail ul { margin: 4px 0 0; padding-left: 20px; line-height: 1.55; }
+.ex-detail .guide-h { margin-top: 14px; font-weight: 800; }
+.grip-list.compact .grip-art { max-width: 220px; }
+.rec-list { display: grid; gap: 6px; margin-top: 6px; }
+.rec-row { display: grid; gap: 2px; background: var(--surface2); border-radius: 12px; padding: 8px 10px; }

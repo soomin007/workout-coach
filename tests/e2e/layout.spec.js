@@ -44,7 +44,7 @@ async function startPart(page, label, minutes) {
 
 test('홈 · 기록 · 설정: 가로 넘침 없음, 카드 좌우 여백 확보', async ({ page }) => {
   await page.goto('/');
-  for (const tab of ['오늘', '기록', '설정']) {
+  for (const tab of ['오늘', '운동', '기록', '설정']) {
     await page.locator('#tabs').getByRole('button', { name: tab }).click();
     const m = await measure(page);
     expect(m.scrollW, `${tab} scrollWidth`).toBe(m.vw);

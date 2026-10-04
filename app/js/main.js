@@ -12,6 +12,7 @@ import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, h
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
+import { renderLibrary, exerciseDetailHtml } from './ui/library.js';
 import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
@@ -54,6 +55,7 @@ function render() {
   ui.sync = syncView();
   if (ui.tab === 'today') view.innerHTML = renderToday(store.state, ui, now);
   else if (ui.tab === 'records') view.innerHTML = renderRecords(store.state, ui, now);
+  else if (ui.tab === 'library') view.innerHTML = renderLibrary(store.state, ui);
   else view.innerHTML = renderSettings(store.state, ui);
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === ui.tab));
   renderRest();
@@ -123,6 +125,8 @@ const actions = {
   'add-ex': () => addExercise(),
   grip: (d) => pickGrip(d.uid),
   hold: (d) => holdSet(d.uid),
+  'lib-group': (d) => { ui.libGroup = d.g; render(); },
+  'ex-detail': (d) => openExerciseDetail(d.id),
   'change-part': async () => {
     const p = await choiceSheet('어느 부위로 바꿀까요?', ['push', 'pull', 'lower', 'core'].filter((x) => x !== store.state.session.part).map((x) => ({ value: x, label: PART_LABEL[x] })));
     if (!p) return;
@@ -216,6 +220,12 @@ const changeActions = {
 };
 // 타이핑 중 다시 그리면 포커스를 잃으므로 조용히 저장만 한다.
 const inputActions = {
+  // 검색은 다시 그리지 않고 목록만 거른다 (다시 그리면 입력 중 포커스를 잃는다)
+  'lib-q': (d, el) => {
+    ui.libQuery = el.value;
+    const q = el.value.trim().toLowerCase();
+    document.querySelectorAll('.lib-item').forEach((x) => x.classList.toggle('hidden', !!q && !x.dataset.search.includes(q)));
+  },
   note: (d, el) => { try { store.commit((s) => T.setSessionNote(s, el.value), { silent: true }); } catch { /* 세션 없음 */ } },
 };
 
@@ -533,6 +543,19 @@ async function exerciseMenu(uid) {
     if (T.entryHasUserData(e) && !(await confirmSheet('이 운동에 기록이 있습니다. 그래도 삭제할까요?', { ok: '삭제', danger: true }))) return;
     run((s) => T.removeExercise(s, uid));
   }
+}
+
+// 운동 상세 시트(설명 · 기록 탭). 탭 전환은 시트 안에서만 처리한다.
+function openExerciseDetail(id) {
+  const p = sheet(exerciseDetailHtml(store.state, id));
+  const root = document.querySelector('#sheet .ex-detail');
+  root?.addEventListener('click', (ev) => {
+    const b = ev.target.closest('.seg [data-pane]');
+    if (!b) return;
+    root.querySelectorAll('.seg button').forEach((x) => x.classList.toggle('on', x === b));
+    root.querySelectorAll('.pane').forEach((x) => x.classList.toggle('hidden', x.dataset.pane !== b.dataset.pane));
+  });
+  return p;
 }
 
 // 시간형 운동의 다음 세트를 타이머로 하고, 끝나면 그 시간으로 완료 처리한다.

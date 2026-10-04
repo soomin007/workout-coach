@@ -615,3 +615,29 @@ test('버티기 타이머: 준비 → 왼쪽 → 자세 바꾸기 → 오른쪽�
   const z = (await st(page)).session.exercises.find((e) => e.exerciseId === 'side_plank').sets.find((x) => x.done);
   expect(z).toMatchObject({ split: true, leftReps: secs, rightReps: 4 });
 });
+
+test('운동 탭: 운동 중이 아니어도 검색 · 부위 칩으로 찾고, 상세에서 근육 지도 · 방법 · 그립 · 기록을 본다', async ({ page }) => {
+  await page.locator('#tabs').getByRole('button', { name: '운동' }).click();
+  const list = page.getByTestId('lib-list');
+  await expect(list.locator('.lib-item').first()).toBeVisible();
+  await page.locator('.lib-groups .chip[data-g="back"]').click();
+  await expect(list.locator('.lib-item[data-id="row"]')).toBeVisible();
+  await expect(list.locator('.lib-item[data-id="bench"]')).toHaveCount(0);
+  await page.locator('.lib-search').fill('리버스');
+  await expect(list.locator('.lib-item:not(.hidden)')).toHaveCount(0);
+  await page.locator('.lib-groups .chip[data-g="all"]').click();
+  await expect(page.locator('.lib-search')).toHaveValue('리버스');
+  await expect(list.locator('.lib-item[data-id="reverse_crunch"]')).toBeVisible();
+  await expect(list.locator('.lib-item[data-id="bench"]')).toBeHidden();
+  await page.locator('.lib-search').fill('');
+  await list.locator('.lib-item[data-id="row"]').click();
+  const d = sheet(page).getByTestId('ex-detail');
+  await expect(d.locator('svg.body-map')).toBeVisible();
+  await expect(d).toContainText('하는 방법');
+  await expect(d.locator('.grip-opt')).toHaveCount(3);
+  await d.getByRole('tab', { name: '기록' }).click();
+  await expect(d).toContainText('다음에 하면');
+  await expect(d).toContainText('아직 기록이 없습니다');
+  await sheet(page).getByRole('button', { name: '닫기' }).click();
+  await expect(page.locator('#sheet')).toBeHidden();
+});
