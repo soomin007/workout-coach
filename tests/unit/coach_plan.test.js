@@ -184,3 +184,16 @@ test('코어: 기본 항회전은 무릎을 대지 않는 숄더 탭, 오늘 무
   assert.equal(isAvailable(s, bird), false);
   assert.equal(isAvailable(s, profileFor(s, 'shoulder_tap')), true);
 });
+
+test('추가 운동: 일요일(헬스장 휴무)에 Core 를 마쳤으면 Core 를 다시 권하지 않는다', () => {
+  const sun = new Date(2026, 9, 4, 20, 0);
+  const s = freshState();
+  s.history.push({ id: 'c1', date: '2026-10-04', part: 'core', source: 'recommended', workSets: 8 });
+  const r = recommendPart(s, sun, { extra: true });
+  assert.notEqual(r.part, 'core');
+  assert.equal(r.part, 'rest');
+  // 평일에 Push 와 Pull, Lower 를 다 해서 막힌 경우에도 Core 를 했으면 Core 는 빠진다
+  const wed = new Date(2026, 9, 7, 20, 0);
+  for (const p of ['push', 'pull', 'lower', 'core']) s.history.push({ id: `w_${p}`, date: '2026-10-07', part: p, source: 'manual', workSets: 6 });
+  assert.equal(recommendPart(s, wed, { extra: true }).part, 'rest');
+});

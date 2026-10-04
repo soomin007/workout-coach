@@ -109,15 +109,20 @@ export function recommendPart(state, now = new Date(), { extra = false } = {}) {
   const today = localISODate(now);
   const doneToday = todaysHistory(state, now);
   const ptToday = doneToday.some((h) => h.source === 'pt');
+  // 추가 운동은 오늘 한 부위를 어느 경로에서도 다시 권하지 않는다 (2026-10-04: 일요일 Core 를 마쳐도 "추가로 Core"가 떴다).
+  const doneParts = new Set(doneToday.map((h) => h.part));
+  const noRepeat = (r) => (extra && doneParts.has(r.part)
+    ? { part: 'rest', confidence: '높음', why: `오늘 ${r.part.toUpperCase()}는 이미 했습니다. ${r.home ? '집에서 더 할 운동은 없습니다.' : '추가로 할 부위가 없습니다.'}`, detail: [...(r.detail || []), `${r.part.toUpperCase()}: 오늘 이미 함`] }
+    : r);
   if (doneToday.length && !extra) return { part: 'done', confidence: '높음', why: '오늘 운동을 이미 마쳤습니다. 추가 운동은 선택입니다.', detail: ['오늘 기록 있음'] };
   if (c.energy === 'very_tired') return { part: 'rest', confidence: '높음', why: '전신 피로가 매우 높아 회복을 우선합니다.', detail: ['매우 피곤 → 휴식'] };
   const dow = now.getDay();
   // 헬스장을 못 가는 날은 PT 도 없으므로 휴무 규칙이 PT 요일보다 먼저다.
-  if (c.gymClosedDate === today) return { part: 'core', home: true, confidence: '높음', why: '오늘은 헬스장에 못 가서 집에서 할 수 있는 Core를 추천합니다.', detail: ['헬스장 휴무 → 홈 운동'] };
+  if (c.gymClosedDate === today) return noRepeat({ part: 'core', home: true, confidence: '높음', why: '오늘은 헬스장에 못 가서 집에서 할 수 있는 Core를 추천합니다.', detail: ['헬스장 휴무 → 홈 운동'] });
   // PT 요일은 "보통 그날"일 뿐 확정이 아니다(선생님 사정으로 바뀜). 오늘 PT 가 없다고 하면 일반 추천으로.
   if (!extra && state.settings.ptDay === dow && !ptToday && c.noPtDate !== today) return { part: 'pt', confidence: '보통', why: '보통 PT가 있는 요일입니다. PT를 마친 뒤 기록하면 다음 추천에 반영합니다. 오늘 PT가 없으면 아래 "오늘 PT 없어요"를 누르세요.', detail: ['PT 예정 요일'] };
   if (ptToday && !extra) return { part: 'rest', confidence: '높음', why: '오늘 PT 기록이 있어 추가 웨이트보다 회복을 우선합니다.', detail: ['오늘 PT 기록 있음'] };
-  if (dow === 0 && state.settings.gymClosedSunday) return { part: 'core', home: true, confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무 → 홈 Core'] };
+  if (dow === 0 && state.settings.gymClosedSunday) return noRepeat({ part: 'core', home: true, confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무 → 홈 Core'] });
   const score = {};
   for (const p of ['push', 'pull', 'lower']) {
     const d = daysSince(state, p, now), sets = weeklySets(state, p, now), need = partNeed(state, p, now);
@@ -136,10 +141,9 @@ export function recommendPart(state, now = new Date(), { extra = false } = {}) {
   if (c.pain === 'knee') { score.lower = -999; detail.push('무릎 통증: Lower 제외'); }
   if (c.energy === 'tired') { score.lower -= 1.5; detail.push('피곤: 하체 우선순위 감소'); }
   if (extra) {
-    const doneParts = new Set(doneToday.map((h) => h.part));
     for (const p of doneParts) if (p in score) { score[p] = -999; detail.push(`${p.toUpperCase()}: 오늘 이미 함`); }
     // 다른 큰 부위가 모두 막혀 있으면 짧은 Core 를 권한다.
-    if (Object.values(score).every((v) => v <= -900)) return { part: 'core', confidence: '보통', why: '오늘 다른 부위를 이미 했거나 쉬어야 해서, 추가로 한다면 짧은 Core 를 권합니다.', detail };
+    if (Object.values(score).every((v) => v <= -900)) return noRepeat({ part: 'core', confidence: '보통', why: '오늘 다른 부위를 이미 했거나 쉬어야 해서, 추가로 한다면 짧은 Core 를 권합니다.', detail });
   }
   const ranked = Object.entries(score).sort((a, b) => b[1] - a[1]);
   if (ranked[0][1] <= -900) return { part: 'rest', confidence: '높음', why: '지금 근육통/통증 조건에서는 웨이트 세션을 추천하지 않습니다.', detail };
