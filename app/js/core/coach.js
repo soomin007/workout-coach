@@ -24,6 +24,7 @@ export function profileFor(state, exerciseId) {
     equipment: base.equipment || 'none',
     priority: base.priority || 50,
     risk: base.risk || null,
+    kneeling: !!base.kneeling,
     why: base.why || '사용자 추가 운동',
     cue: base.cue || '',
     custom: !catalogById(exerciseId),

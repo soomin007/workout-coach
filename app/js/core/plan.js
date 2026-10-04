@@ -156,6 +156,7 @@ export function isAvailable(state, profile, { home = state.session?.home ?? fals
   if (!profile) return false;
   if (home && profile.equipment !== 'none' && !(state.settings.homeEquipment || []).includes(profile.equipment)) return false;
   if (profile.risk === 'hinge' && state.settings.avoidHinge !== false) return false;
+  if (profile.kneeling && effectiveCheck(state).pain === 'knee') return false;
   if (profile.equipment !== 'none' && state.settings.equipment[profile.equipment] === false) return false;
   if ((state.settings.unavailableExercises || []).includes(profile.id)) return false;
   if ((state.session?.tempUnavailable || []).includes(profile.id)) return false;

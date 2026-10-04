@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { importAny } from '../../app/js/core/migrate.js';
 import { freshState } from '../../app/js/core/schema.js';
 import { profileFor, lastPerformance, prescribe, warmupPlan } from '../../app/js/core/coach.js';
-import { buildPlan, recommendPart, effectiveCheck, checkConfirmed } from '../../app/js/core/plan.js';
+import { buildPlan, recommendPart, effectiveCheck, checkConfirmed, isAvailable } from '../../app/js/core/plan.js';
+import { localISODate as localISO } from '../../app/js/core/util.js';
 import { setCheck } from '../../app/js/core/session.js';
 import { CORE_SLOTS } from '../../app/js/core/catalog.js';
 
@@ -170,4 +171,16 @@ test('등 보조 종목: 메인이 광배를 채우면 상부 등(T바)을 먼�
   const second = ids(s);
   assert.ok(second.includes('lat') && !second.includes('tbar'), second.join(','));
   assert.ok(second.includes('pullup') && second.includes('row'));
+});
+
+test('코어: 기본 항회전은 무릎을 대지 않는 숄더 탭, 오늘 무릎 통증이면 버드독은 후보에서도 빠진다', () => {
+  const at = new Date(2026, 9, 20, 18, 0);
+  const s = freshState();
+  assert.ok(buildPlan(s, 'core', 30, at).planned.some((x) => x.id === 'shoulder_tap'));
+  const bird = profileFor(s, 'bird_dog');
+  assert.equal(isAvailable(s, bird), true);
+  // 무릎 통증은 오늘 확인한 값일 때만 믿는다 (known-issues 11)
+  s.check = { ...s.check, pain: 'knee', day: localISO(new Date()), confirmed: ['pain'] };
+  assert.equal(isAvailable(s, bird), false);
+  assert.equal(isAvailable(s, profileFor(s, 'shoulder_tap')), true);
 });
