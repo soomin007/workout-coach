@@ -287,3 +287,11 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .ex-thumb { flex: 0 0 60px; height: 60px; padding: 3px; border: 0; border-radius: 14px; background: var(--surface2); }
 .ex-thumb .body-map { width: 54px; }
 .ex-progress { font-size: 13px; font-weight: 700; color: var(--muted); }
+
+/* 숫자 키패드 (Leap 방식) */
+.num-display input { font-size: 28px; font-weight: 800; text-align: center; min-height: 56px; font-variant-numeric: tabular-nums; }
+.keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.keypad .key { min-height: 54px; border-radius: 14px; border: 0; background: var(--surface2); font-size: 22px; font-weight: 700; }
+.keypad .key.fn { font-size: 15px; color: var(--muted); }
+.keypad .key.ok { grid-row: span 2; font-size: 18px; min-height: 0; background: var(--accent); color: var(--accent-ink); }
+.num-display input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }

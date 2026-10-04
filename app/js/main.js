@@ -1,5 +1,6 @@
 // 앱 진입점: 저장소 연결, 화면 렌더, 이벤트 위임.
 import { createStore } from './core/store.js';
+import { setReps } from './core/schema.js';
 import * as T from './core/session.js';
 import { applyQuickLine } from './core/quick.js';
 import { toCSV, toTXT } from './core/export.js';
@@ -143,8 +144,11 @@ const actions = {
     if (!z) return;
     const title = d.f === 'weight' ? `${e.name} 중량 (kg)` : `${e.name} ${d.f === 'leftReps' ? '왼쪽 ' : d.f === 'rightReps' ? '오른쪽 ' : ''}${e.measure === 'seconds' ? '시간(초)' : '반복'}`;
     const zeroLabel = d.f === 'weight' && e.loadMode === 'plates' ? '양쪽에 꽂은 원판을 더한 무게입니다. 예: 한쪽 20 + 20 → 40. 원판이 없으면 0 (빈 기구).' : d.f === 'weight' && EMPTY_OK.includes(e.loadMode) ? '원판을 하나도 안 꽂았으면 0 을 입력하세요 (빈 기구).' : d.f === 'weight' && e.loadMode === 'assist' ? '보조중량: 몸무게를 덜어 주는 무게입니다. 숫자가 클수록 쉽습니다.' : '';
-    const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1', zeroLabel, recent: d.f === 'weight' ? recentWeights(e) : [] });
+    const combos = d.f === 'weight' && !z.split ? recentCombos(e) : [];
+    const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1', zeroLabel, recent: d.f === 'weight' ? recentWeights(e) : [], combos });
     if (v === undefined) return;
+    // 횟수를 먼저: 무게를 넣으면 워밍업 행이 생겨 인덱스가 밀린다
+    if (v && typeof v === 'object') return run((s) => { T.editSet(s, d.uid, +d.i, 'reps', v.reps); T.editSet(s, d.uid, +d.i, 'weight', v.weight); });
     run((s) => T.editSet(s, d.uid, +d.i, d.f, v));
   },
   // 하단 "다음 세트 기록": 처방값 그대로 그 세트를 완료한다 (✓ 과 같은 전이)
@@ -482,6 +486,21 @@ async function quickLine(uid, text = '', error = '') {
 }
 
 // 중량 입력 시트의 '최근 무게' 칩: 오늘 이 운동에서 쓴 무게 + 지난 기록의 무게. 기억하지 않고 골라 누르게 한다.
+// 무게 × 횟수 묶음 칩 (Leap 의 최근 사용): 오늘 한 세트 → 지난 기록 순, 중복 없이 6개
+function recentCombos(e) {
+  const pick = (z) => z.weight !== null && z.weight !== undefined && setReps(z) !== null;
+  const today = e.sets.filter((z) => z.type !== 'warmup' && (z.done || z.touched) && pick(z)).reverse();
+  const last = (lastPerformance(store.state, e.exerciseId)?.sets || []).filter((z) => z.type !== 'warmup' && pick(z));
+  const out = [], seen = new Set();
+  for (const z of [...today, ...last]) {
+    const k = `${z.weight}:${setReps(z)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push({ weight: z.weight, reps: setReps(z), label: `${z.weight}kg × ${setReps(z)}${e.measure === 'seconds' ? '초' : '회'}` });
+  }
+  return out.slice(0, 6);
+}
+
 function recentWeights(e) {
   const today = e.sets.filter((z) => z.weight !== null && z.weight !== undefined && (z.done || z.touched)).map((z) => z.weight);
   const last = (lastPerformance(store.state, e.exerciseId)?.sets || []).filter((z) => z.weight !== null && z.weight !== undefined).map((z) => z.weight);

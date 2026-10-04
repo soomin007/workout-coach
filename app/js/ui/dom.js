@@ -105,16 +105,41 @@ export async function choiceSheet(title, items, { note = '' } = {}) {
   return sheet(`<h3>${esc(title)}</h3>${note ? `<p class="small">${esc(note)}</p>` : ''}<div class="list">${list}</div><div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`);
 }
 
-// recent: 최근 값 칩. 누르면 그 값으로 바로 확인된다.
-export async function numberSheet(title, value, { step = 'any', suffix = '', zeroLabel = '', recent = [] } = {}) {
-  const chips = recent.length ? `<div class="tiny" style="margin-top:4px">최근 무게</div><div class="row recent-vals" style="margin:4px 0 8px">${recent.map((x) => `<button class="chip" data-sheet-value="v:${esc(x)}">${esc(x)}</button>`).join('')}</div>` : '';
-  const r = await sheet(`<h3>${esc(title)}</h3>${zeroLabel ? `<p class="small">${esc(zeroLabel)}</p>` : ''}${chips}<div class="row"><input type="number" inputmode="decimal" enterkeyhint="done" step="${step}" min="0" name="n" value="${value ?? ''}" style="flex:1"><span class="small">${esc(suffix)}</span></div>
-    <div class="actions"><button class="btn" data-sheet-value="clear">비우기</button><button class="btn primary" data-sheet-value="ok">확인</button></div>`, { collect: (b) => b.querySelector('[name=n]').value });
+// 숫자 입력 시트: 화면 키패드(Leap 방식, 폰 키보드를 띄우지 않는다) + 최근 칩.
+// recent: 최근 값 칩(누르면 그 값). combos: [{ label, weight, reps }] 무게 × 횟수 칩(누르면 둘 다).
+// 반환: 숫자 | null(비우기) | { weight, reps }(묶음 칩) | undefined(취소 · 잘못된 값).
+export async function numberSheet(title, value, { step = 'any', suffix = '', zeroLabel = '', recent = [], combos = [] } = {}) {
+  const chipRow = (label, items) => (items.length ? `<div class="tiny" style="margin-top:4px">${label}</div><div class="row recent-vals" style="margin:4px 0 8px">${items}</div>` : '');
+  const chips = chipRow('최근 사용', combos.map((c, i) => `<button class="chip" data-sheet-value="c:${i}">${esc(c.label)}</button>`).join(''))
+    || chipRow('최근 무게', recent.map((x) => `<button class="chip" data-sheet-value="v:${esc(x)}">${esc(x)}</button>`).join(''));
+  const dec = step !== '1';
+  const key = (k, cls = '') => `<button type="button" class="key${cls}" data-key="${k}">${k === 'back' ? '⌫' : k}</button>`;
+  const pad = `<div class="keypad">${['1', '2', '3'].map((k) => key(k)).join('')}${key('back', ' fn')}${['4', '5', '6'].map((k) => key(k)).join('')}<button type="button" class="key fn" data-key="kbd" aria-label="폰 키보드로 입력">자판</button>${['7', '8', '9'].map((k) => key(k)).join('')}<button class="key ok btn primary" data-sheet-value="ok">확인</button>${dec ? key('.') : '<span></span>'}${key('0')}<button class="key fn" data-sheet-value="clear">비우기</button></div>`;
+  const p = sheet(`<h3>${esc(title)}</h3>${zeroLabel ? `<p class="small">${esc(zeroLabel)}</p>` : ''}${chips}<div class="row num-display"><input type="text" inputmode="none" enterkeyhint="done" autocomplete="off" name="n" value="${value ?? ''}" style="flex:1"><span class="small">${esc(suffix)}</span></div>${pad}`,
+    { collect: (b) => b.querySelector('[name=n]').value });
+  const box = document.querySelector('#sheet .sheet');
+  const input = box.querySelector('[name=n]');
+  let fresh = true; // 첫 숫자는 기존 값을 바꿔 쓴다 (Leap 처럼 값이 선택된 상태)
+  box.querySelector('.keypad').addEventListener('click', (ev) => {
+    const k = ev.target.closest('[data-key]')?.dataset.key;
+    if (!k) return;
+    if (k === 'kbd') { input.inputMode = dec ? 'decimal' : 'numeric'; input.focus(); return; }
+    let v = fresh ? '' : input.value;
+    fresh = false;
+    if (k === 'back') v = v.slice(0, -1);
+    else if (k === '.') { if (!v.includes('.')) v = (v || '0') + '.'; }
+    else v += k;
+    input.value = v;
+  });
+  input.addEventListener('input', () => { fresh = false; });
+  const r = await p;
   if (!r) return undefined;
   if (r.value === 'clear') return null;
   if (r.value.startsWith('v:')) return Number(r.value.slice(2));
-  const n = Number(r.data);
-  return r.data === '' ? null : Number.isFinite(n) && n >= 0 ? n : undefined;
+  if (r.value.startsWith('c:')) { const c = combos[+r.value.slice(2)]; return c ? { weight: c.weight, reps: c.reps } : undefined; }
+  const raw = String(r.data).replace(/\.$/, '');
+  const n = Number(raw);
+  return raw === '' ? null : Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
 export async function textSheet(title, value = '', { placeholder = '', hint = '', multiline = false } = {}) {

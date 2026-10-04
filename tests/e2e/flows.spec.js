@@ -507,15 +507,21 @@ test('한 줄 기록에 숫자가 아닌 글을 적어도 사라지지 않고 �
   await expect(c.getByRole('button', { name: '메모 수정' })).toBeVisible();
 });
 
-test('중량 입력: 오늘 쓴 무게가 최근 무게 칩으로 떠서 한 번에 고른다', async ({ page }) => {
+test('중량 입력: 오늘 한 세트가 무게 × 횟수 칩으로 떠서 한 번에 고르고, 화면 키패드로 입력한다', async ({ page }) => {
   await startPart(page, 'Pull');
   const c = card(page, 'curl');
   await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 9);
   await c.locator('[data-action="done"]').first().click();
+  const reps = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl').sets.find((z) => z.done).reps;
   await c.getByTestId('weight-1').locator('.val').click();
-  await sheet(page).locator('.recent-vals').getByRole('button', { name: '9', exact: true }).click();
+  await sheet(page).locator('.recent-vals').getByRole('button', { name: `9kg × ${reps}회` }).click();
   await expect(sheet(page)).toBeHidden();
   await expect(c.getByTestId('weight-1')).toContainText('9kg');
+  // 화면 키패드: 첫 숫자는 기존 값을 바꿔 쓰고, 확인으로 적용
+  await c.getByTestId('weight-1').locator('.val').click();
+  for (const k of ['1', '2', '.', '5']) await sheet(page).locator(`.keypad [data-key="${k}"]`).click();
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  await expect(c.getByTestId('weight-1')).toContainText('12.5kg');
 });
 
 test('PT 요일이어도 오늘 PT 없어요를 누르면 일반 추천, 다시 누르면 PT 날', async ({ page }) => {
