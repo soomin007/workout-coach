@@ -219,6 +219,7 @@ const actions = {
 
 // change/input 이벤트용
 const changeActions = {
+  'report-ex': (d, el) => { ui.reportEx = el.value; render(); },
   check: (d, el) => { if (el.value !== '') run((s) => T.setCheck(s, { [d.k]: el.value })); },
   'new-date': (d, el) => { ui.newDate = el.value || null; },
   'session-date': (d, el) => run((s) => T.setSessionDate(s, el.value), '운동 날짜를 바꿨습니다.'),

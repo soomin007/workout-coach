@@ -10,6 +10,7 @@ import { gripById, gripArm } from '../core/grips.js';
 import { gripArt } from './gripart.js';
 import { bodyMap } from './bodymap.js';
 import { exerciseImages, MEDIA_CREDIT } from '../core/media.js';
+import { renderReport } from './report.js';
 import { HEAVY, GOALS } from '../core/coach.js';
 import { fmtClock, localISODate, parseDateLocal } from '../core/util.js';
 
@@ -381,7 +382,7 @@ export function renderRecords(state, ui, now = new Date()) {
   }
   const weekHtml = Object.keys(weeks).sort().reverse().map((k) => { const w = weeks[k]; return `<div class="source"><b>${k} 주</b><div class="small">세션 ${w.sessions}회 · Push ${w.push} · Pull ${w.pull} · Lower ${w.lower} · Core ${w.core}세트</div></div>`; }).join('') || '<div class="small">최근 4주 기록 없음</div>';
   const backupDays = state.lastBackup ? Math.floor((now.getTime() - new Date(state.lastBackup).getTime()) / 86400000) : null;
-  return `
+  return `${renderReport(state, ui, now)}
   <section class="card"><h3>최근 세션</h3>${items}
     ${state.history.length > hs.length ? '<button class="btn sm" data-action="more-history" style="margin-top:8px">더 보기</button>' : ''}</section>
   <section class="card"><h3>주간 요약</h3>${weekHtml}</section>

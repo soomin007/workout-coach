@@ -707,3 +707,18 @@ test('운동 추가: 검색하고 여러 개를 골라 한 번에 추가한다',
   await expect(page.locator('#sheet')).toBeHidden();
   expect((await st(page)).session.exercises.length).toBe(n0 + 2);
 });
+
+test('리포트: 이번 주 요약 · 8주 막대 · 운동별 추이(운동 고르기) · 근육별 세트가 기록 탭 위에 나온다', async ({ page }) => {
+  await startPart(page, 'Pull', 60);
+  const c = card(page, 'curl');
+  await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 8);
+  await c.getByRole('button', { name: '계획대로 완료' }).click();
+  await page.locator('[data-action="finish"]').first().click();
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  await page.locator('#tabs').getByRole('button', { name: '기록' }).click();
+  const r = page.getByTestId('report');
+  await expect(r.locator('.tile').first()).toContainText('1회');
+  await expect(r.locator('svg.chart .bar')).toHaveCount(1);
+  await expect(page.locator('select[data-action="report-ex"]')).toHaveValue('curl');
+  await expect(page.locator('.report svg.chart .dot')).toHaveCount(1);
+});
