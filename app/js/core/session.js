@@ -379,6 +379,23 @@ function coachHeavy(entry, j, reps) {
   entry.coach = '좋습니다. 같은 무게로 이어가세요.';
 }
 
+// 버티기 타이머 결과 기록. result: { secs } 또는 좌우 { left, right } (초). 좌우가 같으면 한 값으로 적는다.
+// 직접 고친 값으로 보고(touched) 다음 세트로 퍼뜨리지 않는다. 완료 처리는 ✓ 과 같은 전이를 거친다.
+export function recordHold(state, uid, setIndex, result, { now = new Date() } = {}) {
+  const { entry } = findEntry(state, uid);
+  const z = entry.sets[setIndex];
+  need(z && z.type !== 'warmup', 'no_set', '세트를 찾을 수 없습니다.');
+  const r = (x) => (Number.isFinite(x) ? Math.max(0, Math.round(x)) : null);
+  if (result.left !== undefined || result.right !== undefined) {
+    const L = r(result.left), R = r(result.right);
+    if (L === R) { z.split = false; z.reps = L; z.leftReps = null; z.rightReps = null; }
+    else { z.split = true; z.leftReps = L; z.rightReps = R; z.reps = null; }
+  } else { z.split = false; z.reps = r(result.secs); }
+  z.touched = true;
+  if (!z.done) toggleSetDone(state, uid, setIndex, { now });
+  return entry;
+}
+
 // 운동 느낌 (운동당 한 번). 마지막 완료 본세트에 RIR 이 비어 있으면 대표값을 채운다.
 export function setEffort(state, uid, effort) {
   const { entry } = findEntry(state, uid);

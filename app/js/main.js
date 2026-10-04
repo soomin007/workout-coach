@@ -11,6 +11,7 @@ import { localISODate } from './core/util.js';
 import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { gripsFor, gripById } from './core/grips.js';
+import { runHold } from './ui/hold.js';
 import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
@@ -121,6 +122,7 @@ const actions = {
   repair: () => run((s) => T.repairSession(s), (n) => (n ? `핵심 동작 ${n}개를 채웠습니다.` : '채울 수 있는 운동이 없습니다.')),
   'add-ex': () => addExercise(),
   grip: (d) => pickGrip(d.uid),
+  hold: (d) => holdSet(d.uid),
   'change-part': async () => {
     const p = await choiceSheet('어느 부위로 바꿀까요?', ['push', 'pull', 'lower', 'core'].filter((x) => x !== store.state.session.part).map((x) => ({ value: x, label: PART_LABEL[x] })));
     if (!p) return;
@@ -531,6 +533,18 @@ async function exerciseMenu(uid) {
     if (T.entryHasUserData(e) && !(await confirmSheet('이 운동에 기록이 있습니다. 그래도 삭제할까요?', { ok: '삭제', danger: true }))) return;
     run((s) => T.removeExercise(s, uid));
   }
+}
+
+// 시간형 운동의 다음 세트를 타이머로 하고, 끝나면 그 시간으로 완료 처리한다.
+async function holdSet(uid) {
+  const e = entry(uid);
+  const i = e?.sets.findIndex((z) => z.type !== 'warmup' && !z.done);
+  if (!e || i < 0) return;
+  const z = e.sets[i];
+  const secs = z.reps ?? (z.split ? Math.max(z.leftReps ?? 0, z.rightReps ?? 0) || null : null) ?? e.prescription?.reps ?? e.range[0];
+  const r = await runHold({ title: e.name, seconds: secs, unilateral: e.unilateral, leftFirst: store.state.settings.leftFirst !== false });
+  if (!r) return;
+  run((s) => T.recordHold(s, uid, i, r), () => (r.secs !== undefined ? `${r.secs}초 기록` : `왼쪽 ${r.left ?? '-'}초 · 오른쪽 ${r.right ?? '-'}초 기록`));
 }
 
 async function pickGrip(uid) {

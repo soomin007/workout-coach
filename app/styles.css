@@ -104,6 +104,18 @@ details.more summary { cursor: pointer; min-height: 32px; display: flex; align-i
 .heavy-tag { color: var(--warn); font-weight: 800; margin-right: 2px; }
 .rx { margin-top: 8px; font-size: 13px; color: var(--muted); }
 .coach { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font-size: 13px; }
+/* 버티기 타이머 */
+.hold-btn { width: 100%; margin-top: 8px; font-weight: 700; }
+.hold { text-align: center; }
+.hold-steps { display: flex; gap: 4px; justify-content: center; margin: 4px 0 10px; }
+.hold-steps i { height: 6px; flex: 1; max-width: 60px; border-radius: 3px; background: var(--line); }
+.hold-steps i.hold { flex: 2; }
+.hold-steps i.on { background: var(--accent); }
+.hold-label { font-size: 18px; font-weight: 800; }
+.hold-num { font-size: 96px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; color: var(--muted); }
+.hold-num.hold { color: var(--accent); }
+.hold-sub { min-height: 20px; }
+.hold .actions .btn[hidden] { display: none; }
 /* 그립: 카드의 작은 그림 + 이름, 시트의 큰 그림 */
 .grip-chip { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 8px; padding: 6px 10px 6px 6px; text-align: left;
   border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); min-height: var(--tap); }

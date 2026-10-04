@@ -138,3 +138,19 @@ test('그립 칩과 그립 시트: 가로 넘침 없이 그림이 화면 안에 
   expect(sh.artW).toBeGreaterThan(200);
   if (info.project.name === 'm360') await page.locator('#sheet .sheet').screenshot({ path: test.info().outputPath('grip-sheet.png') });
 });
+
+test('버티기 타이머 시트: 큰 숫자와 버튼이 넘치지 않는다', async ({ page }, info) => {
+  await page.goto('/');
+  await startPart(page, 'Core', 30);
+  await page.locator('section.ex[data-exercise="side_plank"] [data-testid="hold-start"]').click();
+  await page.clock.runFor(7000);
+  const sh = await page.evaluate(() => {
+    const box = document.querySelector('#sheet .sheet');
+    const vw = document.documentElement.clientWidth;
+    const over = [...box.querySelectorAll('*')].filter((el) => { const r = el.getBoundingClientRect(); return r.width && (r.right > vw + 0.5 || r.left < -0.5); }).map((el) => el.id || el.tagName);
+    return { over, scrollW: box.scrollWidth, clientW: box.clientWidth };
+  });
+  expect(sh.over).toEqual([]);
+  expect(sh.scrollW).toBe(sh.clientW);
+  if (info.project.name === 'm360') await page.locator('#sheet .sheet').screenshot({ path: test.info().outputPath('hold.png') });
+});

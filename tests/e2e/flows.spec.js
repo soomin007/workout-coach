@@ -596,3 +596,22 @@ test('타이머: 일시정지하면 글자로 알려 주고, 세트를 끝내면
   await card(page, 'pullup').locator('[data-action="done"]').first().click();
   await expect(page.getByTestId('timer-paused')).toHaveCount(0);
 });
+
+test('버티기 타이머: 준비 → 왼쪽 → 자세 바꾸기 → 오른쪽이 끝나면 그 시간으로 세트가 완료된다', async ({ page }) => {
+  await startPart(page, 'Core', 30);
+  const c = card(page, 'side_plank');
+  const secs = Number((await c.getByTestId('hold-start').textContent()).match(/(\d+)초/)[1]);
+  await c.getByTestId('hold-start').click();
+  await expect(sheet(page).getByTestId('hold')).toBeVisible();
+  await expect(sheet(page).locator('#hold-label')).toHaveText('준비 · 왼쪽부터');
+  await page.clock.runFor(6000);
+  await expect(sheet(page).locator('#hold-label')).toHaveText('왼쪽 버티기');
+  await page.clock.runFor(secs * 1000 + 500);
+  await expect(sheet(page).locator('#hold-label')).toHaveText('자세 바꾸기 · 다음은 오른쪽');
+  await sheet(page).getByRole('button', { name: '바로 시작' }).click();
+  await page.clock.runFor(4000);
+  await sheet(page).getByRole('button', { name: '여기까지 · 기록' }).click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  const z = (await st(page)).session.exercises.find((e) => e.exerciseId === 'side_plank').sets.find((x) => x.done);
+  expect(z).toMatchObject({ split: true, leftReps: secs, rightReps: 4 });
+});

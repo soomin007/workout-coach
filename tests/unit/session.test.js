@@ -341,3 +341,17 @@ test('타이머: 일시정지한 채 세트를 끝내면 자동으로 다시 간
   assert.equal(s.session.timer.running, true);
   assert.equal(T.timerSeconds(s.session.timer, t2.getTime() + 10000), 60 + 10);
 });
+
+test('버티기 타이머: 좌우 단계와 자세 바꾸는 시간, 결과는 같으면 한 값 · 다르면 좌우로', async () => {
+  const { holdPhases } = await import('../../app/js/core/hold.js');
+  assert.deepEqual(holdPhases(30, { unilateral: true }).map((p) => `${p.kind}:${p.side}:${p.secs}`), ['prep:left:5', 'hold:left:30', 'switch:right:10', 'hold:right:30']);
+  assert.deepEqual(holdPhases(40).map((p) => p.kind), ['prep', 'hold']);
+  const s = sessionWith(freshState(), 'core', ['side_plank', 'plank']);
+  const sp = entryOf(s, 'side_plank');
+  T.recordHold(s, sp.uid, mi(s, 'side_plank'), { left: 30, right: 30 }, { now });
+  assert.deepEqual([sp.sets[mi(s, 'side_plank')].reps, sp.sets[mi(s, 'side_plank')].split, sp.sets[mi(s, 'side_plank')].done], [30, false, true]);
+  T.recordHold(s, sp.uid, mi(s, 'side_plank', 1), { left: 30, right: 22 }, { now });
+  const z = sp.sets[mi(s, 'side_plank', 1)];
+  assert.deepEqual([z.split, z.leftReps, z.rightReps, z.done], [true, 30, 22, true]);
+  assert.ok(s.session.restTimer, '완료 처리로 휴식 타이머가 시작된다');
+});

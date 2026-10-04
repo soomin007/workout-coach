@@ -211,6 +211,7 @@ function renderExercise(state, e, idx, ui, next) {
       <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
     </div>
     ${gripChip(e)}
+    ${holdButton(e, allDone)}
     <div class="rx">${esc(e.prescription?.note || '')}</div>
     ${e.coach ? `<div class="coach" data-testid="coach">${esc(e.coach)}</div>` : ''}
     ${guideHtml(e)}
@@ -220,6 +221,14 @@ function renderExercise(state, e, idx, ui, next) {
     ${e.memo ? `<div class="tiny" style="margin-top:6px">메모: ${esc(e.memo)}</div>` : ''}
     <div class="ex-actions">${allDone ? '' : `<button class="btn sm" data-action="complete-rest" data-uid="${e.uid}">계획대로 완료</button>`}<button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 기록</button><button class="btn sm" data-action="memo" data-uid="${e.uid}">${e.memo ? '메모 수정' : '메모'}</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button>${fold}</div>
   </section>`;
+}
+
+// 시간형 운동: 다음 세트를 타이머로 (좌우면 한쪽씩 + 자세 바꾸는 시간).
+function holdButton(e, allDone) {
+  if (e.measure !== 'seconds' || allDone) return '';
+  const z = e.sets.find((x) => x.type !== 'warmup' && !x.done);
+  const secs = z?.reps ?? e.prescription?.reps ?? e.range[0];
+  return `<button class="btn hold-btn" data-action="hold" data-uid="${e.uid}" data-testid="hold-start">타이머로 하기 · ${secs}초${e.unilateral ? ' × 좌우' : ''}</button>`;
 }
 
 const muscleNames = (xs) => xs.map((m) => MUSCLE_LABEL[m] || m).join(', ');
