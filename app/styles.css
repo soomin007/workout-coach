@@ -4,6 +4,7 @@
   --accent: #5b9dff; --accent-ink: #0b1a33; --good: #3ecf8e; --good-ink: #06281b;
   --warn: #f5b454; --bad: #ff6b6b; --violet: #b69cff;
   --radius: 14px; --tap: 44px;
+  --hand-fill: #2a3d63; --arm-fill: #1f2b42;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
@@ -12,6 +13,7 @@
     --text: #17212f; --muted: #5b6676; --faint: #8a94a3;
     --accent: #2563eb; --accent-ink: #ffffff; --good: #0f8a5f; --good-ink: #ffffff;
     --warn: #b45309; --bad: #c0262d; --violet: #6d28d9;
+    --hand-fill: #d6e3fd; --arm-fill: #e9effc;
     color-scheme: light;
   }
 }
@@ -138,9 +140,10 @@ details.more summary { cursor: pointer; min-height: 32px; display: flex; align-i
 .grip-art .cable { stroke: var(--faint); stroke-width: 2; }
 .grip-art .rope { stroke: var(--warn); stroke-width: 5; stroke-linecap: round; fill: none; }
 .grip-art .knob { fill: var(--warn); }
-.grip-art .hand { fill: var(--accent); fill-opacity: .3; stroke: var(--accent); stroke-width: 2; }
-.grip-art .arm { fill: var(--accent); fill-opacity: .1; stroke: var(--accent); stroke-opacity: .45; stroke-width: 1.5; }
-.grip-art .finger { stroke: var(--accent); stroke-width: 1.6; }
+.grip-art .hand { fill: var(--hand-fill); stroke: var(--accent); stroke-width: 2; }
+.grip-art .arm { fill: var(--arm-fill); stroke: var(--accent); stroke-opacity: .45; stroke-width: 1.5; }
+.grip-art .nail { fill: var(--surface); fill-opacity: .85; stroke: var(--accent); stroke-width: 1; }
+.grip-art .crease { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; }
 .grip-art .guide { stroke: var(--faint); stroke-width: 1.2; stroke-dasharray: 4 4; }
 .grip-art text { fill: var(--muted); font-size: 11px; }
 .grip-art .cap { fill: var(--text); font-size: 13px; font-weight: 700; }
