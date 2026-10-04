@@ -97,14 +97,15 @@ export function setCheck(state, values, { now = new Date() } = {}) {
   c.confirmed = [...ok];
 }
 
-export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date() }) {
+// ready: 시작 전 미리보기 상태 (Leap 의 루틴 상세). 타이머는 "시작"이나 첫 세트 완료 때 간다.
+export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null }) {
   const c = state.check;
   const minutes = part === 'core' ? Math.min(30, c.minutes) : c.minutes;
-  const plan = buildPlan(state, part, minutes, now, { home });
+  const plan = buildPlan(state, part, minutes, now, { home, avoid });
   state.session = {
-    id: newId('s'), part, source, date: date || localISODate(now), minutes, intensity: c.intensity,
+    id: newId('s'), part, source, date: date || localISODate(now), minutes, intensity: c.intensity, ready: true,
     startedAt: now.getTime(), estimatedMinutes: plan.estimatedMinutes, note: '', overrideReason,
-    tempUnavailable: [], restTimer: null, timer: { running: true, start: now.getTime(), elapsed: 0 }, home: !!home, lastActivityAt: now.getTime(),
+    tempUnavailable: [], restTimer: null, timer: { running: false, start: null, elapsed: 0 }, home: !!home, lastActivityAt: now.getTime(),
     exercises: [],
   };
   state.session.exercises = plan.planned.map((x) => makeEntry(state, x.id, { slot: x.slot, setCount: x.sets, warmupLevel: x.warmupLevel, part, minutes }));
@@ -163,6 +164,28 @@ export function setGrip(state, uid, gripId) {
   if (!entry.heavy) represcribe(state, entry);
   recalcEstimate(state);
   return entry;
+}
+
+// 미리보기에서 "시작": 시작 시각과 타이머를 지금으로.
+// keepStart: 시작을 안 누르고 바로 세트를 끝낸 경우. 세션을 만든 시각을 준비 시작으로 둔다(운동 시간 계산의 준비 시간).
+export function beginSession(state, { now = new Date(), keepStart = false } = {}) {
+  const s = sessionOf(state);
+  if (!s.ready) return s;
+  s.ready = false;
+  if (!keepStart) s.startedAt = now.getTime();
+  s.lastActivityAt = now.getTime();
+  s.timer = { running: true, start: now.getTime(), elapsed: 0 };
+  return s;
+}
+
+// 미리보기에서 "다시 추천": 직전 구성을 피해 다시 짠다. 손댄 기록이 있으면 하지 않는다.
+// 반환: 바뀐 운동 수 (0 이면 대신할 운동이 없었다).
+export function regenerateSession(state, { now = new Date() } = {}) {
+  const s = sessionOf(state);
+  need(s.ready && !sessionHasUserData(state), 'started', '이미 시작한 세션은 다시 추천할 수 없습니다. 운동 변경을 쓰세요.');
+  const before = s.exercises.map((e) => e.exerciseId);
+  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, avoid: new Set(before) });
+  return state.session.exercises.filter((e) => !before.includes(e.exerciseId)).length;
 }
 
 export function recalcEstimate(state) {
@@ -308,6 +331,7 @@ export function toggleSetDone(state, uid, setIndex, { now = new Date() } = {}) {
   }
   const prevDone = entry.sets.filter((x) => x.done && x.doneAt).sort((a, b) => b.doneAt - a.doneAt)[0];
   z.restBefore = prevDone ? Math.round((t - prevDone.doneAt) / 1000) : null;
+  if (s.ready) beginSession(state, { now, keepStart: true });
   z.done = true; z.doneAt = t;
   s.lastActivityAt = t;
   // 일시정지를 잊어도 세트를 끝내면 운동 중이라는 뜻이니 상단 타이머를 다시 켠다.
@@ -534,6 +558,7 @@ export function timerSeconds(timer, now = Date.now()) {
 
 export function toggleSessionTimer(state, { now = new Date() } = {}) {
   const s = sessionOf(state);
+  if (s.ready) { beginSession(state, { now }); return; }
   const t = s.timer;
   if (t.running) { t.elapsed = timerSeconds(t, now.getTime()); t.running = false; t.start = null; }
   else { t.running = true; t.start = now.getTime(); }

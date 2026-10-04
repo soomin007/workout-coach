@@ -598,6 +598,8 @@ test('그립: 카드의 그림 칩을 누르면 그립별 그림 · 자극 부�
 
 test('타이머: 일시정지하면 글자로 알려 주고, 세트를 끝내면 다시 간다', async ({ page }) => {
   await startPart(page, 'Pull', 60);
+  await page.getByTestId('preview-go').click();
+  await expect(page.getByTestId('preview')).toHaveCount(0);
   await page.locator('[data-action="timer"]').click();
   await expect(page.getByTestId('timer-paused')).toBeVisible();
   await card(page, 'pullup').locator('[data-action="done"]').first().click();
@@ -659,6 +661,7 @@ test('하단 다음 세트 기록: 누를 때마다 다음 세트를 처방값�
   const total = before.exercises.reduce((a, e) => a + e.sets.filter((z) => e.measure !== 'seconds').length, 0);
   // 시간형이 아닌 첫 운동의 첫 세트
   const first = before.exercises.find((e) => e.measure !== 'seconds');
+  await page.getByTestId('dock-begin').click();
   await expect(page.getByTestId('dock-next')).toBeVisible();
   const label = await page.getByTestId('dock-next').textContent();
   expect(label).toContain(before.exercises[0].name);
@@ -668,4 +671,19 @@ test('하단 다음 세트 기록: 누를 때마다 다음 세트를 처방값�
     expect(z.reps).toBe(first.prescription.reps);
   }
   expect(total).toBeGreaterThan(0);
+});
+
+test('시작 전 미리보기: 운동 목록과 처방을 보고, 다시 추천하면 구성이 바뀌고, 시작하면 사라진다', async ({ page }) => {
+  await startPart(page, 'Pull', 60);
+  const pv = page.getByTestId('preview');
+  await expect(pv).toBeVisible();
+  await expect(page.locator('#sessionClock')).toHaveText('00:00');
+  const before = (await st(page)).session.exercises.map((e) => e.exerciseId);
+  await expect(pv.locator('.pv-list li')).toHaveCount(before.length);
+  await page.getByTestId('preview-regen').click();
+  const after = (await st(page)).session.exercises.map((e) => e.exerciseId);
+  expect(after.some((id) => !before.includes(id))).toBe(true);
+  await page.getByTestId('preview-go').click();
+  await expect(pv).toHaveCount(0);
+  expect((await st(page)).session.timer.running).toBe(true);
 });

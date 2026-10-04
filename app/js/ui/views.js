@@ -235,6 +235,25 @@ function holdButton(e, allDone) {
   return `<button class="btn hold-btn" data-action="hold" data-uid="${e.uid}" data-testid="hold-start">타이머로 하기 · ${secs}초${e.unilateral ? ' × 좌우' : ''}</button>`;
 }
 
+// 시작 전 미리보기 (Leap 의 루틴 상세): 근육 지도 · 운동 목록과 처방 · 시작 · 다시 추천.
+function previewCard(s) {
+  const prim = [...new Set(s.exercises.flatMap((e) => e.primary))];
+  const sec = [...new Set(s.exercises.flatMap((e) => e.secondary))].filter((m) => !prim.includes(m));
+  const items = s.exercises.map((e) => {
+    const mains = e.sets.filter((z) => z.type !== 'warmup');
+    const z = mains[0];
+    const w = z?.weight !== null && z?.weight !== undefined ? ` · ${z.weight}kg` : '';
+    return `<li><span class="pv-thumb">${thumbHtml(e.exerciseId, e.grip, e)}</span><span class="pv-txt"><b>${esc(e.name)}</b><span class="small">${mains.length}세트 × ${z?.reps ?? e.range[0]}${unitOf(e)}${w}${e.heavy ? ' · 무거운 날' : ''}</span></span></li>`;
+  }).join('');
+  const total = s.exercises.reduce((a, e) => a + e.sets.filter((z) => z.type !== 'warmup').length, 0);
+  return `<section class="card preview" data-testid="preview">
+    <div class="pv-top"><div><div class="kicker">시작 전 확인</div><h2>운동 ${s.exercises.length}개</h2><div class="small">예상 ${s.estimatedMinutes}분 · 본세트 ${total}개</div></div><div class="pv-map">${bodyMap({ primary: prim, secondary: sec })}</div></div>
+    <ol class="pv-list">${items}</ol>
+    <div class="pv-actions"><button class="btn" data-action="regen" data-testid="preview-regen">다시 추천</button><button class="btn primary" data-action="begin" data-testid="preview-go">시작</button></div>
+    <div class="tiny">운동을 바꾸거나 빼려면 아래 카드의 ⋯ 를 쓰세요. 첫 세트를 체크해도 바로 시작됩니다.</div>
+  </section>`;
+}
+
 // 운동 썸네일: 동작 그림 첫 장(그립별 그림 우선), 없으면 근육 지도
 export function thumbHtml(exerciseId, grip, muscles) {
   const src = exerciseImages(exerciseId, grip)[0];
@@ -298,7 +317,7 @@ export function renderSession(state, ui, now = new Date()) {
     <div class="session-head">
       <div><div class="kicker" data-testid="session-mode">진행 중${s.home ? ' · 집' : ''} · ${s.minutes}분 · ${esc(INTENSITY[s.intensity] || '일반')}${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
         <div class="small" data-testid="session-meta">예상 ${s.estimatedMinutes}분 · 운동 ${s.exercises.length}개 · 본세트 ${work}/${total}</div></div>
-      <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨 · 세트를 끝내면 다시 갑니다</div>'}
+      <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : s.ready ? '<div class="small paused-label">시작 전</div>' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨 · 세트를 끝내면 다시 갑니다</div>'}
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
           <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${s.timer.running ? '❚❚' : '▶'}</button>
           <button class="btn sm ghost${ui.wakeLock ? ' lit' : ''}" data-action="wakelock" data-testid="wakelock" aria-pressed="${ui.wakeLock ? 'true' : 'false'}">${ui.wakeLock ? '화면 유지 중' : '화면 유지'}</button>
@@ -308,6 +327,7 @@ export function renderSession(state, ui, now = new Date()) {
     <div class="progress"><i style="width:${total ? (work / total) * 100 : 0}%"></i></div>
     ${missing.length ? `<div class="warnbox">빠진 핵심 동작: ${missing.map(slotLabel).join(', ')} <button class="btn sm" data-action="repair" style="margin-left:6px">자동 보완</button></div>` : ''}
   </section>
+  ${s.ready ? previewCard(s) : ''}
   ${s.exercises.map((e, i) => renderExercise(state, e, i, ui, next)).join('')}
   <section class="card">
     <h3>세션 마치기</h3>
@@ -332,7 +352,8 @@ export function renderRestbar(state, now = Date.now()) {
     rest = `<div class="rest-row"><div class="rest-info"><span class="lbl" data-testid="rest-next">${nx}</span><span class="t" data-testid="rest-time">${left >= 0 ? fmtClock(left) : '+' + fmtClock(-left)}</span></div><button class="btn sm" data-action="rest-adj" data-d="-15">−15</button><button class="btn sm" data-action="rest-adj" data-d="30">+30</button><button class="btn sm" data-action="rest-stop">건너뛰기</button></div>`;
   }
   let main;
-  if (!n) main = `<button class="btn good dock-btn" data-action="finish" data-testid="dock-finish">저장하고 종료 (${countWorkSets(s)}세트)</button>`;
+  if (s.ready) main = `<button class="btn primary dock-btn" data-action="begin" data-testid="dock-begin"><b>시작</b><span>운동 ${s.exercises.length}개 · 예상 ${s.estimatedMinutes}분</span></button>`;
+  else if (!n) main = `<button class="btn good dock-btn" data-action="finish" data-testid="dock-finish">저장하고 종료 (${countWorkSets(s)}세트)</button>`;
   else {
     const no = n.z.type === 'warmup' ? '워밍업' : `${n.e.sets.filter((z) => z.type !== 'warmup').indexOf(n.z) + 1}세트`;
     const timed = n.e.measure === 'seconds' && n.z.type !== 'warmup';

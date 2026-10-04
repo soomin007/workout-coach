@@ -334,6 +334,7 @@ test('계획대로 완료로 실시간 기록 중 마지막 한 세트를 끝내
 
 test('타이머: 일시정지한 채 세트를 끝내면 자동으로 다시 간다', () => {
   const s = sessionWith(freshState(), 'pull', ['pullup']);
+  T.beginSession(s, { now });
   T.toggleSessionTimer(s, { now: new Date(now.getTime() + 60000) });
   assert.equal(s.session.timer.running, false);
   const t2 = new Date(now.getTime() + 300000);
@@ -354,4 +355,21 @@ test('버티기 타이머: 좌우 단계와 자세 바꾸는 시간, 결과는 �
   const z = sp.sets[mi(s, 'side_plank', 1)];
   assert.deepEqual([z.split, z.leftReps, z.rightReps, z.done], [true, 30, 22, true]);
   assert.ok(s.session.restTimer, '완료 처리로 휴식 타이머가 시작된다');
+});
+
+test('시작 전 미리보기: 타이머는 멈춰 있고, 시작 · 첫 세트 완료로 간다. 다시 추천은 다른 구성으로', () => {
+  const s = freshState();
+  T.createSession(s, { part: 'pull', now });
+  assert.equal(s.session.ready, true);
+  assert.equal(T.timerSeconds(s.session.timer, now.getTime() + 60000), 0);
+  const before = s.session.exercises.map((e) => e.exerciseId);
+  const changed = T.regenerateSession(s, { now });
+  const after = s.session.exercises.map((e) => e.exerciseId);
+  assert.ok(changed > 0 && after.some((id) => !before.includes(id)), `${before} → ${after}`);
+  const e = s.session.exercises[0];
+  const i = e.sets.findIndex((z) => z.type !== 'warmup');
+  T.toggleSetDone(s, e.uid, i, { now: new Date(now.getTime() + 120000) });
+  assert.equal(s.session.ready, false);
+  assert.equal(s.session.timer.running, true);
+  assert.throws(() => T.regenerateSession(s, { now }), /다시 추천할 수 없습니다/);
 });

@@ -181,11 +181,16 @@ function optionNeedScore(state, profile, now, extra = null) {
 export function chooseForSlot(state, part, slot, used, now = new Date(), opts = {}) {
   return partPool(state, part)
     .filter((e) => supportsSlot(e, slot) && isAvailable(state, e, opts) && !used.has(e.id))
-    .sort((a, b) => ((b.role === slot ? 20 : 0) - (a.role === slot ? 20 : 0)) || (slotScore(state, b, now, opts) - slotScore(state, a, now, opts)) || (b.priority - a.priority))[0] || null;
+    .sort((a, b) => (roleScore(b, slot, opts) - roleScore(a, slot, opts)) || (slotScore(state, b, now, opts) - slotScore(state, a, now, opts)) || (b.priority - a.priority))[0] || null;
+}
+
+// avoid: "다시 추천"에서 직전 구성. 같은 역할의 다른 운동이 있으면 그쪽으로 바뀌고, 없으면 그대로 남는다.
+function roleScore(p, slot, opts) {
+  return (p.role === slot ? 20 : 0) - (opts.avoid?.has(p.id) ? 15 : 0);
 }
 
 function slotScore(state, p, now, opts) {
-  return optionNeedScore(state, p, now, opts.extra) - (opts.recent?.has(p.id) ? POLICY.accessoryRepeatPenalty : 0);
+  return optionNeedScore(state, p, now, opts.extra) - (opts.recent?.has(p.id) ? POLICY.accessoryRepeatPenalty : 0) - (opts.avoid?.has(p.id) ? 3 : 0);
 }
 
 export function estimateMinutes(profile, sets, withFullWarmup = false) {

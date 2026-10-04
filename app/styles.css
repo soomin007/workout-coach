@@ -315,3 +315,16 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .goal-opt b { font-size: 16px; }
 .goal-opt.on { border-color: var(--text); }
 .goal-check { position: absolute; right: 14px; top: 50%; margin-top: -13px; width: 26px; height: 26px; border-radius: 50%; background: var(--text); color: var(--bg); display: grid; place-content: center; font-weight: 900; font-size: 14px; }
+
+/* 시작 전 미리보기 (Leap 루틴 상세) */
+.preview .pv-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.preview h2 { font-size: 24px; margin: 2px 0; }
+.pv-map { flex: 0 0 110px; background: var(--surface2); border-radius: 50%; width: 110px; height: 110px; display: grid; place-content: center; }
+.pv-map .body-map { width: 96px; }
+.pv-list { list-style: none; padding: 0; margin: 12px 0 10px; display: grid; gap: 8px; }
+.pv-list li { display: flex; gap: 10px; align-items: center; }
+.pv-thumb { flex: 0 0 52px; height: 52px; border-radius: 12px; overflow: hidden; background: var(--surface2); display: grid; place-content: center; }
+.pv-thumb .body-map { width: 48px; }
+.pv-txt { display: grid; min-width: 0; }
+.pv-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-bottom: 6px; }
+.pv-actions .btn { min-height: 52px; font-size: 16px; }
