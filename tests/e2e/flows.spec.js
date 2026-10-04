@@ -2,10 +2,13 @@
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 
+// 요일 고정: 일요일이면 '헬스장 휴무'로 집 세션이 되어 결과가 요일마다 달라진다 (known-issues 15). 시계는 그 시각부터 흐른다.
+const WEEKDAY = new Date('2026-09-30T18:00:00');
 const fixture = (name) => fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url));
 
 test.beforeEach(async ({ page }, info) => {
   test.skip(info.project.name !== 'm390', '흐름 테스트는 m390 에서만');
+  await page.clock.install({ time: WEEKDAY });
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') page.errors.push(m.text()); });

@@ -1,6 +1,10 @@
 // 모바일 레이아웃 실측 (360 · 390 · 412). 가로 넘침, 좌우 여백, 터치 크기, 하단 고정 요소 가림.
 import { test, expect } from '@playwright/test';
 
+// 요일 고정: 일요일이면 '헬스장 휴무'로 집 세션이 되어 결과가 요일마다 달라진다 (known-issues 15). 시계는 그 시각부터 흐른다.
+const WEEKDAY = new Date('2026-09-30T18:00:00');
+test.beforeEach(async ({ page }) => { await page.clock.install({ time: WEEKDAY }); });
+
 async function measure(page) {
   return page.evaluate(() => {
     const vw = document.documentElement.clientWidth;
