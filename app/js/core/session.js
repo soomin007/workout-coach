@@ -3,7 +3,7 @@
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, catalogById, emphasisMuscles } from './catalog.js';
 import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
-import { buildPlan, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
+import { buildPlan, autoEmphasis, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
 import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
 import { plannedPrefatigue, actualOrder, fatigueClass } from './order.js';
@@ -98,15 +98,18 @@ export function setCheck(state, values, { now = new Date() } = {}) {
 }
 
 // ready: 시작 전 미리보기 상태 (Leap 의 루틴 상세). 타이머는 "시작"이나 첫 세트 완료 때 간다.
-export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null, emphasis = null }) {
+export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null, emphasis }) {
   const c = state.check;
+  // emphasis 를 넘기지 않으면(undefined) 이번 주 같은 부위 기록으로 자동 선택, null 이면 강조 없음.
+  const auto = emphasis === undefined ? autoEmphasis(state, part, now) : null;
+  if (emphasis === undefined) emphasis = auto?.id || null;
   const minutes = part === 'core' ? Math.min(30, c.minutes) : c.minutes;
   const plan = buildPlan(state, part, minutes, now, { home, avoid, emphasis: emphasisMuscles(part, emphasis) });
   const emph = emphasisMuscles(part, emphasis).length ? emphasis : null;
   state.session = {
     id: newId('s'), part, source, date: date || localISODate(now), minutes, intensity: c.intensity, ready: true,
     startedAt: now.getTime(), estimatedMinutes: plan.estimatedMinutes, note: '', overrideReason,
-    tempUnavailable: [], restTimer: null, timer: { running: false, start: null, elapsed: 0 }, home: !!home, emphasis: emph, lastActivityAt: now.getTime(),
+    tempUnavailable: [], restTimer: null, timer: { running: false, start: null, elapsed: 0 }, home: !!home, emphasis: emph, emphasisWhy: emph && auto ? auto.why : '', lastActivityAt: now.getTime(),
     exercises: [],
   };
   state.session.exercises = plan.planned.map((x) => makeEntry(state, x.id, { slot: x.slot, setCount: x.sets, warmupLevel: x.warmupLevel, part, minutes }));
@@ -186,6 +189,7 @@ export function regenerateSession(state, { now = new Date() } = {}) {
   need(s.ready && !sessionHasUserData(state), 'started', '이미 시작한 세션은 다시 추천할 수 없습니다. 운동 변경을 쓰세요.');
   const before = s.exercises.map((e) => e.exerciseId);
   createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, avoid: new Set(before), emphasis: s.emphasis });
+  state.session.emphasisWhy = s.emphasisWhy || '';
   return state.session.exercises.filter((e) => !before.includes(e.exerciseId)).length;
 }
 
@@ -675,7 +679,7 @@ export function finishSession(state, { now = new Date() } = {}) {
   const summary = { part: s.part, date: s.date, workSets: work, durationSec: duration, exercises: s.exercises.filter((e) => e.sets.some((z) => z.done)).map((e) => ({ name: e.name, sets: e.sets.filter((z) => z.done && z.type === 'main').map((z) => ({ weight: z.weight, reps: setReps(z) })) })) };
   state.history.push({
     id: s.id, date: s.date, part: s.part, source: s.source, workSets: work, durationSec: duration,
-    note: s.note, overrideReason: s.overrideReason || '', performanceScore: performanceScore(s), volumeUnknown: false,
+    note: s.note, overrideReason: s.overrideReason || '', performanceScore: performanceScore(s), volumeUnknown: false, emphasis: s.emphasis || null,
   });
   state.session = null;
   return summary;

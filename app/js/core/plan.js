@@ -1,5 +1,5 @@
 // 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
-import { DB, CORE_SLOTS, OPTIONAL_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
+import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
 import { profileFor } from './coach.js';
 import { parseDateLocal, endOfDay, localISODate } from './util.js';
 
@@ -51,6 +51,25 @@ export function lastSessionExercises(state, part, now = new Date()) {
   if (!xs.length) return new Set();
   const last = xs.reduce((a, p) => (p.date > a.date ? p : a));
   return new Set(xs.filter((p) => p.sessionId === last.sessionId).map((p) => p.exerciseId));
+}
+
+// 이번 주(최근 6일) 같은 부위를 이미 했으면 오늘은 그 반대 강조를 미리 골라 둔다.
+// 지난번에 강조가 없었으면 주간 부족분이 큰 쪽. 첫 번째 세션이면 강조 없음. 반환: { id, why } 또는 null.
+export function autoEmphasis(state, part, now = new Date()) {
+  const pair = EMPHASIS_ALTERNATE[part];
+  if (!pair) return null;
+  const today = localISODate(now);
+  const prev = (state.history || []).filter((h) => h.part === part && h.date < today && inWindow(h.date, now, 6));
+  if (!prev.length) return null;
+  const last = prev.reduce((a, h) => (h.date >= a.date ? h : a));
+  const label = (id) => EMPHASIS[part].find((x) => x.id === id).label;
+  if (pair.includes(last.emphasis)) {
+    const id = pair.find((x) => x !== last.emphasis);
+    return { id, why: `이번 주 두 번째 세션이라 지난번(${label(last.emphasis)})과 번갈아 ${josa(label(id), "을", "를")} 강조했습니다.` };
+  }
+  const need = (id) => { const ms = EMPHASIS[part].find((x) => x.id === id).muscles; return ms.reduce((a, m) => a + muscleNeed(state, m, now), 0) / ms.length; };
+  const id = pair.reduce((a, b) => (need(b) > need(a) ? b : a));
+  return { id, why: `이번 주 두 번째 세션이라 주간 세트가 더 부족한 ${josa(label(id), "을", "를")} 강조했습니다.` };
 }
 
 function partNeed(state, part, now) {

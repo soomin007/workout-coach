@@ -239,7 +239,7 @@ function holdButton(e, allDone) {
 function emphasisRow(s) {
   const list = EMPHASIS[s.part] || [];
   if (!list.length) return '';
-  return `<div class="pv-emph" data-testid="emphasis"><div class="small">오늘 더 하고 싶은 부위</div><div class="row">${list.map((x) => `<button class="chip${s.emphasis === x.id ? ' on' : ''}" data-action="emphasis" data-v="${x.id}" aria-pressed="${s.emphasis === x.id}">${esc(x.label)}</button>`).join('')}</div></div>`;
+  return `<div class="pv-emph" data-testid="emphasis"><div class="small">오늘 더 하고 싶은 부위</div><div class="row">${list.map((x) => `<button class="chip${s.emphasis === x.id ? ' on' : ''}" data-action="emphasis" data-v="${x.id}" aria-pressed="${s.emphasis === x.id}">${esc(x.label)}</button>`).join('')}</div>${s.emphasisWhy ? `<div class="tiny" data-testid="emphasis-why">${esc(s.emphasisWhy)} 칩을 눌러 바꿀 수 있습니다.</div>` : ''}</div>`;
 }
 
 // 시작 전 미리보기 (Leap 의 루틴 상세): 근육 지도 · 운동 목록과 처방 · 시작 · 다시 추천.

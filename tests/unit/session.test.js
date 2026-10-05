@@ -396,3 +396,33 @@ test('오늘 강조 부위: 어깨를 고르면 어깨 운동이 앞에 오고 �
   T.toggleSetDone(s, e.uid, e.sets.findIndex((z) => z.type !== 'warmup'), { now });
   assert.throws(() => T.setEmphasis(s, 'chest', { now }), /다시 짤 수 없습니다/);
 });
+
+test('이번 주 두 번째 밀기는 지난번과 반대 강조(가슴 ↔ 어깨)로 미리 골라 둔다', () => {
+  const s = freshState();
+  T.createSession(s, { part: 'push', now });
+  assert.equal(s.session.emphasis, null, '이번 주 첫 밀기는 강조 없음');
+  s.history.push({ id: 'h1', date: '2026-09-26', part: 'push', source: 'recommended', workSets: 12, durationSec: 2400, note: '', overrideReason: '', performanceScore: 1, volumeUnknown: false, emphasis: 'chest' });
+  T.createSession(s, { part: 'push', now });
+  assert.equal(s.session.emphasis, 'shoulder');
+  assert.match(s.session.emphasisWhy, /가슴.*어깨를/);
+  T.regenerateSession(s, { now });
+  assert.equal(s.session.emphasis, 'shoulder');
+  T.setEmphasis(s, 'shoulder', { now });
+  assert.equal(s.session.emphasis, null);
+  assert.equal(s.session.emphasisWhy, '');
+  s.history[0].emphasis = null;
+  T.createSession(s, { part: 'push', now });
+  assert.ok(['chest', 'shoulder'].includes(s.session.emphasis), '지난번 강조가 없으면 부족한 쪽');
+  T.createSession(s, { part: 'pull', now });
+  assert.equal(s.session.emphasis, null, 'Pull 은 자동 강조 없음');
+});
+
+test('강조는 완료 기록(history)에 남는다', () => {
+  const s = freshState();
+  T.createSession(s, { part: 'push', now });
+  T.setEmphasis(s, 'shoulder', { now });
+  const e = s.session.exercises[0];
+  T.toggleSetDone(s, e.uid, e.sets.findIndex((z) => z.type !== 'warmup'), { now });
+  T.finishSession(s, { now: new Date(now.getTime() + 600000) });
+  assert.equal(s.history.at(-1).emphasis, 'shoulder');
+});

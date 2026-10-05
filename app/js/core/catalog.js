@@ -40,6 +40,8 @@ export const EMPHASIS = {
   pull: [{ id: 'lats', label: '광배', muscles: ['back'] }, { id: 'upper_back', label: '상부 등', muscles: ['upper_back'] }, { id: 'rear_delt', label: '후면 어깨', muscles: ['rear_delt'] }, { id: 'biceps', label: '이두', muscles: ['biceps'] }],
   lower: [{ id: 'quads', label: '앞 허벅지', muscles: ['quads'] }, { id: 'hamstring', label: '뒤 허벅지', muscles: ['hamstring'] }, { id: 'glute', label: '엉덩이', muscles: ['glute'] }, { id: 'calf', label: '종아리', muscles: ['calf'] }],
 };
+// 한 주에 같은 부위를 두 번 할 때 번갈아 강조할 짝 (정책 15절). 시간이 나는 주에 가슴 날 · 어깨 날을 나누는 대신.
+export const EMPHASIS_ALTERNATE = { push: ['chest', 'shoulder'] };
 export function emphasisMuscles(part, id) {
   return (EMPHASIS[part] || []).find((x) => x.id === id)?.muscles || [];
 }
