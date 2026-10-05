@@ -33,6 +33,17 @@ export const PART_MUSCLES = {
   lower: ['quads', 'hamstring', 'glute', 'calf'],
 };
 
+// 오늘 강조 부위 (시작 전 미리보기 칩). 고르면 그 근육 운동이 앞으로 오고 세트 · 보조 종목이 그쪽으로 몰린다.
+// 정책 15절 (RP 특화 · Fitbod 타깃 근육): 나머지는 줄이되 빼지 않는다.
+export const EMPHASIS = {
+  push: [{ id: 'chest', label: '가슴', muscles: ['chest'] }, { id: 'shoulder', label: '어깨', muscles: ['front_delt', 'side_delt'] }, { id: 'triceps', label: '삼두', muscles: ['triceps'] }],
+  pull: [{ id: 'lats', label: '광배', muscles: ['back'] }, { id: 'upper_back', label: '상부 등', muscles: ['upper_back'] }, { id: 'rear_delt', label: '후면 어깨', muscles: ['rear_delt'] }, { id: 'biceps', label: '이두', muscles: ['biceps'] }],
+  lower: [{ id: 'quads', label: '앞 허벅지', muscles: ['quads'] }, { id: 'hamstring', label: '뒤 허벅지', muscles: ['hamstring'] }, { id: 'glute', label: '엉덩이', muscles: ['glute'] }, { id: 'calf', label: '종아리', muscles: ['calf'] }],
+};
+export function emphasisMuscles(part, id) {
+  return (EMPHASIS[part] || []).find((x) => x.id === id)?.muscles || [];
+}
+
 export const CORE_SLOTS = {
   push: ['horizontal_push', 'vertical_push', 'lateral_delt', 'triceps'],
   pull: ['vertical_pull', 'horizontal_pull', 'rear_delt', 'biceps'],
@@ -88,8 +99,8 @@ export const DB = {
     { id: 'ohp', name: '바벨 오버헤드프레스', role: 'vertical_push', primary: ['front_delt'], secondary: ['side_delt', 'triceps'], sets: 3, range: [6, 10], rest: 180, inc: 2.5, mode: 'total', priority: 86, equipment: 'barbell', compound: true, why: '어깨 메인 프레스' },
     { id: 'shoulder_machine', name: '머신 숄더프레스', role: 'vertical_push', primary: ['front_delt'], secondary: ['side_delt', 'triceps'], sets: 3, range: [8, 12], rest: 150, inc: 5, mode: 'machine', priority: 84, equipment: 'shoulder_press', compound: true, why: '안정적인 어깨 프레스' },
     { id: 'lateral', name: '사이드 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 1, mode: 'per_dumbbell', priority: 95, equipment: 'dumbbell', why: '측면삼각근 직접 볼륨' },
-    { id: 'cable_lateral', name: '케이블 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 2.5, mode: 'machine', priority: 82, equipment: 'cable', why: '측면삼각근 지속 장력' },
-    { id: 'pushdown', name: '트라이셉 푸시다운', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 2.5, mode: 'machine', priority: 95, equipment: 'cable', why: '삼두 직접 볼륨' },
+    { id: 'cable_lateral', name: '케이블 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 82, equipment: 'cable', why: '측면삼각근 지속 장력' },
+    { id: 'pushdown', name: '트라이셉 푸시다운', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, mode: 'machine', priority: 95, equipment: 'cable', why: '삼두 직접 볼륨' },
     { id: 'cable_fly', name: '케이블 플라이', role: 'chest_isolation', primary: ['chest'], secondary: [], sets: 2, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 90, equipment: 'cable', why: '프레스 후 가슴 고립' },
     { id: 'pike_pushup', name: '파이크 푸쉬업', role: 'vertical_push', primary: ['front_delt'], secondary: ['triceps'], sets: 3, range: [6, 12], rest: 90, inc: 0, mode: 'bodyweight', priority: 40, equipment: 'none', compound: true, why: '집에서 하는 어깨 프레스', cue: '엉덩이를 높이 들고 머리가 손 사이로 내려가게.' },
     { id: 'pushup', name: '푸쉬업', role: 'chest_finisher', primary: ['chest'], secondary: ['triceps'], sets: 2, range: [10, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 60, equipment: 'none', why: '가벼운 마무리' },
@@ -101,8 +112,8 @@ export const DB = {
     { id: 'chest_row', name: '체스트 서포티드 로우', role: 'horizontal_pull', primary: ['back', 'upper_back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 93, equipment: 'chest_supported_row', compound: true, why: '허리 부담을 줄인 수평 당기기' },
     { id: 'db_row', name: '원암 덤벨 로우', role: 'horizontal_pull', primary: ['back'], secondary: ['upper_back', 'biceps', 'rear_delt'], sets: 3, range: [8, 12], rest: 90, inc: 2, mode: 'per_dumbbell', priority: 80, equipment: 'dumbbell', compound: true, unilateral: true, why: '덤벨만으로 하는 수평 당기기', cue: '허리는 중립, 팔꿈치를 골반 쪽으로 당기기.' },
     { id: 'tbar', name: 'T바/플레이트 로우', aliases: ['T바 로우'], role: 'secondary_back', primary: ['upper_back'], secondary: ['back', 'biceps'], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 86, equipment: 'tbar', compound: true, why: '상부 등 보완' },
-    { id: 'rear_cable', name: '케이블 리어델트 플라이', role: 'rear_delt', primary: ['rear_delt'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 2.5, mode: 'machine', priority: 92, equipment: 'cable', why: '후면삼각근 직접 볼륨' },
-    { id: 'facepull', name: '페이스풀', role: 'rear_delt', primary: ['rear_delt'], secondary: ['upper_back'], sets: 2, range: [12, 20], rest: 75, inc: 2.5, mode: 'machine', priority: 84, equipment: 'cable', why: '후면어깨/견갑 보완' },
+    { id: 'rear_cable', name: '케이블 리어델트 플라이', role: 'rear_delt', primary: ['rear_delt'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 92, equipment: 'cable', why: '후면삼각근 직접 볼륨' },
+    { id: 'facepull', name: '페이스풀', role: 'rear_delt', primary: ['rear_delt'], secondary: ['upper_back'], sets: 2, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 84, equipment: 'cable', why: '후면어깨/견갑 보완' },
     { id: 'db_rear', name: '덤벨 리버스 플라이', role: 'rear_delt', primary: ['rear_delt'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 1, mode: 'per_dumbbell', priority: 76, equipment: 'dumbbell', why: '후면삼각근 대체' },
     { id: 'curl', name: '덤벨 바이셉 컬', role: 'biceps', primary: ['biceps'], secondary: [], sets: 2, range: [8, 12], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 90, equipment: 'dumbbell', why: '이두 직접 볼륨' },
     { id: 'hammer', name: '해머컬', role: 'biceps_secondary', primary: ['biceps'], secondary: ['brachialis'], sets: 2, range: [10, 15], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 78, equipment: 'dumbbell', why: '상완근/이두 보완' },
@@ -121,7 +132,7 @@ export const DB = {
   core: [
     // 2026-10-04 개편 (정책 8절): 굽히는 운동(윗배 · 아랫배)을 핵심으로, 버티기(항신전 · 항측굴)는 그 뒤에. 동작이 있는 운동을 먼저.
     { id: 'crunch', name: '크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 3, range: [12, 20], rest: 45, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', why: '윗배(복직근) 직접 자극. 복직근 활성이 가장 높은 기본 동작' },
-    { id: 'cable_crunch', name: '케이블 크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 60, inc: 2.5, mode: 'machine', priority: 95, equipment: 'cable', why: '무게를 올려 가며 진행할 수 있는 윗배 운동' },
+    { id: 'cable_crunch', name: '케이블 크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 60, inc: 5, mode: 'machine', priority: 95, equipment: 'cable', why: '무게를 올려 가며 진행할 수 있는 윗배 운동' },
     { id: 'reverse_crunch', name: '리버스 크런치', aliases: ['리버스 크런치 / 레그레이즈'], role: 'core_flexion_lower', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 45, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', why: '아랫배: 골반을 말아 올리는 동작' },
     { id: 'leg_raise', name: '라잉 레그레이즈', role: 'core_flexion_lower', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 45, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', why: '아랫배: 누워서 다리를 들어 올리기' },
     { id: 'hanging_leg_raise', name: '행잉 레그레이즈', role: 'core_flexion_lower', primary: ['core'], secondary: [], sets: 3, range: [8, 15], rest: 60, inc: 0, mode: 'bodyweight', priority: 85, equipment: 'pullup', why: '철봉에 매달려 다리를 드는 강한 아랫배 운동' },
@@ -133,7 +144,7 @@ export const DB = {
     { id: 'shoulder_tap', name: '플랭크 숄더 탭', role: 'core_anti_rotation', primary: ['core'], secondary: ['front_delt'], sets: 2, range: [10, 20], rest: 45, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', why: '무릎을 대지 않는 항회전. 한 손을 뗄 때 몸통이 돌아가지 않게 버틴다' },
     // kneeling: 무릎을 바닥에 대는 운동. 오늘 무릎 통증을 골랐으면 뺀다. 매트를 깔아도 무릎이 아팠다는 사용자 보고(2026-10-04)로 우선순위를 낮췄다.
     { id: 'bird_dog', name: '버드독', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [6, 10], rest: 45, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', unilateral: true, kneeling: true, why: '골반 회전을 막는 항회전 (McGill 빅3)', cue: '뻗은 자세에서 2~3초 멈추기. 골반이 돌아가지 않게.' },
-    { id: 'pallof', name: '팰로프 프레스', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [10, 12], rest: 45, inc: 2.5, mode: 'machine', priority: 90, equipment: 'cable', unilateral: true, why: '케이블 당김에 버티는 항회전' },
+    { id: 'pallof', name: '팰로프 프레스', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [10, 12], rest: 45, inc: 5, mode: 'machine', priority: 90, equipment: 'cable', unilateral: true, why: '케이블 당김에 버티는 항회전' },
     { id: 'side_plank', name: '사이드 플랭크', role: 'core_lateral', primary: ['core'], secondary: [], sets: 2, range: [15, 40], measure: 'seconds', rest: 45, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '옆구리 항측굴 (McGill 빅3)' },
   ],
 };

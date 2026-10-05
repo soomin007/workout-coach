@@ -373,3 +373,26 @@ test('시작 전 미리보기: 타이머는 멈춰 있고, 시작 · 첫 세트 
   assert.equal(s.session.timer.running, true);
   assert.throws(() => T.regenerateSession(s, { now }), /다시 추천할 수 없습니다/);
 });
+
+test('오늘 강조 부위: 어깨를 고르면 어깨 운동이 앞에 오고 세트가 늘며, 가슴 메인은 빠지지 않고 2세트로 남는다', () => {
+  const s = freshState();
+  T.createSession(s, { part: 'push', now });
+  const base = s.session.exercises.map((e) => e.exerciseId);
+  T.setEmphasis(s, 'shoulder', { now });
+  const ex = s.session.exercises;
+  assert.equal(s.session.emphasis, 'shoulder');
+  assert.ok(ex[0].primary.some((m) => m === 'front_delt' || m === 'side_delt'), ex.map((e) => e.exerciseId).join());
+  const shoulderSets = (list) => list.filter((e) => e.primary.some((m) => m === 'front_delt' || m === 'side_delt')).reduce((a, e) => a + mains(e).length, 0);
+  const bench = ex.find((e) => e.slot === 'horizontal_push');
+  assert.ok(bench && mains(bench).length === 2, '가슴 메인 유지');
+  T.setEmphasis(s, 'shoulder', { now });
+  assert.equal(s.session.emphasis, null, '같은 칩을 다시 누르면 해제');
+  assert.deepEqual(s.session.exercises.map((e) => e.exerciseId), base);
+  T.setEmphasis(s, 'shoulder', { now });
+  assert.ok(shoulderSets(ex) >= 8, `어깨 ${shoulderSets(ex)}세트`);
+  T.regenerateSession(s, { now });
+  assert.equal(s.session.emphasis, 'shoulder', '다시 추천해도 강조 유지');
+  const e = s.session.exercises[0];
+  T.toggleSetDone(s, e.uid, e.sets.findIndex((z) => z.type !== 'warmup'), { now });
+  assert.throws(() => T.setEmphasis(s, 'chest', { now }), /다시 짤 수 없습니다/);
+});

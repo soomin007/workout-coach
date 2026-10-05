@@ -1,6 +1,6 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (actions.js 가 위임 처리).
 import { esc } from './dom.js';
-import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName } from '../core/catalog.js';
+import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
@@ -236,6 +236,12 @@ function holdButton(e, allDone) {
   return `<button class="btn hold-btn" data-action="hold" data-uid="${e.uid}" data-testid="hold-start">타이머로 하기 · ${secs}초${e.unilateral ? ' × 좌우' : ''}</button>`;
 }
 
+function emphasisRow(s) {
+  const list = EMPHASIS[s.part] || [];
+  if (!list.length) return '';
+  return `<div class="pv-emph" data-testid="emphasis"><div class="small">오늘 더 하고 싶은 부위</div><div class="row">${list.map((x) => `<button class="chip${s.emphasis === x.id ? ' on' : ''}" data-action="emphasis" data-v="${x.id}" aria-pressed="${s.emphasis === x.id}">${esc(x.label)}</button>`).join('')}</div></div>`;
+}
+
 // 시작 전 미리보기 (Leap 의 루틴 상세): 근육 지도 · 운동 목록과 처방 · 시작 · 다시 추천.
 function previewCard(s) {
   const prim = [...new Set(s.exercises.flatMap((e) => e.primary))];
@@ -249,6 +255,7 @@ function previewCard(s) {
   const total = s.exercises.reduce((a, e) => a + e.sets.filter((z) => z.type !== 'warmup').length, 0);
   return `<section class="card preview" data-testid="preview">
     <div class="pv-top"><div><div class="kicker">시작 전 확인</div><h2>운동 ${s.exercises.length}개</h2><div class="small">예상 ${s.estimatedMinutes}분 · 본세트 ${total}개</div></div><div class="pv-map">${bodyMap({ primary: prim, secondary: sec })}</div></div>
+    ${emphasisRow(s)}
     <ol class="pv-list">${items}</ol>
     <div class="pv-actions"><button class="btn" data-action="regen" data-testid="preview-regen">다시 추천</button><button class="btn primary" data-action="begin" data-testid="preview-go">시작</button></div>
     <div class="tiny">운동을 바꾸거나 빼려면 아래 카드의 ⋯ 를 쓰세요. 첫 세트를 체크해도 바로 시작됩니다.</div>

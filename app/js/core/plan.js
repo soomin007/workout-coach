@@ -213,17 +213,23 @@ export function adjustedSetCount(state, profile, part, minutes, slot, now = new 
 }
 
 // 반환: { planned: [{ id, slot, sets, warmupLevel }], estimatedMinutes }
+// where.emphasis: 오늘 강조할 근육 목록. 강조 운동은 앞으로 · 세트 +1, 나머지 핵심은 2세트(유지),
+// 보조 자리는 강조 근육 운동이 먼저(같은 역할의 두 번째 운동도 허용).
 export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   const used = new Set(), planned = [];
+  const emph = new Set(where.emphasis || []);
+  const hits = (p) => emph.size > 0 && (p.primary || []).some((m) => emph.has(m));
   const maxCount = part === 'core' ? (minutes <= 20 ? 4 : 6) : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
   for (const slot of CORE_SLOTS[part] || []) {
     const e = chooseForSlot(state, part, slot, used, now, where);
     if (!e) continue;
-    planned.push({ p: e, slot, sets: adjustedSetCount(state, e, part, minutes, slot, now) });
+    let sets = adjustedSetCount(state, e, part, minutes, slot, now);
+    if (emph.size) sets = hits(e) ? Math.min(4, sets + 1) : Math.min(2, sets);
+    planned.push({ p: e, slot, sets });
     used.add(e.id);
   }
   const order = SESSION_ORDER[part] || [];
-  const sortPlan = () => planned.sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot));
+  const sortPlan = () => planned.sort((a, b) => (hits(b.p) - hits(a.p)) || (order.indexOf(a.slot) - order.indexOf(b.slot)));
   const firstCompoundIdx = () => planned.findIndex((x) => x.p.compound);
   const total = () => { const f = firstCompoundIdx(); return planned.reduce((a, x, i) => a + estimateMinutes(x.p, x.sets, i === f), 0); };
   sortPlan();
@@ -235,19 +241,22 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   const extra = {};
   for (const x of planned) addPlannedSets(extra, x.p, x.sets);
   const sel = { ...where, extra, recent: lastSessionExercises(state, part, now) };
-  let open = [...(OPTIONAL_SLOTS[part] || [])];
+  const coreSlots = CORE_SLOTS[part] || [];
+  let open = [...(OPTIONAL_SLOTS[part] || []), ...(emph.size ? coreSlots : [])];
   while (open.length && planned.length < maxCount) {
     const provisional = new Set(used);
     const cands = [];
     for (const slot of open) {
       const e = chooseForSlot(state, part, slot, provisional, now, sel);
-      if (e) { cands.push({ p: e, slot, score: slotScore(state, e, now, sel) + (e.role === slot ? 5 : 0) }); provisional.add(e.id); }
+      if (!e || (coreSlots.includes(slot) && !hits(e))) continue;
+      cands.push({ p: e, slot, score: slotScore(state, e, now, sel) + (e.role === slot ? 5 : 0) + (hits(e) ? 20 : 0) });
+      provisional.add(e.id);
     }
     if (!cands.length) break;
     cands.sort((a, b) => b.score - a.score);
     const o = cands[0];
     open = open.filter((x) => x !== o.slot);
-    const sets = Math.min(2, adjustedSetCount(state, o.p, part, minutes, o.slot, now));
+    const sets = Math.min(hits(o.p) ? 3 : 2, adjustedSetCount(state, o.p, part, minutes, o.slot, now));
     const cost = estimateMinutes(o.p, sets, false);
     if (est + cost <= minutes * 1.06 || (minutes >= 60 && planned.length < 5)) {
       planned.push({ p: o.p, slot: o.slot, sets });

@@ -688,6 +688,18 @@ test('시작 전 미리보기: 운동 목록과 처방을 보고, 다시 추천�
   expect((await st(page)).session.timer.running).toBe(true);
 });
 
+test('시작 전 미리보기: 오늘 강조 부위 칩을 누르면 그 부위 운동이 맨 앞으로 오고, 다시 누르면 해제된다', async ({ page }) => {
+  await startPart(page, 'Push', 45);
+  const chip = page.getByTestId('emphasis').getByRole('button', { name: '어깨' });
+  await chip.click();
+  await expect(page.getByTestId('emphasis').getByRole('button', { name: '어깨' })).toHaveAttribute('aria-pressed', 'true');
+  const s1 = (await st(page)).session;
+  expect(s1.emphasis).toBe('shoulder');
+  expect(s1.exercises[0].primary.some((m) => m === 'front_delt' || m === 'side_delt')).toBe(true);
+  await page.getByTestId('emphasis').getByRole('button', { name: '어깨' }).click();
+  expect((await st(page)).session.emphasis).toBe(null);
+});
+
 test('운동 추가: 검색하고 여러 개를 골라 한 번에 추가한다', async ({ page }) => {
   await startPart(page, 'Pull', 60);
   const n0 = (await st(page)).session.exercises.length;

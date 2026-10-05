@@ -127,6 +127,7 @@ const actions = {
   grip: (d) => pickGrip(d.uid),
   hold: (d) => holdSet(d.uid),
   begin: () => { run((s) => T.beginSession(s)); window.scrollTo(0, 0); },
+  emphasis: (d) => run((s) => T.setEmphasis(s, d.v)),
   regen: () => run((s) => T.regenerateSession(s), (n) => (n ? `운동 ${n}개를 다른 것으로 바꿨습니다.` : '대신할 운동이 없어 그대로입니다.')),
   goal: (d) => run((s) => { s.settings.goal = d.v; }, '목표를 바꿨습니다. 다음 세션부터 반영됩니다.'),
   'lib-group': (d) => { ui.libGroup = d.g; render(); },

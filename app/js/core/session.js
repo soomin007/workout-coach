@@ -1,7 +1,7 @@
 // 세션 상태 전이. 모든 함수는 전달받은 state(초안)를 직접 수정한다.
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
-import { CORE_SLOTS, catalogById } from './catalog.js';
+import { CORE_SLOTS, catalogById, emphasisMuscles } from './catalog.js';
 import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
 import { buildPlan, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
@@ -98,14 +98,15 @@ export function setCheck(state, values, { now = new Date() } = {}) {
 }
 
 // ready: 시작 전 미리보기 상태 (Leap 의 루틴 상세). 타이머는 "시작"이나 첫 세트 완료 때 간다.
-export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null }) {
+export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null, emphasis = null }) {
   const c = state.check;
   const minutes = part === 'core' ? Math.min(30, c.minutes) : c.minutes;
-  const plan = buildPlan(state, part, minutes, now, { home, avoid });
+  const plan = buildPlan(state, part, minutes, now, { home, avoid, emphasis: emphasisMuscles(part, emphasis) });
+  const emph = emphasisMuscles(part, emphasis).length ? emphasis : null;
   state.session = {
     id: newId('s'), part, source, date: date || localISODate(now), minutes, intensity: c.intensity, ready: true,
     startedAt: now.getTime(), estimatedMinutes: plan.estimatedMinutes, note: '', overrideReason,
-    tempUnavailable: [], restTimer: null, timer: { running: false, start: null, elapsed: 0 }, home: !!home, lastActivityAt: now.getTime(),
+    tempUnavailable: [], restTimer: null, timer: { running: false, start: null, elapsed: 0 }, home: !!home, emphasis: emph, lastActivityAt: now.getTime(),
     exercises: [],
   };
   state.session.exercises = plan.planned.map((x) => makeEntry(state, x.id, { slot: x.slot, setCount: x.sets, warmupLevel: x.warmupLevel, part, minutes }));
@@ -184,8 +185,17 @@ export function regenerateSession(state, { now = new Date() } = {}) {
   const s = sessionOf(state);
   need(s.ready && !sessionHasUserData(state), 'started', '이미 시작한 세션은 다시 추천할 수 없습니다. 운동 변경을 쓰세요.');
   const before = s.exercises.map((e) => e.exerciseId);
-  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, avoid: new Set(before) });
+  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, avoid: new Set(before), emphasis: s.emphasis });
   return state.session.exercises.filter((e) => !before.includes(e.exerciseId)).length;
+}
+
+// 미리보기에서 "오늘 강조 부위" 칩: 같은 칩을 다시 누르면 해제. 구성을 강조에 맞춰 새로 짠다.
+export function setEmphasis(state, id, { now = new Date() } = {}) {
+  const s = sessionOf(state);
+  need(s.ready && !sessionHasUserData(state), 'started', '이미 시작한 세션은 구성을 다시 짤 수 없습니다. 운동 추가를 쓰세요.');
+  const next = s.emphasis === id ? null : id;
+  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, emphasis: next });
+  return state.session.emphasis;
 }
 
 export function recalcEstimate(state) {
