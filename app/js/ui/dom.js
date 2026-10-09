@@ -144,8 +144,8 @@ export async function numberSheet(title, value, { step = 'any', suffix = '', zer
 
 export async function textSheet(title, value = '', { placeholder = '', hint = '', multiline = false } = {}) {
   const input = multiline
-    ? `<textarea name="t" placeholder="${esc(placeholder)}">${esc(value)}</textarea>`
-    : `<input type="text" name="t" enterkeyhint="done" placeholder="${esc(placeholder)}" value="${esc(value)}">`;
+    ? `<textarea name="t" autocomplete="off" placeholder="${esc(placeholder)}">${esc(value)}</textarea>`
+    : `<input type="text" name="t" autocomplete="off" enterkeyhint="done" placeholder="${esc(placeholder)}" value="${esc(value)}">`;
   const r = await sheet(`<h3>${esc(title)}</h3>${hint ? `<p class="small">${esc(hint)}</p>` : ''}${input}<div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">확인</button></div>`, { collect: (b) => b.querySelector('[name=t]').value });
   return r ? r.data : null;
 }

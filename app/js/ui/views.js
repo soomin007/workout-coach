@@ -120,7 +120,7 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
     <label class="setting"><span>집에서 (헬스장 없이)</span><input type="checkbox" name="home"${home ? ' checked' : ''}></label>
     <details class="more"><summary>날짜 · 추천과 다르게 고른 이유</summary>
       <label class="field" style="margin-top:6px">운동 날짜<input type="date" name="date" value="${esc(localISODate(now))}"></label>
-      <textarea name="why" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등" style="margin-top:6px"></textarea>
+      <textarea name="why" autocomplete="off" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등" style="margin-top:6px"></textarea>
     </details>
     <div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok" data-testid="start-go" disabled>시작</button></div>
   </div>`;
@@ -340,7 +340,7 @@ export function renderSession(state, ui, now = new Date()) {
   <section class="card">
     <h3>세션 마치기</h3>
     <div class="small">완료한 세트만 저장합니다. 추천과 다르게 한 내용도 다음 처방에 반영됩니다.</div>
-    <textarea data-action="note" placeholder="오늘 전체 메모: 컨디션, 통증, 기구 문제, 추천이 이상했던 점" style="margin-top:8px">${esc(s.note || '')}</textarea>
+    <textarea data-action="note" autocomplete="off" placeholder="오늘 전체 메모: 컨디션, 통증, 기구 문제, 추천이 이상했던 점" style="margin-top:8px">${esc(s.note || '')}</textarea>
     <div class="row" style="margin-top:10px"><button class="btn good" data-action="finish">저장하고 종료 (${work}세트)</button><button class="btn" data-action="export-json">JSON 백업</button></div>
   </section>`;
 }

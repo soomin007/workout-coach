@@ -43,7 +43,7 @@ export function renderLibrary(state, ui) {
   }).join('');
   return `<section class="lib-head">
       <h2>운동</h2>
-      <input type="search" class="lib-search" data-action="lib-q" placeholder="운동 · 근육 · 장비 검색" value="${esc(ui.libQuery || '')}" aria-label="운동 검색">
+      <input type="search" class="lib-search" autocomplete="off" data-action="lib-q" placeholder="운동 · 근육 · 장비 검색" value="${esc(ui.libQuery || '')}" aria-label="운동 검색">
       <div class="row lib-groups">${LIB_GROUPS.map(([k, l]) => `<button class="chip${group === k ? ' on' : ''}" data-action="lib-group" data-g="${k}">${l}</button>`).join('')}</div>
     </section>
     <div class="lib-list" data-testid="lib-list">${list || '<div class="small">이 부위 운동이 없습니다.</div>'}</div>`;
@@ -104,7 +104,7 @@ export function addExercisesHtml(state, session) {
       <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(names(p.primary))}${p.part !== session.part ? ` · ${esc(p.part.toUpperCase())}` : ''}</span></span></button>`).join('');
   return `<div class="add-sheet" data-testid="add-sheet">
     <h3>운동 추가</h3>
-    <input type="search" class="lib-search add-search" placeholder="운동 · 근육 · 장비 검색" aria-label="운동 검색">
+    <input type="search" class="lib-search add-search" autocomplete="off" placeholder="운동 · 근육 · 장비 검색" aria-label="운동 검색">
     <div class="add-list">${items || '<div class="small">더 추가할 수 있는 운동이 없습니다.</div>'}</div>
     <div class="add-tray" aria-live="polite"></div>
     <div class="actions"><button class="btn" data-sheet-value="__new">+ 목록에 없는 운동 새로 만들기</button></div>

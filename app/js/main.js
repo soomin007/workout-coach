@@ -470,7 +470,7 @@ async function quickLine(uid, text = '', error = '') {
   const r = await sheet(`<h3>${esc(e.name)} 한 줄 기록</h3>
     ${error ? `<div class="warnbox" style="margin-top:0" data-testid="quick-error">${esc(error)}</div>` : ''}
     <p class="small">세트의 무게와 횟수를 한 번에 적는 칸입니다. 중량 다음 세트별 반복, 끝에 느낌(여유 · 적당 · 한계). 키보드 마이크로 말해도 됩니다. 입력한 세트는 완료로 표시됩니다.</p>
-    <input type="text" name="t" enterkeyhint="done" placeholder="${e.loadMode === 'bodyweight' ? '예: 10 10 8 한계' : '예: 50 10 10 8 한계'}" value="${esc(text)}">
+    <input type="text" name="t" autocomplete="off" enterkeyhint="done" placeholder="${e.loadMode === 'bodyweight' ? '예: 10 10 8 한계' : '예: 50 10 10 8 한계'}" value="${esc(text)}">
     <div class="tiny" style="margin-top:6px">느낀 점이나 통증은 '메모'에 적으세요.</div>
     <div class="actions">${error ? '<button class="btn" data-sheet-value="memo">이 글을 메모로 저장</button>' : '<button class="btn" data-sheet-value="__cancel">취소</button>'}<button class="btn primary" data-sheet-value="ok">기록</button></div>`,
   { collect: (b) => b.querySelector('[name=t]').value });
@@ -625,7 +625,7 @@ async function swapExercise(uid) {
 async function customExercise(uid) {
   const e = entry(uid);
   const r = await sheet(`<h3>실제로 한 운동</h3>
-    <label class="field">이름<input type="text" name="name" value=""></label>
+    <label class="field">이름<input type="text" name="name" autocomplete="off" value=""></label>
     <div class="grid2" style="margin-top:8px">
       <label class="field">중량 방식<select name="mode">${LOAD_MODES.map(([v, l]) => `<option value="${v}"${v === e.loadMode ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
       <label class="field">증량 단위 kg<input type="number" name="inc" step="0.5" min="0" value="${e.increment}"></label>
@@ -662,7 +662,7 @@ async function addExercise() {
   const slots = [...(CORE_SLOTS[s.part] || []), ...(OPTIONAL_SLOTS[s.part] || [])];
   const muscles = PART_MUSCLES[s.part] || ['core'];
   const r = await sheet(`<h3>새 운동 만들기</h3>
-    <label class="field">이름<input type="text" name="name"></label>
+    <label class="field">이름<input type="text" name="name" autocomplete="off"></label>
     <div class="grid2" style="margin-top:8px">
       <label class="field">역할<select name="role">${slots.map((x) => `<option value="${x}">${slotName(x)}</option>`).join('')}</select></label>
       <label class="field">주동근<select name="pm"><option value="">선택 안 함</option>${muscles.map((m) => `<option value="${m}">${MUSCLE_LABEL[m] || m}</option>`).join('')}</select></label>
@@ -721,7 +721,7 @@ async function logPT() {
     <div class="small" style="margin-top:8px">주요 부위 (여러 개 가능)</div>
     <div class="row">${['push', 'pull', 'lower', 'core'].map((p) => `<label class="chip"><input type="checkbox" name="part" value="${p}"> ${PART_LABEL[p]}</label>`).join('')}</div>
     <label class="field" style="margin-top:8px">대략적 작업세트 (모르면 비움)<input type="number" name="sets" min="0" max="60" inputmode="numeric"></label>
-    <label class="field" style="margin-top:8px">메모<textarea name="note" placeholder="예: 스쿼트, 스미스 스쿼트, 불가리안"></textarea></label>
+    <label class="field" style="margin-top:8px">메모<textarea name="note" autocomplete="off" placeholder="예: 스쿼트, 스미스 스쿼트, 불가리안"></textarea></label>
     <div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
   { collect: (b) => ({ date: b.querySelector('[name=date]').value, parts: [...b.querySelectorAll('[name=part]:checked')].map((x) => x.value), sets: b.querySelector('[name=sets]').value, note: b.querySelector('[name=note]').value }) });
   if (!r) return;
