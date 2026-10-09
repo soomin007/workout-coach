@@ -92,7 +92,7 @@ function sessionPoint(p) {
 }
 
 export function exerciseTrend(state, id) {
-  const recs = (state.performance || []).filter((p) => p.exerciseId === id && !p.heavy).sort((a, b) => a.date.localeCompare(b.date));
+  const recs = (state.performance || []).filter((p) => p.exerciseId === id && !p.heavy && !p.light).sort((a, b) => a.date.localeCompare(b.date));
   const pts = recs.map((p) => ({ date: p.date, ...sessionPoint(p) })).filter((x) => x.v !== undefined && x.v !== null);
   const kind = pts.find((x) => x.kind === 'e1rm') ? 'e1rm' : pts[0]?.kind;
   return { pts: pts.filter((x) => x.kind === kind).slice(-12), kind };

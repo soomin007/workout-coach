@@ -6,7 +6,7 @@ import { applyQuickLine } from './core/quick.js';
 import { toCSV, toTXT } from './core/export.js';
 import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo, transferLink, parseTransfer } from './core/sync.js';
 import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
-import { profileFor, lastPerformance } from './core/coach.js';
+import { profileFor, lastPerformance, lighterThanUsual } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
 import { localISODate } from './core/util.js';
 import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
@@ -709,7 +709,17 @@ async function editPref(exerciseId) {
 async function finishSession() {
   const s = store.state.session;
   if (T.countWorkSets(s) === 0 && !(await confirmSheet('완료한 본세트가 없습니다. 그래도 저장할까요?', { ok: '저장' }))) return;
-  const sum = run((st) => T.finishSession(st));
+  // 평소보다 확실히 가볍게 했으면 다음 처방에 쓸지 묻는다 (정책 16절). 묻지 않는 날은 평소 기록.
+  let light = false;
+  const lt = lighterThanUsual(store.state, s);
+  if (lt.suggest) {
+    const rows = lt.lighter.map((x) => `<div class="small"><b>${esc(x.name)}</b> 평소 ${x.was}kg → 오늘 ${x.now}kg</div>`).join('');
+    const v = await sheet(`<h3>오늘은 가볍게 한 날인가요?</h3>${rows}<p class="small">가볍게 한 날로 저장하면 기록과 주간 세트에는 남고, 다음 무게는 평소 기록에서 이어 잡습니다.</p>
+      <div class="list"><button data-sheet-value="light">가볍게 한 날로 저장</button><button data-sheet-value="normal">평소 기록으로 저장 (다음 처방에 반영)</button></div>`);
+    if (!v) return;
+    light = v === 'light';
+  }
+  const sum = run((st) => T.finishSession(st, { light }));
   if (!sum) return;
   const lines = sum.exercises.map((x) => `<div class="small"><b>${esc(x.name)}</b> ${x.sets.map((z) => `${z.weight ?? ''}${z.weight !== null ? '×' : ''}${z.reps ?? '-'}`).join(' / ')}</div>`).join('');
   await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
@@ -735,14 +745,15 @@ async function editHistory(id) {
     <div class="grid2"><label class="field">날짜<input type="date" name="date" value="${esc(h.date)}"></label>
     <label class="field">부위<select name="part">${['push', 'pull', 'lower', 'core'].map((p) => `<option value="${p}"${p === h.part ? ' selected' : ''}>${PART_LABEL[p]}</option>`).join('')}</select></label>
     <label class="field">운동 시간(분)<input type="number" name="min" min="0" max="600" inputmode="numeric" enterkeyhint="done" placeholder="모름" value="${h.durationSec ? Math.round(h.durationSec / 60) : ''}"></label></div>
+    ${h.source === 'pt' ? '' : `<label class="setting" style="margin-top:8px"><span>가볍게 한 날 (다음 무게 처방에 쓰지 않음)</span><input type="checkbox" name="light"${h.light ? ' checked' : ''}></label>`}
     <div class="actions"><button class="btn danger" data-sheet-value="delete">삭제</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
-  { collect: (b) => ({ date: b.querySelector('[name=date]').value, part: b.querySelector('[name=part]').value, min: b.querySelector('[name=min]').value }) });
+  { collect: (b) => ({ date: b.querySelector('[name=date]').value, part: b.querySelector('[name=part]').value, min: b.querySelector('[name=min]').value, light: !!b.querySelector('[name=light]')?.checked }) });
   if (!r) return;
   if (r.value === 'delete') {
     if (await confirmSheet(`${h.date} ${PART_LABEL[h.part]} 기록과 연결된 운동 기록을 삭제할까요?`, { ok: '삭제', danger: true })) run((s) => T.deleteHistory(s, id), '삭제했습니다.');
     return;
   }
-  run((s) => { if (r.data.date !== h.date) T.updateHistoryDate(s, id, r.data.date); if (r.data.part !== h.part) T.updateHistoryPart(s, id, r.data.part); T.setHistoryDuration(s, id, r.data.min === '' ? null : +r.data.min); }, '수정했습니다.');
+  run((s) => { if (r.data.date !== h.date) T.updateHistoryDate(s, id, r.data.date); if (r.data.part !== h.part) T.updateHistoryPart(s, id, r.data.part); T.setHistoryDuration(s, id, r.data.min === '' ? null : +r.data.min); if (h.source !== 'pt' && r.data.light !== !!h.light) T.setHistoryLight(s, id, r.data.light); }, '수정했습니다.');
 }
 
 function download(name, text, type) {

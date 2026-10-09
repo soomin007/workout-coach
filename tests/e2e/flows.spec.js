@@ -734,3 +734,30 @@ test('리포트: 이번 주 요약 · 8주 막대 · 운동별 추이(운동 고
   await expect(page.locator('select[data-action="report-ex"]')).toHaveValue('curl');
   await expect(page.locator('.report svg.chart .dot')).toHaveCount(1);
 });
+
+test('가볍게 한 날: 평소보다 확실히 가벼우면 완료 때 묻고, 표시하면 기록에 배지 · 기록 수정에서 풀 수 있다 (정책 16절)', async ({ page }) => {
+  // 지난 Pull 에서 컬 12kg. 오늘은 4kg 으로 한다.
+  await page.evaluate(() => window.__store.commit((s) => {
+    s.history.push({ id: 'old', date: '2026-09-25', part: 'pull', source: 'manual', workSets: 2 });
+    s.performance.push({ sessionId: 'old', date: '2026-09-25', part: 'pull', exerciseId: 'curl', name: '덤벨 바이셉 컬', primary: ['biceps'], secondary: [], range: [8, 12], effort: 'ok',
+      sets: [{ type: 'main', weight: 12, reps: 10, rir: null, split: false, done: true }, { type: 'main', weight: 12, reps: 10, rir: null, split: false, done: true }] });
+  }));
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 4);
+  await c.getByRole('button', { name: '계획대로 완료' }).click();
+  await page.locator('[data-action="finish"]').first().click();
+  await expect(sheet(page)).toContainText('가볍게 한 날인가요');
+  await expect(sheet(page)).toContainText('평소 12kg → 오늘 4kg');
+  await sheet(page).getByRole('button', { name: '가볍게 한 날로 저장' }).click();
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  const s1 = await st(page);
+  expect(s1.history.at(-1).light).toBe(true);
+  expect(s1.performance.filter((p) => p.sessionId === s1.history.at(-1).id).every((p) => p.light)).toBe(true);
+  await page.locator('#tabs').getByRole('button', { name: '기록' }).click();
+  await expect(page.locator('.hist-item').first()).toContainText('가볍게');
+  await page.locator('[data-action="hist-edit"]').first().click();
+  await sheet(page).locator('input[name=light]').uncheck();
+  await sheet(page).getByRole('button', { name: '저장' }).click();
+  expect((await st(page)).history.at(-1).light).toBeUndefined();
+});

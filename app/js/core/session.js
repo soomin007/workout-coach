@@ -657,7 +657,8 @@ export function setHistoryDuration(state, historyId, minutes) {
   h.durationSec = m === null ? null : Math.round(m * 60);
 }
 
-export function finishSession(state, { now = new Date() } = {}) {
+// light: 가볍게 한 날로 저장 (다음 처방에 쓰지 않음, 정책 16절).
+export function finishSession(state, { now = new Date(), light = false } = {}) {
   const s = sessionOf(state);
   const duration = activeDurationSec(s, now);
   const work = countWorkSets(s);
@@ -672,6 +673,7 @@ export function finishSession(state, { now = new Date() } = {}) {
       range: [...e.range], primary: [...e.primary], secondary: [...e.secondary],
       sets: structuredClone(done), effort: e.effort, memo: e.memo,
       ...(e.heavy ? { heavy: true } : {}),
+      ...(light ? { light: true } : {}),
       ...(e.grip ? { grip: e.grip } : {}),
       ...(o ? { order: o.order, prefatigue: o.prefatigue } : {}),
     });
@@ -680,6 +682,7 @@ export function finishSession(state, { now = new Date() } = {}) {
   state.history.push({
     id: s.id, date: s.date, part: s.part, source: s.source, workSets: work, durationSec: duration,
     note: s.note, overrideReason: s.overrideReason || '', performanceScore: performanceScore(s), volumeUnknown: false, emphasis: s.emphasis || null,
+    ...(light ? { light: true } : {}),
   });
   state.session = null;
   return summary;
@@ -703,6 +706,15 @@ export function updateHistoryPart(state, historyId, part) {
   need(['push', 'pull', 'lower', 'core'].includes(part), 'bad_part', part);
   h.part = part;
   state.performance.forEach((p) => { if (p.sessionId === historyId) p.part = part; });
+}
+
+// 지난 기록을 가볍게 한 날로 표시하거나 푼다. 그 세션의 운동 기록에도 같이 적어 처방이 건너뛰게 한다.
+export function setHistoryLight(state, historyId, light) {
+  const h = state.history.find((x) => x.id === historyId);
+  need(h, 'no_history', '기록을 찾을 수 없습니다.');
+  const mark = (x) => { if (light) x.light = true; else delete x.light; };
+  mark(h);
+  state.performance.forEach((p) => { if (p.sessionId === historyId) mark(p); });
 }
 
 export function deleteHistory(state, historyId) {

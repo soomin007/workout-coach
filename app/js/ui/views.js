@@ -374,7 +374,7 @@ export function renderRestbar(state, now = Date.now()) {
 
 export function renderRecords(state, ui, now = new Date()) {
   const hs = state.history.map((h) => h).sort((a, b) => b.date.localeCompare(a.date)).slice(0, ui.historyLimit || 30);
-  const items = hs.map((h) => `<div class="hist-item"><div><b>${esc(h.date)} · ${esc(PART_LABEL[h.part])}</b>${h.source === 'pt' ? ' <span class="badge">PT</span>' : ''}
+  const items = hs.map((h) => `<div class="hist-item"><div><b>${esc(h.date)} · ${esc(PART_LABEL[h.part])}</b>${h.source === 'pt' ? ' <span class="badge">PT</span>' : ''}${h.light ? ' <span class="badge">가볍게</span>' : ''}
       <div class="tiny">${Number(h.workSets) || 0}세트${h.durationSec ? ` · ${Math.round(h.durationSec / 60)}분` : ''}${h.volumeUnknown ? ' · 볼륨 미상' : ''}${h.note ? ` · ${esc(h.note)}` : ''}</div></div>
       <button class="btn sm ghost" data-action="hist-edit" data-id="${esc(h.id)}">수정</button></div>`).join('') || '<div class="small">기록 없음</div>';
   const weeks = {};

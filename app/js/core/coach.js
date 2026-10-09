@@ -49,7 +49,41 @@ export function lastPerformance(state, exerciseId, { heavy } = {}) {
   const xs = (state.performance || []).map((p, i) => ({ p, i }))
     .filter(({ p }) => p.exerciseId === exerciseId && (heavy === undefined || !!p.heavy === heavy));
   xs.sort((a, b) => b.p.date.localeCompare(a.p.date) || b.i - a.i);
-  return xs[0]?.p || null;
+  return preferNormal(xs.map((x) => x.p))[0] || null;
+}
+
+// ---------- 가볍게 한 날 (코칭 정책 16절) ----------
+// 일부러 낮춘 날(회복 · 근육통)의 기록은 실력이 아니라 선택이다. 처방은 그 날을 건너뛰고 직전 평소 기록에서 잇는다.
+// 기록 · 주간 볼륨 · 리포트 세트 수에는 그대로 남는다. 가벼운 기록밖에 없으면 그것이라도 쓴다.
+export const LIGHT = { ratio: 0.85, share: 0.5 };
+export function preferNormal(xs) {
+  const n = xs.filter((p) => !p.light);
+  return n.length ? n : xs;
+}
+
+const topWeight = (sets) => {
+  const ws = (sets || []).filter((z) => z.done && z.type === 'main' && typeof z.weight === 'number' && z.weight > 0).map((z) => z.weight);
+  return ws.length ? Math.max(...ws) : null;
+};
+
+// 진행 중 세션이 평소보다 확실히 가벼운지. 비교할 수 있는 운동(무게를 단 운동 · 이전 평소 기록 있음) 중
+// 절반 이상이 직전 평소 기록 최고 무게의 85% 미만이면 suggest. 실패 뒤 감량 처방(약 90%)은 걸리지 않는 선이다.
+// 반환: { suggest, lighter: [{ name, was, now }], compared }
+export function lighterThanUsual(state, session = state.session) {
+  const lighter = [];
+  let compared = 0;
+  for (const e of session?.exercises || []) {
+    if (e.heavy || e.loadMode === 'assist' || e.loadMode === 'bodyweight') continue;
+    const now = topWeight(e.sets);
+    if (now === null) continue;
+    const prev = (state.performance || []).filter((p) => p.exerciseId === e.exerciseId && !p.light && !p.heavy && p.date <= session.date)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    const was = prev && topWeight(prev.sets);
+    if (!was) continue;
+    compared++;
+    if (now < was * LIGHT.ratio) lighter.push({ name: e.name, was, now });
+  }
+  return { suggest: compared > 0 && lighter.length / compared >= LIGHT.share, lighter, compared };
 }
 
 const isAssist = (mode) => mode === 'assist';
@@ -134,7 +168,7 @@ function lastMainOf(rec) { return [...(rec.sets || [])].reverse().find((x) => x.
 // 없으면 최근 평소 기록 3개에서 추정 1RM 을 구해 4회 · RIR 2 무게를 잡는다.
 export function heavyPrescribe(profile, state) {
   const inc = profile.inc > 0 ? profile.inc : 2.5;
-  const all = (state.performance || []).filter((p) => p.exerciseId === profile.id).sort((a, b) => b.date.localeCompare(a.date));
+  const all = preferNormal((state.performance || []).filter((p) => p.exerciseId === profile.id).sort((a, b) => b.date.localeCompare(a.date)));
   const lastHeavy = all.find((p) => p.heavy);
   const topOf = (p) => (p.sets || []).find((z) => z.done && z.heavy === 'top' && z.weight !== null && setReps(z) !== null);
   const t = lastHeavy && topOf(lastHeavy);
@@ -172,9 +206,10 @@ export function backoffWeight(topWeight, inc, pct = HEAVY.backoffPct) {
 // 조건을 모르는 옛 기록은 어느 쪽과도 같다고 보지 않는다 (shift 없이 그대로 쓴다).
 // grip 을 주면 같은 그립 기록만 본다. 그 그립 기록이 없으면 다른 그립 기록을 쓰되 otherGrip 으로 알린다.
 export function recordForOrder(state, exerciseId, cls, grip = null) {
-  const all = (state.performance || []).map((p, i) => ({ p, i }))
+  const sorted = (state.performance || []).map((p, i) => ({ p, i }))
     .filter(({ p }) => p.exerciseId === exerciseId && !p.heavy)
     .sort((a, b) => b.p.date.localeCompare(a.p.date) || b.i - a.i).map((x) => x.p);
+  const all = preferNormal(sorted);
   const same = grip ? all.filter((p) => gripOf(p) === grip) : all;
   const otherGrip = grip && !same.length && all.length ? gripOf(all[0]) : null;
   const xs = same.length ? same : all;
