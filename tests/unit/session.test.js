@@ -136,6 +136,7 @@ test('중량을 고치면 뒤따르는 미수정 세트와 워밍업이 따라 �
   const s = sessionWith(freshState(), 'push', ['bench'], { bench: 'full' });
   const e = entryOf(s, 'bench');
   assert.equal(e.sets.filter((z) => z.type === 'warmup').length, 0, '처방 중량이 없으면 워밍업 행 없음');
+  e.findWeight = false; // 무게를 알고 적는 경우 (찾기 모드에서는 워밍업을 만들지 않는다: findweight.test.js)
   const i = e.sets.findIndex((z) => z.type === 'main');
   T.editSet(s, e.uid, i, 'weight', 60);
   const x = entryOf(s, 'bench');
@@ -179,6 +180,7 @@ test('세트 완료: 세트 간격 자동 기록, 휴식 타이머는 오늘 휴
 
 test('워밍업 세트 뒤 휴식은 최대 60초', () => {
   const s = sessionWith(freshState(), 'push', ['bench']);
+  entryOf(s, 'bench').findWeight = false;
   T.editSet(s, entryOf(s, 'bench').uid, mi(s, 'bench'), 'weight', 60);
   T.toggleSetDone(s, entryOf(s, 'bench').uid, 0, { now });
   assert.equal(entryOf(s, 'bench').sets[0].type, 'warmup');

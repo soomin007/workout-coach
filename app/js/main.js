@@ -192,6 +192,7 @@ const actions = {
     if (v === 'rir') { const n = await numberSheet('남은 반복 (RIR)', z.rir, { step: '1' }); if (n !== undefined) run((s) => T.editSet(s, d.uid, +d.i, 'rir', n)); return; }
     run((s) => T.editSet(s, d.uid, +d.i, 'type', v));
   },
+  'find-feel': (d) => run((s) => T.setFindFeel(s, d.uid, +d.i, d.v)),
   'top-rir': (d) => run((s) => T.editSet(s, d.uid, +d.i, 'rir', +d.v)),
   'set-count': (d) => run((s) => T.changeSetCount(s, d.uid, +d.d)),
   'ex-menu': (d) => exerciseMenu(d.uid),

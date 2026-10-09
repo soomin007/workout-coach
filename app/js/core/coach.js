@@ -116,7 +116,7 @@ export function prescribe(profile, last) {
   const u = unitWord(profile);
   const main = (last?.sets || []).filter((s) => s.done && s.type === 'main' && setReps(s) !== null);
   if (!main.length) {
-    return { weight: null, reps: hi > lo ? Math.round((lo + hi) / 2) : lo, kind: 'first', note: `첫 기록: 가볍게 시작해 첫 세트로 무게를 맞추세요. 목표 ${lo}~${hi}${u}에서 2~3${u} 여유가 남는 무게.` };
+    return { weight: null, reps: hi > lo ? Math.round((lo + hi) / 2) : lo, kind: 'first', note: `첫 기록: 가볍다 싶은 무게부터 적고 해 보세요. 세트를 마치면 어땠는지 묻고, 가벼웠으면 그 세트는 워밍업으로 돌리고 올립니다. 찾는 무게는 목표 ${lo}~${hi}${u}에서 2~3${u} 여유가 남는 무게.` };
   }
   const hard = last.effort === 'hard';
   const weighted = main.filter((s) => s.weight !== null);

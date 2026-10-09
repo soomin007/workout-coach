@@ -28,6 +28,56 @@ export function findEntry(state, uid) {
 }
 
 // 운동 항목 생성. 프로필 전체를 카탈로그 + prefs 에서 새로 계산한다 (이전 운동에서 계승하지 않음).
+// 기록 없는 운동의 첫 무게 찾기 (정책 17절). 무게를 다는 방식만.
+const FIND_MODES = ['total', 'per_side', 'plates', 'per_dumbbell', 'machine'];
+export const FIND = { up: 1.2, down: 0.9 };
+
+// 무게 찾기 중 방금 끝낸 본세트의 느낌. 반환: 질문할 세트 index 또는 -1.
+export function findWeightPending(entry) {
+  if (!entry?.findWeight) return -1;
+  let j = -1;
+  entry.sets.forEach((z, i) => { if (z.done && (z.type === 'main' || z.found)) j = i; });
+  const z = entry.sets[j];
+  return z && z.type === 'main' && typeof z.weight === 'number' && !z.feel ? j : -1;
+}
+
+// feel: 'light' → 그 세트를 워밍업으로 돌리고 본세트 하나를 다시 채워, 남은 본세트를 약 20% (최소 한 단계) 올린다. 계속 찾는다.
+//       'ok' → 그대로 본세트. 찾기 끝.  'heavy' → 본세트로 두고 남은 본세트를 약 10% (최소 한 단계) 낮춘다. 찾기 끝.
+export function setFindFeel(state, uid, setIndex, feel) {
+  const { entry } = findEntry(state, uid);
+  const z = entry.sets[setIndex];
+  need(entry.findWeight && z && z.done && z.type === 'main' && typeof z.weight === 'number', 'no_set', '무게를 찾는 중인 세트가 아닙니다.');
+  need(['light', 'ok', 'heavy'].includes(feel), 'bad_feel', feel);
+  const step = entry.increment > 0 ? entry.increment : 0.5;
+  const u = entry.measure === 'seconds' ? '초' : '회';
+  const rest = entry.sets.filter((x) => x.type === 'main' && !x.done && !x.touched);
+  z.feel = feel;
+  if (feel === 'ok') {
+    entry.findWeight = false;
+    entry.coach = `${z.weight}kg로 정했습니다. 남은 세트도 이 무게로 하세요.`;
+    rest.forEach((x) => { x.weight = z.weight; });
+    return entry;
+  }
+  if (feel === 'heavy') {
+    entry.findWeight = false;
+    const w = Math.max(0, Math.min(roundTo(z.weight * FIND.down, step, 'floor'), z.weight - step));
+    rest.forEach((x) => { x.weight = w; });
+    entry.coach = rest.length ? `남은 세트를 ${w}kg로 낮췄습니다. 방금 세트는 본세트로 남깁니다.` : '본세트로 남깁니다. 다음에는 조금 가볍게 시작합니다.';
+    return entry;
+  }
+  // light: 워밍업으로 돌리고(볼륨 · 처방에서 빠짐) 본세트 수를 그대로 유지한다.
+  const w = Math.max(roundTo(z.weight * FIND.up, step, 'ceil'), roundTo(z.weight + step, step));
+  z.type = 'warmup'; z.found = true;
+  rest.forEach((x) => { x.weight = w; });
+  const reps = entry.prescription?.reps ?? entry.range[0];
+  const lastMain = entry.sets.map((x) => x.type).lastIndexOf('main');
+  const add = makeSet('main', w, reps);
+  if (lastMain < 0) entry.sets.push(add);
+  else entry.sets.splice(lastMain + 1, 0, add);
+  entry.coach = `${z.weight}kg는 워밍업으로 돌렸습니다. 다음 세트는 ${w}kg × ${reps}${u}. 2~3${u} 남는 무게면 '적당'을 누르세요.`;
+  return entry;
+}
+
 // 세션 처방: 가볍게 한 날로 시작했으면 평소 처방을 낮춘다 (정책 16절).
 function sessionRx(state, p, pf, grip) {
   const rx = prescribeForOrder(p, state, pf, grip);
@@ -50,6 +100,7 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
     unilateral: p.unilateral, compound: p.compound, measure: p.measure, equipment: p.equipment,
     why: p.why, cue: p.cue, warmupLevel: level,
     prescription: rx, coach: '', effort: null, memo: '',
+    ...(rx.kind === 'first' && FIND_MODES.includes(p.mode) && p.measure !== 'seconds' ? { findWeight: true } : {}),
     sets: [],
   };
   for (const w of warmupPlan(p, rx.weight, level)) entry.sets.push(makeSet('warmup', w.weight, w.reps));
@@ -283,7 +334,8 @@ export function markUnavailable(state, uid, { persistent = false, now = new Date
 function recomputeWarmups(entry, p) {
   const firstMain = entry.sets.find((z) => z.type === 'main');
   const untouched = entry.sets.filter((z) => z.type === 'warmup').every((z) => !z.done && !z.touched);
-  if (!untouched || !firstMain) return;
+  // 무게 찾기 중에는 자동 워밍업을 만들지 않는다: 가볍게 해 본 세트가 곧 워밍업이다 (정책 17절).
+  if (!untouched || !firstMain || entry.findWeight) return;
   const rows = warmupPlan(p, firstMain.weight, entry.warmupLevel).map((w) => makeSet('warmup', w.weight, w.reps));
   entry.sets = [...rows, ...entry.sets.filter((z) => z.type !== 'warmup')];
 }

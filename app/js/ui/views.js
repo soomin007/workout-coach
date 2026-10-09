@@ -2,7 +2,7 @@
 import { esc } from './dom.js';
 import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
-import { countWorkSets, timerSeconds } from '../core/session.js';
+import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
 import { guideFor } from '../core/guide.js';
@@ -206,6 +206,10 @@ function renderExercise(state, e, idx, ui, next) {
   const top = e.heavy ? e.sets.find((z) => z.heavy === 'top') : null;
   const topRir = top && top.done && top.rir === null
     ? `<div class="effort-ask">톱세트에서 몇 회 더 할 수 있었나요? <span class="tiny">다음 무거운 날 무게에 반영됩니다</span></div><div class="effort" data-testid="top-rir">${[[0, '0 (한계)'], [1, '1'], [2, '2'], [3, '3 이상']].map(([v, l]) => `<button data-action="top-rir" data-uid="${e.uid}" data-i="${e.sets.indexOf(top)}" data-v="${v}">${l}</button>`).join('')}</div>` : '';
+  // 기록 없는 운동: 끝낸 본세트가 가벼웠는지 묻는다 (정책 17절)
+  const fj = findWeightPending(e);
+  const findAsk = fj >= 0
+    ? `<div class="effort-ask">${e.sets[fj].weight}kg, 본세트 무게로 어땠나요? <span class="tiny">가벼우면 워밍업으로 돌리고 무게를 올립니다</span></div><div class="effort" data-testid="find-weight">${[['light', '가벼움'], ['ok', '적당'], ['heavy', '무거움']].map(([v, l]) => `<button data-action="find-feel" data-uid="${e.uid}" data-i="${fj}" data-v="${v}">${l}</button>`).join('')}</div>` : '';
   const fold = allDone && e.effort ? `<button class="btn sm ghost" data-action="collapse" data-uid="${e.uid}">접기</button>` : '';
   return `<section class="card ex${allDone ? ' complete' : ''}${next && next.e.uid === e.uid ? ' current' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
     <div class="ex-head">
@@ -221,7 +225,7 @@ function renderExercise(state, e, idx, ui, next) {
     ${e.coach ? `<div class="coach" data-testid="coach">${esc(e.coach)}</div>` : ''}
     ${guideHtml(e)}
     <div class="sets">${rows}</div>
-    ${topRir}
+    ${topRir}${findAsk}
     ${effort}
     ${e.memo ? `<div class="tiny" style="margin-top:6px">메모: ${esc(e.memo)}</div>` : ''}
     <div class="ex-actions">${allDone ? '' : `<button class="btn sm" data-action="complete-rest" data-uid="${e.uid}">계획대로 완료</button>`}<button class="btn sm" data-action="quick" data-uid="${e.uid}">한 줄 기록</button><button class="btn sm" data-action="memo" data-uid="${e.uid}">${e.memo ? '메모 수정' : '메모'}</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="1">세트 +1</button><button class="btn sm" data-action="set-count" data-uid="${e.uid}" data-d="-1">세트 −1</button>${fold}</div>

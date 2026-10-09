@@ -786,3 +786,23 @@ test('하체 근육통이 있어도 Pull 은 제안하지 않는다', async ({ p
   await expect(page.getByTestId('session-head')).toBeVisible();
   expect((await st(page)).session.recovery).toBeUndefined();
 });
+
+test('기록 없는 운동 무게 찾기: 첫 세트가 가벼우면 워밍업으로 돌리고 올린 무게로 다시 묻고, 적당이면 끝 (정책 17절)', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 4);
+  const n = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl').sets.filter((z) => z.type === 'main').length;
+  await c.locator('[data-action="done"]').nth(0).click();
+  await expect(c.getByTestId('find-weight')).toContainText('가벼움');
+  await c.getByTestId('find-weight').getByRole('button', { name: '가벼움' }).click();
+  let e = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl');
+  expect(e.sets[0].type).toBe('warmup');
+  expect(e.sets.filter((z) => z.type === 'main').length).toBe(n);
+  expect(e.sets.filter((z) => z.type === 'main').every((z) => z.weight === 6)).toBe(true);
+  await expect(c.getByTestId('find-weight')).toHaveCount(0);
+  await c.locator('[data-action="done"]').nth(1).click();
+  await c.getByTestId('find-weight').getByRole('button', { name: '적당' }).click();
+  await expect(c.getByTestId('find-weight')).toHaveCount(0);
+  e = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl');
+  expect(e.findWeight).toBe(false);
+});
