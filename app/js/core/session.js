@@ -2,7 +2,7 @@
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, catalogById, emphasisMuscles } from './catalog.js';
-import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY } from './coach.js';
+import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY, recoveryRx, RECOVERY } from './coach.js';
 import { buildPlan, autoEmphasis, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
 import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
@@ -28,14 +28,21 @@ export function findEntry(state, uid) {
 }
 
 // 운동 항목 생성. 프로필 전체를 카탈로그 + prefs 에서 새로 계산한다 (이전 운동에서 계승하지 않음).
+// 세션 처방: 가볍게 한 날로 시작했으면 평소 처방을 낮춘다 (정책 16절).
+function sessionRx(state, p, pf, grip) {
+  const rx = prescribeForOrder(p, state, pf, grip);
+  return state.session?.recovery ? recoveryRx(p, rx) : rx;
+}
+
 export function makeEntry(state, exerciseId, { slot = null, setCount = null, warmupLevel = null, part, minutes } = {}) {
   const p = profileFor(state, exerciseId);
   need(p, 'unknown_exercise', `알 수 없는 운동: ${exerciseId}`);
   const sl = slot || p.role;
-  const n = setCount ?? adjustedSetCount(state, p, part ?? p.part, minutes ?? 60, sl);
+  const recovery = !!state.session?.recovery;
+  const n = recovery ? Math.min(setCount ?? RECOVERY.sets, RECOVERY.sets) : setCount ?? adjustedSetCount(state, p, part ?? p.part, minutes ?? 60, sl);
   const grip = lastGrip(state, p.id);
-  const rx = prescribeForOrder(p, state, null, grip);
-  const level = warmupLevel ?? (p.compound ? 'short' : 'none');
+  const rx = sessionRx(state, p, null, grip);
+  const level = recovery ? 'none' : warmupLevel ?? (p.compound ? 'short' : 'none');
   const entry = {
     uid: newId('x'), exerciseId: p.id, name: p.name, slot: sl, role: p.role,
     ...gripMuscles(p.id, grip, p), ...(grip ? { grip } : {}),
@@ -98,7 +105,8 @@ export function setCheck(state, values, { now = new Date() } = {}) {
 }
 
 // ready: 시작 전 미리보기 상태 (Leap 의 루틴 상세). 타이머는 "시작"이나 첫 세트 완료 때 간다.
-export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null, emphasis }) {
+// recovery: 가볍게 한 날로 시작 (근육통이 있는 부위, 정책 16절). 무거운 날은 적용하지 않고, 완료 기록은 가벼운 날로 남는다.
+export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null, emphasis, recovery = false }) {
   const c = state.check;
   // emphasis 를 넘기지 않으면(undefined) 이번 주 같은 부위 기록으로 자동 선택, null 이면 강조 없음.
   const auto = emphasis === undefined ? autoEmphasis(state, part, now) : null;
@@ -110,11 +118,11 @@ export function createSession(state, { part, source = 'manual', date = null, ove
     id: newId('s'), part, source, date: date || localISODate(now), minutes, intensity: c.intensity, ready: true,
     startedAt: now.getTime(), estimatedMinutes: plan.estimatedMinutes, note: '', overrideReason,
     tempUnavailable: [], restTimer: null, timer: { running: false, start: null, elapsed: 0 }, home: !!home, emphasis: emph, emphasisWhy: emph && auto ? auto.why : '', lastActivityAt: now.getTime(),
-    exercises: [],
+    exercises: [], ...(recovery ? { recovery: true } : {}),
   };
   state.session.exercises = plan.planned.map((x) => makeEntry(state, x.id, { slot: x.slot, setCount: x.sets, warmupLevel: x.warmupLevel, part, minutes }));
   // 근력 중심: 첫 번째로 적용할 수 있는 메인 복합 운동 하나만 무거운 날로.
-  if (c.intensity === 'strength') {
+  if (c.intensity === 'strength' && !recovery) {
     for (const e of state.session.exercises) if (makeHeavy(state, e)) break;
   }
   recalcEstimate(state);
@@ -147,7 +155,7 @@ export function applyOrderContext(state) {
 function represcribe(state, e) {
   const p = profileFor(state, e.exerciseId);
   if (!p) return null;
-  const rx = prescribeForOrder(p, state, e.prefatigue ?? null, e.grip || null);
+  const rx = sessionRx(state, p, e.prefatigue ?? null, e.grip || null);
   e.prescription = rx;
   for (const z of e.sets) if (z.type === 'main' && !z.done && !z.touched) { z.weight = rx.weight; z.reps = rx.reps; }
   recomputeWarmups(e, p);
@@ -188,7 +196,7 @@ export function regenerateSession(state, { now = new Date() } = {}) {
   const s = sessionOf(state);
   need(s.ready && !sessionHasUserData(state), 'started', '이미 시작한 세션은 다시 추천할 수 없습니다. 운동 변경을 쓰세요.');
   const before = s.exercises.map((e) => e.exerciseId);
-  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, avoid: new Set(before), emphasis: s.emphasis });
+  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, avoid: new Set(before), emphasis: s.emphasis, recovery: !!s.recovery });
   state.session.emphasisWhy = s.emphasisWhy || '';
   return state.session.exercises.filter((e) => !before.includes(e.exerciseId)).length;
 }
@@ -198,7 +206,7 @@ export function setEmphasis(state, id, { now = new Date() } = {}) {
   const s = sessionOf(state);
   need(s.ready && !sessionHasUserData(state), 'started', '이미 시작한 세션은 구성을 다시 짤 수 없습니다. 운동 추가를 쓰세요.');
   const next = s.emphasis === id ? null : id;
-  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, emphasis: next });
+  createSession(state, { part: s.part, source: s.source, date: s.date, overrideReason: s.overrideReason, home: s.home, now, emphasis: next, recovery: !!s.recovery });
   return state.session.emphasis;
 }
 
@@ -660,6 +668,7 @@ export function setHistoryDuration(state, historyId, minutes) {
 // light: 가볍게 한 날로 저장 (다음 처방에 쓰지 않음, 정책 16절).
 export function finishSession(state, { now = new Date(), light = false } = {}) {
   const s = sessionOf(state);
+  if (s.recovery) light = true;
   const duration = activeDurationSec(s, now);
   const work = countWorkSets(s);
   const ord = actualOrder(s.exercises.map((e) => ({ key: e.uid, primary: e.primary, secondary: e.secondary, sets: e.sets })));
@@ -678,7 +687,7 @@ export function finishSession(state, { now = new Date(), light = false } = {}) {
       ...(o ? { order: o.order, prefatigue: o.prefatigue } : {}),
     });
   }
-  const summary = { part: s.part, date: s.date, workSets: work, durationSec: duration, exercises: s.exercises.filter((e) => e.sets.some((z) => z.done)).map((e) => ({ name: e.name, sets: e.sets.filter((z) => z.done && z.type === 'main').map((z) => ({ weight: z.weight, reps: setReps(z) })) })) };
+  const summary = { light, part: s.part, date: s.date, workSets: work, durationSec: duration, exercises: s.exercises.filter((e) => e.sets.some((z) => z.done)).map((e) => ({ name: e.name, sets: e.sets.filter((z) => z.done && z.type === 'main').map((z) => ({ weight: z.weight, reps: setReps(z) })) })) };
   state.history.push({
     id: s.id, date: s.date, part: s.part, source: s.source, workSets: work, durationSec: duration,
     note: s.note, overrideReason: s.overrideReason || '', performanceScore: performanceScore(s), volumeUnknown: false, emphasis: s.emphasis || null,

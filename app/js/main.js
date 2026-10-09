@@ -6,7 +6,7 @@ import { applyQuickLine } from './core/quick.js';
 import { toCSV, toTXT } from './core/export.js';
 import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo, transferLink, parseTransfer } from './core/sync.js';
 import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
-import { profileFor, lastPerformance, lighterThanUsual } from './core/coach.js';
+import { profileFor, lastPerformance, lighterThanUsual, recoverySuggested, RECOVERY } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
 import { localISODate } from './core/util.js';
 import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
@@ -432,8 +432,8 @@ async function startFlow({ part = null, home = false, extra = false } = {}) {
       const p = v('part');
       const warn = [
         v('energy') === 'very_tired' ? '매우 피곤한 날은 쉬는 편이 낫습니다. 한다면 가볍게 고르세요.' : null,
-        p === 'lower' && v('lowerDoms') === '3' ? '하체 근육통이 심한 날입니다. 다른 부위나 휴식을 권합니다.' : null,
-        ['push', 'pull'].includes(p) && v('upperDoms') === '3' ? '상체 근육통이 심한 날입니다. 다른 부위나 휴식을 권합니다.' : null,
+        p === 'lower' && v('lowerDoms') === '3' ? '하체 근육통이 심한 날입니다. 다른 부위나 휴식을 권합니다. 이 부위로 하면 가볍게 하는 방법을 안내합니다.' : null,
+        ['push', 'pull'].includes(p) && v('upperDoms') === '3' ? '상체 근육통이 심한 날입니다. 다른 부위나 휴식을 권합니다. 이 부위로 하면 가볍게 하는 방법을 안내합니다.' : null,
         p === 'push' && v('pain') === 'shoulder' ? '어깨가 불편한 날의 Push 는 통증이 없는 범위에서만 하세요.' : null,
         p === 'lower' && v('pain') === 'knee' ? '무릎이 불편한 날의 Lower 는 통증이 없는 범위에서만 하세요.' : null,
         v('intensity') === 'strength' && (['tired', 'very_tired'].includes(v('energy')) || (v('pain') && v('pain') !== 'none'))
@@ -457,7 +457,16 @@ async function startFlow({ part = null, home = false, extra = false } = {}) {
   if (store.state.session && T.sessionHasUserData(store.state) && !(await confirmSheet('진행 중인 세션 기록이 있습니다. 버리고 새로 시작할까요?', { ok: '버리고 시작', danger: true }))) return;
   const source = !extra && data.part === recPart && !data.why.trim() ? 'recommended' : 'manual';
   const date = data.date || ui.newDate || localISODate();
-  run((s) => { T.setCheck(s, data.check); T.createSession(s, { part: data.part, source, date, overrideReason: data.why, home: data.home }); });
+  // 오늘 할 부위 근육통이 '꽤 있음' 이상이면 가볍게 한 날을 제안한다 (정책 16절).
+  let recovery = false;
+  if (recoverySuggested(data.check, data.part)) {
+    const where = data.part === 'lower' ? '하체' : '상체';
+    const v = await sheet(`<h3>${where} 근육통이 있는 날이에요</h3><p class="small">가볍게 한 날로 하면 운동은 그대로 두고, 무게는 평소 처방의 약 ${Math.round(RECOVERY.pct * 100)}%, 운동마다 ${RECOVERY.sets}세트, ${RECOVERY.rir}회 이상 남기고 멈추도록 채워 둡니다. 이 날 기록은 다음 무게 처방에 쓰지 않습니다.</p>
+      <div class="list"><button data-sheet-value="recovery">가볍게 한 날로 시작</button><button data-sheet-value="normal">평소대로 시작</button></div>`);
+    if (!v) return;
+    recovery = v === 'recovery';
+  }
+  run((s) => { T.setCheck(s, data.check); T.createSession(s, { part: data.part, source, date, overrideReason: data.why, home: data.home, recovery }); });
   ui.newDate = null;
   window.scrollTo(0, 0);
 }
@@ -711,7 +720,7 @@ async function finishSession() {
   if (T.countWorkSets(s) === 0 && !(await confirmSheet('완료한 본세트가 없습니다. 그래도 저장할까요?', { ok: '저장' }))) return;
   // 평소보다 확실히 가볍게 했으면 다음 처방에 쓸지 묻는다 (정책 16절). 묻지 않는 날은 평소 기록.
   let light = false;
-  const lt = lighterThanUsual(store.state, s);
+  const lt = s.recovery ? { suggest: false } : lighterThanUsual(store.state, s);
   if (lt.suggest) {
     const rows = lt.lighter.map((x) => `<div class="small"><b>${esc(x.name)}</b> 평소 ${x.was}kg → 오늘 ${x.now}kg</div>`).join('');
     const v = await sheet(`<h3>오늘은 가볍게 한 날인가요?</h3>${rows}<p class="small">가볍게 한 날로 저장하면 기록과 주간 세트에는 남고, 다음 무게는 평소 기록에서 이어 잡습니다.</p>
@@ -722,7 +731,7 @@ async function finishSession() {
   const sum = run((st) => T.finishSession(st, { light }));
   if (!sum) return;
   const lines = sum.exercises.map((x) => `<div class="small"><b>${esc(x.name)}</b> ${x.sets.map((z) => `${z.weight ?? ''}${z.weight !== null ? '×' : ''}${z.reps ?? '-'}`).join(' / ')}</div>`).join('');
-  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
+  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}${sum.light ? '<p class="small">가볍게 한 날로 저장했습니다. 다음 무게는 평소 기록에서 이어 잡습니다. 기록 탭의 기록 수정에서 바꿀 수 있습니다.</p>' : ''}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
 }
 
 async function logPT() {

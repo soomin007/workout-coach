@@ -56,6 +56,27 @@ export function lastPerformance(state, exerciseId, { heavy } = {}) {
 // 일부러 낮춘 날(회복 · 근육통)의 기록은 실력이 아니라 선택이다. 처방은 그 날을 건너뛰고 직전 평소 기록에서 잇는다.
 // 기록 · 주간 볼륨 · 리포트 세트 수에는 그대로 남는다. 가벼운 기록밖에 없으면 그것이라도 쓴다.
 export const LIGHT = { ratio: 0.85, share: 0.5 };
+// 시작할 때 고른 가벼운 날(회복) 처방: 평소 처방 무게의 65%, 운동마다 2세트, 목표 반복은 범위 하한(4회 이상 남김).
+export const RECOVERY = { pct: 0.65, sets: 2, rir: 4 };
+
+// 오늘 할 부위의 근육통이 '꽤 있음'(2) 이상이면 시작할 때 가벼운 날을 제안한다. core 는 묻지 않는다.
+export function recoverySuggested(check, part) {
+  const d = part === 'lower' ? check?.lowerDoms : ['push', 'pull'].includes(part) ? check?.upperDoms : 0;
+  return Number(d) >= 2;
+}
+
+export function recoveryRx(profile, rx) {
+  const [lo] = profile.range;
+  const u = unitWord(profile);
+  const tail = `${RECOVERY.rir}${u} 이상 남기고 멈추세요.`;
+  if (rx.weight === null || rx.weight === undefined || isAssist(profile.mode) || profile.mode === 'bodyweight') {
+    return { ...rx, reps: lo, kind: 'recovery', note: `가볍게 한 날: ${lo}${u}만 하고 ${tail}` };
+  }
+  const step = profile.inc > 0 ? profile.inc : 0.5;
+  const w = Math.max(0, roundTo(rx.weight * RECOVERY.pct, step, 'floor'));
+  return { ...rx, weight: w, reps: lo, kind: 'recovery', note: `가볍게 한 날: 평소 처방 ${rx.weight}kg의 약 ${Math.round(RECOVERY.pct * 100)}%인 ${w}kg로 ${lo}${u}. ${tail}` };
+}
+
 export function preferNormal(xs) {
   const n = xs.filter((p) => !p.light);
   return n.length ? n : xs;

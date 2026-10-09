@@ -75,3 +75,32 @@ test('완료 시 light 로 저장하면 history · performance 에 표시, 기�
   assert.equal('light' in s.history.at(-1), false);
   assert.ok(s.performance.filter((p) => p.sessionId === id).every((p) => !('light' in p)));
 });
+
+test('시작 제안: 오늘 할 부위 근육통이 꽤 있음(2) 이상일 때만', async () => {
+  const { recoverySuggested } = await import('../../app/js/core/coach.js');
+  assert.equal(recoverySuggested({ upperDoms: '2', lowerDoms: 0 }, 'pull'), true);
+  assert.equal(recoverySuggested({ upperDoms: 1, lowerDoms: 3 }, 'pull'), false, '다른 부위 근육통은 묻지 않는다');
+  assert.equal(recoverySuggested({ lowerDoms: 3 }, 'lower'), true);
+  assert.equal(recoverySuggested({ upperDoms: 3, lowerDoms: 3 }, 'core'), false);
+});
+
+test('가볍게 한 날로 시작: 평소 처방의 65% · 2세트 · 하한 반복 · 워밍업 없음 · 무거운 날 없음, 완료하면 light', () => {
+  const s = withHistory({ light: true });
+  const now = new Date(2026, 9, 10, 18);
+  T.setCheck(s, { energy: 'normal', minutes: 60, intensity: 'strength', upperDoms: 2 }, { now });
+  T.createSession(s, { part: 'pull', source: 'manual', now, recovery: true });
+  assert.equal(s.session.recovery, true);
+  assert.ok(s.session.exercises.every((e) => !e.heavy && e.sets.filter((z) => z.type === 'main').length === 2 && !e.sets.some((z) => z.type === 'warmup')));
+  const lat = s.session.exercises.find((e) => e.exerciseId === 'lat');
+  assert.ok(lat, "랫풀다운이 계획에 있다"); {
+    const m = lat.sets.find((z) => z.type === 'main');
+    assert.equal(m.weight, 30, '평소 처방 50kg 의 65% = 32.5 → 증량 단위(5)로 내림 30');
+    assert.equal(m.reps, lat.range[0]);
+    assert.equal(lat.prescription.kind, 'recovery');
+  }
+  T.regenerateSession(s, { now });
+  assert.equal(s.session.recovery, true, '다시 추천해도 유지');
+  for (const e of s.session.exercises) for (const z of e.sets) { z.done = true; if (z.weight === null) z.reps = z.reps ?? 10; }
+  T.finishSession(s, { now });
+  assert.equal(s.history.at(-1).light, true);
+});

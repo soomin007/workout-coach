@@ -761,3 +761,28 @@ test('가볍게 한 날: 평소보다 확실히 가벼우면 완료 때 묻고, 
   await sheet(page).getByRole('button', { name: '저장' }).click();
   expect((await st(page)).history.at(-1).light).toBeUndefined();
 });
+
+test('상체 근육통이 꽤 있는 날 Pull 시작: 가볍게 한 날을 제안하고, 고르면 2세트 · 낮춘 무게로 채우고 완료 때 묻지 않고 가벼운 날로 저장', async ({ page }) => {
+  await page.getByRole('button', { name: /부위 직접 선택|다른 부위 고르기/ }).click();
+  await sheet(page).locator('.pick[data-k="upperDoms"] .chip[data-v="2"]').click();
+  await fillStart(page, { part: 'pull' });
+  await expect(sheet(page)).toContainText('상체 근육통이 있는 날이에요');
+  await sheet(page).getByRole('button', { name: '가볍게 한 날로 시작' }).click();
+  await expect(page.getByTestId('session-mode')).toContainText('가볍게 한 날');
+  const s = (await st(page)).session;
+  expect(s.recovery).toBe(true);
+  expect(s.exercises.every((e) => e.sets.filter((z) => z.type === 'main').length === 2)).toBe(true);
+  await card(page, 'curl').getByRole('button', { name: '계획대로 완료' }).click();
+  await page.locator('[data-action="finish"]').first().click();
+  await expect(sheet(page)).toContainText('가볍게 한 날로 저장했습니다');
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  expect((await st(page)).history.at(-1).light).toBe(true);
+});
+
+test('하체 근육통이 있어도 Pull 은 제안하지 않는다', async ({ page }) => {
+  await page.getByRole('button', { name: /부위 직접 선택|다른 부위 고르기/ }).click();
+  await sheet(page).locator('.pick[data-k="lowerDoms"] .chip[data-v="3"]').click();
+  await fillStart(page, { part: 'pull' });
+  await expect(page.getByTestId('session-head')).toBeVisible();
+  expect((await st(page)).session.recovery).toBeUndefined();
+});

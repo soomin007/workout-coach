@@ -323,7 +323,7 @@ export function renderSession(state, ui, now = new Date()) {
   return `
   <section class="card session-top part-${s.part}" data-testid="session-head">
     <div class="session-head">
-      <div><div class="kicker" data-testid="session-mode">진행 중${s.home ? ' · 집' : ''} · ${s.minutes}분 · ${esc(INTENSITY[s.intensity] || '일반')}${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
+      <div><div class="kicker" data-testid="session-mode">진행 중${s.home ? ' · 집' : ''} · ${s.minutes}분 · ${s.recovery ? '가볍게 한 날' : esc(INTENSITY[s.intensity] || '일반')}${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
         <div class="small" data-testid="session-meta">예상 ${s.estimatedMinutes}분 · 운동 ${s.exercises.length}개 · 본세트 ${work}/${total}</div></div>
       <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : s.ready ? '<div class="small paused-label">시작 전</div>' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨 · 세트를 끝내면 다시 갑니다</div>'}
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
