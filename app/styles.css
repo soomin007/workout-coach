@@ -168,6 +168,8 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .set.done .stepper button, .set.done .stepper .val small { color: var(--good-ink); }
 .set.next::before { content: ''; position: absolute; left: -15px; top: 50%; margin-top: -8px; border: 8px solid transparent; border-left: 9px solid var(--good); }
 .set .no { font-size: 12px; color: var(--faint); text-align: center; font-weight: 700; background: none; border: 0; padding: 0; min-height: 44px; display: grid; place-content: center; }
+.set .bw-tag { text-align: center; font-size: 13px; color: var(--muted); }
+.set.done .bw-tag { color: var(--good-ink); }
 .set .no small { font-size: 9px; color: var(--muted); font-weight: 600; }
 .set.warmup .no { color: var(--warn); }
 .set.top .no { color: var(--bad); font-size: 13px; }

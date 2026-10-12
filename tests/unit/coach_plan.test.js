@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { importAny } from '../../app/js/core/migrate.js';
 import { freshState } from '../../app/js/core/schema.js';
 import { profileFor, lastPerformance, prescribe, warmupPlan } from '../../app/js/core/coach.js';
-import { buildPlan, recommendPart, effectiveCheck, checkConfirmed, isAvailable } from '../../app/js/core/plan.js';
+import { buildPlan, recommendPart, effectiveCheck, checkConfirmed, isAvailable, keptMains } from '../../app/js/core/plan.js';
 import { localISODate as localISO } from '../../app/js/core/util.js';
 import { setCheck } from '../../app/js/core/session.js';
 import { CORE_SLOTS } from '../../app/js/core/catalog.js';
@@ -198,13 +198,39 @@ test('추가 운동: 일요일(헬스장 휴무)에 Core 를 마쳤으면 Core �
   assert.equal(recommendPart(s, wed, { extra: true }).part, 'rest');
 });
 
-test('코어: 30분이면 굽히기(윗배 · 아랫배)가 먼저, 버티기가 뒤인 4~6종목', () => {
+test('코어: 30분이면 굽히기(윗배 · 아랫배)가 먼저, 버티기가 뒤인 4~8종목', () => {
   const p = buildPlan(freshState(), 'core', 30, new Date(2026, 9, 11, 18, 0), { home: true }).planned;
-  assert.ok(p.length >= 4 && p.length <= 6, String(p.length));
+  assert.ok(p.length >= 4 && p.length <= 8, String(p.length));
   assert.deepEqual(p.slice(0, 2).map((x) => x.slot), ['core_flexion', 'core_flexion_lower']);
   assert.ok(p.some((x) => x.slot === 'core_anti_extension') && p.some((x) => x.slot === 'core_lateral'));
   const firstHold = p.findIndex((x) => ['core_anti_extension', 'core_anti_rotation', 'core_lateral'].includes(x.slot));
   assert.ok(p.slice(firstHold).every((x) => !x.slot.startsWith('core_flexion')), '굽히기는 버티기보다 앞');
+});
+
+test('코어: 시간이 남으면 같은 패턴의 두 번째 운동으로 채운다 (10/11 메모: 30분 골랐는데 20분에 끝남)', () => {
+  const now = new Date(2026, 9, 11, 18, 0);
+  const short = buildPlan(freshState(), 'core', 20, now, { home: true }).planned;
+  assert.equal(short.length, 4, '20분은 핵심 4종목');
+  const p = buildPlan(freshState(), 'core', 30, now, { home: true }).planned;
+  assert.ok(p.length > 6, String(p.length));
+  const roles = p.map((x) => x.slot);
+  assert.ok(roles.filter((x) => x === 'core_flexion_lower').length === 2, '아랫배 두 번째 운동이 먼저 들어온다');
+  assert.equal(new Set(p.map((x) => x.id)).size, p.length, '같은 운동은 두 번 넣지 않는다');
+  const i = roles.indexOf('core_flexion_lower');
+  assert.equal(roles[i + 1], 'core_flexion_lower', '같은 패턴끼리 붙어 있다');
+});
+
+test('미리보기 안내: 지난 같은 부위 세션과 같은 메인 운동만 이름을 돌려준다 (10/12 메모)', () => {
+  const s = freshState();
+  s.performance.push(
+    { sessionId: 'p1', date: '2026-10-05', part: 'push', exerciseId: 'ohp', sets: [] },
+    { sessionId: 'p1', date: '2026-10-05', part: 'push', exerciseId: 'lateral', sets: [] },
+    { sessionId: 'p1', date: '2026-10-05', part: 'push', exerciseId: 'cable_fly', sets: [] });
+  const session = { part: 'push', exercises: [
+    { exerciseId: 'bench', slot: 'horizontal_push', name: '바벨 벤치프레스' },
+    { exerciseId: 'ohp', slot: 'vertical_push', name: '바벨 오버헤드프레스' },
+    { exerciseId: 'cable_fly', slot: 'chest_isolation', name: '케이블 플라이' }] };
+  assert.deepEqual(keptMains(s, session, new Date(2026, 9, 12, 18, 0)), ['바벨 오버헤드프레스'], '보조 종목(플라이)은 빼고 메인만');
 });
 
 test('목표: 근력이면 복합 운동만 낮은 반복 · 긴 휴식, 근지구력이면 12~20회, 운동별 직접 설정이 우선', () => {

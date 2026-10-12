@@ -1,5 +1,5 @@
 // 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
-import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
+import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
 import { profileFor } from './coach.js';
 import { parseDateLocal, endOfDay, localISODate } from './util.js';
 
@@ -51,6 +51,13 @@ export function lastSessionExercises(state, part, now = new Date()) {
   if (!xs.length) return new Set();
   const last = xs.reduce((a, p) => (p.date > a.date ? p : a));
   return new Set(xs.filter((p) => p.sessionId === last.sessionId).map((p) => p.exerciseId));
+}
+
+// 미리보기 안내: 지난 같은 부위 세션과 같은 메인 운동 이름. 메인은 돌리지 않는다(정책 12절)는 걸 보여 준다(10/12 메모).
+export function keptMains(state, session, now = new Date()) {
+  const last = lastSessionExercises(state, session.part, now);
+  const core = CORE_SLOTS[session.part] || [];
+  return session.exercises.filter((e) => core.includes(e.slot) && last.has(e.exerciseId)).map((e) => e.name);
 }
 
 // 이번 주(최근 6일) 같은 부위를 이미 했으면 오늘은 그 반대 강조를 미리 골라 둔다.
@@ -238,7 +245,7 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   const used = new Set(), planned = [];
   const emph = new Set(where.emphasis || []);
   const hits = (p) => emph.size > 0 && (p.primary || []).some((m) => emph.has(m));
-  const maxCount = part === 'core' ? (minutes <= 20 ? 4 : 6) : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
+  const maxCount = part === 'core' ? (minutes <= 20 ? 4 : 8) : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
   for (const slot of CORE_SLOTS[part] || []) {
     const e = chooseForSlot(state, part, slot, used, now, where);
     if (!e) continue;
@@ -283,6 +290,18 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
       addPlannedSets(extra, o.p, sets);
       est += cost;
     }
+  }
+  // 같은 패턴의 두 번째 운동: 역할이 그 자리인 운동만, 2세트 (정책 8절)
+  for (const slot of SECOND_SLOTS[part] || []) {
+    if (planned.length >= maxCount) break;
+    const e = chooseForSlot(state, part, slot, used, now, sel);
+    if (!e || e.role !== slot) continue;
+    const sets = Math.min(2, adjustedSetCount(state, e, part, minutes, slot, now));
+    const cost = estimateMinutes(e, sets, false);
+    if (est + cost > minutes * 1.06) continue;
+    planned.push({ p: e, slot, sets });
+    used.add(e.id);
+    est += cost;
   }
   sortPlan();
   const f = firstCompoundIdx();

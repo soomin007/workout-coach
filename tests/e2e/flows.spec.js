@@ -392,6 +392,10 @@ test('오늘 헬스장 못 가요 → 집에서 Core 추천, 헬스장 장비 �
   expect(s.session.home).toBe(true);
   expect(s.session.exercises.every((e) => e.equipment === 'none')).toBe(true);
   expect(s.session.exercises.length).toBeGreaterThanOrEqual(3);
+  // 코어 맨몸 운동은 무게 버튼 없이 '체중'만 (10/11 메모)
+  const w = card(page, 'crunch').getByTestId('weight-0');
+  await expect(w).toHaveText('체중');
+  await expect(w.getByRole('button')).toHaveCount(0);
 });
 
 test('종료를 잊은 세션: 다시 열면 저장을 묻고, 운동 시간은 마지막 기록까지로', async ({ page }) => {

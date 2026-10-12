@@ -1,7 +1,7 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (actions.js 가 위임 처리).
 import { esc } from './dom.js';
 import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS } from '../core/catalog.js';
-import { recommendPart, explainRecommendation, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
+import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
@@ -152,6 +152,11 @@ function weightLabel(e, w) {
   return `${w}<small>kg</small>`;
 }
 
+// 코어 맨몸 운동은 무게를 더할 일이 거의 없어 버튼 없이 '체중'만 보인다(10/11 메모). 이미 +kg 을 적은 세트가 있으면 그대로 둔다.
+function noWeight(e) {
+  return e.loadMode === 'bodyweight' && (e.primary || []).includes('core') && e.sets.every((z) => z.weight === null || z.weight === undefined);
+}
+
 function stepper(action, uid, i, field, label, testid) {
   return `<div class="stepper" data-testid="${testid}"><button data-action="${action}" data-uid="${uid}" data-i="${i}" data-f="${field}" data-d="-1" aria-label="줄이기">−</button><button class="val" data-action="num" data-uid="${uid}" data-i="${i}" data-f="${field}">${label}</button><button data-action="${action}" data-uid="${uid}" data-i="${i}" data-f="${field}" data-d="1" aria-label="늘리기">+</button></div>`;
 }
@@ -178,7 +183,7 @@ function renderSetRow(e, z, i, mainNo, isNext) {
   const repsBlock = z.split
     ? `<div class="lr">${stepper('step', e.uid, i, 'leftReps', `L ${z.leftReps ?? '-'}`, `left-${i}`)}${stepper('step', e.uid, i, 'rightReps', `R ${z.rightReps ?? '-'}`, `right-${i}`)}</div>`
     : stepper('step', e.uid, i, 'reps', `${z.reps ?? '-'}<small>${u}</small>`, `reps-${i}`);
-  const w = stepper('step', e.uid, i, 'weight', weightLabel(e, z.weight), `weight-${i}`);
+  const w = noWeight(e) ? `<div class="bw-tag" data-testid="weight-${i}">체중</div>` : stepper('step', e.uid, i, 'weight', weightLabel(e, z.weight), `weight-${i}`);
   const toggle = e.unilateral && !warm ? `<button class="split-toggle" data-action="split" data-uid="${e.uid}" data-i="${i}" data-on="${z.split ? 0 : 1}">${z.split ? '좌우 같게' : '좌우 다르게 입력'}</button>` : '';
   const cls = `set ${z.type}${z.heavy === 'top' ? ' top' : ''}${z.done ? ' done' : ''}${isNext ? ' next' : ''}`;
   const noBtn = `<button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>`;
@@ -246,8 +251,15 @@ function emphasisRow(s) {
   return `<div class="pv-emph" data-testid="emphasis"><div class="small">오늘 더 하고 싶은 부위</div><div class="row">${list.map((x) => `<button class="chip${s.emphasis === x.id ? ' on' : ''}" data-action="emphasis" data-v="${x.id}" aria-pressed="${s.emphasis === x.id}">${esc(x.label)}</button>`).join('')}</div>${s.emphasisWhy ? `<div class="tiny" data-testid="emphasis-why">${esc(s.emphasisWhy)} 칩을 눌러 바꿀 수 있습니다.</div>` : ''}</div>`;
 }
 
+function keptLine(state, s, now) {
+  const names = keptMains(state, s, now);
+  if (!names.length) return '';
+  const head = names.length > 2 ? `${names.slice(0, 2).join(', ')} 외 ${names.length - 2}개` : names.join(', ');
+  return `<div class="tiny" data-testid="kept-mains">${esc(josa(head, '은', '는'))} 지난번과 같게 둡니다. 메인 운동은 같은 운동을 이어 가야 무게와 횟수를 올려 갈 수 있습니다.</div>`;
+}
+
 // 시작 전 미리보기 (Leap 의 루틴 상세): 근육 지도 · 운동 목록과 처방 · 시작 · 다시 추천.
-function previewCard(s) {
+function previewCard(state, s, now) {
   const prim = [...new Set(s.exercises.flatMap((e) => e.primary))];
   const sec = [...new Set(s.exercises.flatMap((e) => e.secondary))].filter((m) => !prim.includes(m));
   const items = s.exercises.map((e) => {
@@ -261,6 +273,7 @@ function previewCard(s) {
     <div class="pv-top"><div><div class="kicker">시작 전 확인</div><h2>운동 ${s.exercises.length}개</h2><div class="small">예상 ${s.estimatedMinutes}분 · 본세트 ${total}개</div></div><div class="pv-map">${bodyMap({ primary: prim, secondary: sec })}</div></div>
     ${emphasisRow(s)}
     <ol class="pv-list">${items}</ol>
+    ${keptLine(state, s, now)}
     <div class="pv-actions"><button class="btn" data-action="regen" data-testid="preview-regen">다시 추천</button><button class="btn primary" data-action="begin" data-testid="preview-go">시작</button></div>
     <div class="tiny">운동을 바꾸거나 빼려면 아래 카드의 ⋯ 를 쓰세요. 첫 세트를 체크해도 바로 시작됩니다.</div>
   </section>`;
@@ -339,7 +352,7 @@ export function renderSession(state, ui, now = new Date()) {
     <div class="progress"><i style="width:${total ? (work / total) * 100 : 0}%"></i></div>
     ${missing.length ? `<div class="warnbox">빠진 핵심 동작: ${missing.map(slotLabel).join(', ')} <button class="btn sm" data-action="repair" style="margin-left:6px">자동 보완</button></div>` : ''}
   </section>
-  ${s.ready ? previewCard(s) : ''}
+  ${s.ready ? previewCard(state, s, now) : ''}
   ${s.exercises.map((e, i) => renderExercise(state, e, i, ui, next)).join('')}
   <section class="card">
     <h3>세션 마치기</h3>

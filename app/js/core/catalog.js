@@ -58,6 +58,10 @@ export const OPTIONAL_SLOTS = {
   lower: ['secondary_squat', 'secondary_lower', 'glute_med'],
   core: ['core_rotation', 'core_anti_rotation'],
 };
+// 시간이 남으면 같은 패턴의 두 번째 운동을 넣을 자리 (정책 8절). 자극이 오는 굽히기 · 비틀기가 먼저.
+export const SECOND_SLOTS = {
+  core: ['core_flexion_lower', 'core_rotation', 'core_flexion', 'core_anti_extension'],
+};
 export const SESSION_ORDER = {
   push: ['horizontal_push', 'secondary_chest_press', 'vertical_push', 'chest_isolation', 'lateral_delt', 'triceps', 'chest_finisher'],
   pull: ['vertical_pull', 'secondary_vertical_pull', 'horizontal_pull', 'secondary_back', 'rear_delt', 'biceps', 'biceps_secondary'],
