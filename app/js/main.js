@@ -740,12 +740,11 @@ async function logPT() {
     <label class="field">날짜<input type="date" name="date" value="${localISODate()}"></label>
     <div class="small" style="margin-top:8px">주요 부위 (여러 개 가능)</div>
     <div class="row">${['push', 'pull', 'lower', 'core'].map((p) => `<label class="chip"><input type="checkbox" name="part" value="${p}"> ${PART_LABEL[p]}</label>`).join('')}</div>
-    <label class="field" style="margin-top:8px">대략적 작업세트 (모르면 비움)<input type="number" name="sets" min="0" max="60" inputmode="numeric"></label>
     <label class="field" style="margin-top:8px">메모<textarea name="note" autocomplete="off" placeholder="예: 스쿼트, 스미스 스쿼트, 불가리안"></textarea></label>
     <div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
-  { collect: (b) => ({ date: b.querySelector('[name=date]').value, parts: [...b.querySelectorAll('[name=part]:checked')].map((x) => x.value), sets: b.querySelector('[name=sets]').value, note: b.querySelector('[name=note]').value }) });
+  { collect: (b) => ({ date: b.querySelector('[name=date]').value, parts: [...b.querySelectorAll('[name=part]:checked')].map((x) => x.value), note: b.querySelector('[name=note]').value }) });
   if (!r) return;
-  run((s) => T.logPT(s, { date: r.data.date, parts: r.data.parts, sets: r.data.sets === '' ? null : +r.data.sets, note: r.data.note }), 'PT 기록을 저장했습니다.');
+  run((s) => T.logPT(s, { date: r.data.date, parts: r.data.parts, note: r.data.note }), 'PT 기록을 저장했습니다.');
 }
 
 async function editHistory(id) {

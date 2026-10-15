@@ -28,7 +28,7 @@ export function toTXT(state) {
   const hs = [...state.history].sort((a, b) => b.date.localeCompare(a.date));
   for (const h of hs) {
     const dur = h.durationSec ? ` ${Math.round(h.durationSec / 60)}분` : '';
-    o += `${h.date} ${PART_LABEL[h.part] || h.part} ${h.workSets || 0}세트${dur}${h.source === 'pt' ? ' PT' : ''}${h.note ? ` · ${h.note}` : ''}\n`;
+    o += `${h.date} ${PART_LABEL[h.part] || h.part}${h.volumeUnknown ? '' : ` ${h.workSets || 0}세트`}${dur}${h.source === 'pt' ? ' PT' : ''}${h.note ? ` · ${h.note}` : ''}\n`;
     for (const p of state.performance.filter((x) => x.sessionId === h.id)) {
       const main = p.sets.filter((z) => z.type !== 'warmup');
       o += `  - ${p.name} (${LOAD_LABEL[p.loadMode] || p.loadMode}): ${main.map((z) => setText(z, p.measure)).join(' / ')}${p.effort ? ` · 느낌 ${EFFORT_LABEL[p.effort]}` : ''}${p.memo ? ` · ${p.memo}` : ''}\n`;

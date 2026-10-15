@@ -91,8 +91,17 @@ export function daysSince(state, part, now = new Date()) {
   return Math.max(0, Math.floor((now.getTime() - last) / DAY));
 }
 
+// 세트 수를 모르는 기록(PT)은 그 부위를 직접 한 최근 세션 5번의 세트 수 중앙값으로 친다(정책 18절).
+// 직접 한 기록이 없으면 0. 가볍게 한 날은 평소 양이 아니라서 뺀다.
+export function typicalSets(state, part) {
+  const xs = state.history.filter((h) => h.part === part && h.source !== 'pt' && !h.volumeUnknown && !h.light && +h.workSets > 0)
+    .sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5).map((h) => +h.workSets).sort((a, b) => a - b);
+  return xs.length ? xs[Math.floor((xs.length - 1) / 2)] : 0;
+}
+
 export function weeklySets(state, part, now = new Date()) {
-  return state.history.filter((h) => h.part === part && inWindow(h.date, now, 7)).reduce((a, h) => a + (Number.isFinite(+h.workSets) ? +h.workSets : 0), 0);
+  return state.history.filter((h) => h.part === part && inWindow(h.date, now, 7))
+    .reduce((a, h) => a + (h.volumeUnknown ? typicalSets(state, part) : Number.isFinite(+h.workSets) ? +h.workSets : 0), 0);
 }
 
 function sessionsWithin(state, part, hours, now) {
