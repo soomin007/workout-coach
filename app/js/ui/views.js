@@ -1,6 +1,6 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (actions.js 가 위임 처리).
 import { esc } from './dom.js';
-import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS } from '../core/catalog.js';
+import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
@@ -427,7 +427,7 @@ export function renderSettings(state, ui) {
   const goalCard = `<section class="card"><h3>목표</h3><div class="small">운동마다 목표 횟수 범위가 바뀝니다. 운동별로 직접 정한 범위가 있으면 그것이 우선입니다.</div>
     <div class="goal-list">${Object.entries(GOALS).map(([k, l]) => `<button class="goal-opt${goal === k ? ' on' : ''}" data-action="goal" data-v="${k}" aria-pressed="${goal === k}"><b>${l}</b><span class="small">${GOAL_HINT[k]}</span>${goal === k ? '<span class="goal-check">✓</span>' : ''}</button>`).join('')}</div></section>`;
   const days = [['none', '고정 없음'], [1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토']];
-  const equip = Object.entries(EQUIPMENT).filter(([k]) => k !== 'none').map(([k, n]) => `<label class="setting"><span>${esc(n)}</span><input type="checkbox" data-action="equip" data-k="${k}"${st.equipment[k] !== false ? ' checked' : ''}></label>`).join('');
+  const equip = Object.entries(EQUIPMENT).filter(([k]) => k !== 'none').map(([k, n]) => `<label class="setting"><span>${esc(n)}</span><input type="checkbox" data-action="equip" data-k="${k}"${hasEquipment(st.equipment, k) ? ' checked' : ''}></label>`).join('');
   const unav = (st.unavailableExercises || []).map((id) => `<div class="setting"><span>${esc(catalogById(id)?.name || state.customExercises.find((c) => c.id === id)?.name || id)}</span><button class="btn sm" data-action="unavail-remove" data-id="${esc(id)}">다시 사용</button></div>`).join('') || '<div class="small">없음</div>';
   const all = [...ALL_CATALOG, ...state.customExercises];
   const prefIds = Object.keys(state.prefs || {});

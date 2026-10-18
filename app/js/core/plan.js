@@ -1,5 +1,5 @@
 // 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
-import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
+import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById, hasEquipment } from './catalog.js';
 import { profileFor } from './coach.js';
 import { parseDateLocal, endOfDay, localISODate } from './util.js';
 
@@ -196,7 +196,7 @@ export function isAvailable(state, profile, { home = state.session?.home ?? fals
   if (home && profile.equipment !== 'none' && !(state.settings.homeEquipment || []).includes(profile.equipment)) return false;
   if (profile.risk === 'hinge' && state.settings.avoidHinge !== false) return false;
   if (profile.kneeling && effectiveCheck(state).pain === 'knee') return false;
-  if (profile.equipment !== 'none' && state.settings.equipment[profile.equipment] === false) return false;
+  if (profile.equipment !== 'none' && !hasEquipment(state.settings.equipment, profile.equipment)) return false;
   if ((state.settings.unavailableExercises || []).includes(profile.id)) return false;
   if ((state.session?.tempUnavailable || []).includes(profile.id)) return false;
   return true;

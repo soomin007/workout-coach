@@ -257,7 +257,7 @@ test('계획: 하체 추천에 카프는 넣지 않는다 (정책 19절)', () =>
 test('강조 (정책 15절): 엉덩이는 둔근이 주인 운동이 앞, 스쿼트류는 2세트 유지', () => {
   const s = freshState();
   const p = buildPlan(s, 'lower', 60, new Date(), { emphasis: ['glute'] });
-  assert.ok(['hip_thrust', 'abduction', 'cable_kickback'].includes(p.planned[0].id), p.planned[0].id);
+  assert.ok(['db_hip_thrust', 'sl_hip_thrust', 'abduction', 'cable_kickback'].includes(p.planned[0].id), p.planned[0].id);
   assert.equal(p.planned.find((x) => x.id === 'squat').sets, 2);
   const q = buildPlan(s, 'lower', 60, new Date(), { emphasis: ['quads'] });
   assert.equal(q.planned[0].id, 'squat', '앞 허벅지 강조는 그대로 스쿼트가 먼저');
@@ -270,4 +270,15 @@ test('강조: 삼두는 두 번째 삼두 운동이 들어오고, 종목이 하�
   assert.ok(t.emphasisHits.length >= 2);
   assert.deepEqual(buildPlan(s, 'lower', 60, new Date(), { emphasis: ['hamstring'] }).emphasisHits, ['레그컬']);
   assert.deepEqual(buildPlan(s, 'lower', 60).emphasisHits, []);
+});
+
+test('장비: 발목 스트랩은 설정에서 켜기 전까지 없는 것으로 본다 (케이블 킥백 미추천)', async () => {
+  const { isAvailable } = await import('../../app/js/core/plan.js');
+  const { profileFor } = await import('../../app/js/core/coach.js');
+  const s = freshState();
+  delete s.settings.equipment.ankle_strap;
+  assert.equal(isAvailable(s, profileFor(s, 'cable_kickback')), false);
+  s.settings.equipment.ankle_strap = true;
+  assert.equal(isAvailable(s, profileFor(s, 'cable_kickback')), true);
+  assert.equal(isAvailable(s, profileFor(s, 'db_hip_thrust')), true);
 });
