@@ -1,5 +1,5 @@
 // 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
-import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
+import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById } from './catalog.js';
 import { profileFor } from './coach.js';
 import { parseDateLocal, endOfDay, localISODate } from './util.js';
 
@@ -247,13 +247,15 @@ export function adjustedSetCount(state, profile, part, minutes, slot, now = new 
   return Math.max(2, Math.min(4, n));
 }
 
-// 반환: { planned: [{ id, slot, sets, warmupLevel }], estimatedMinutes }
+// 반환: { planned: [{ id, slot, sets, warmupLevel }], estimatedMinutes, emphasisHits }
+// emphasisHits: 강조 근육 운동 이름들. 0 · 1개면 종목을 늘리지 못했다고 미리보기에서 안내한다.
 // where.emphasis: 오늘 강조할 근육 목록. 강조 운동은 앞으로 · 세트 +1, 나머지 핵심은 2세트(유지),
 // 보조 자리는 강조 근육 운동이 먼저(같은 역할의 두 번째 운동도 허용).
 export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   const used = new Set(), planned = [];
   const emph = new Set(where.emphasis || []);
-  const hits = (p) => emph.size > 0 && (p.primary || []).some((m) => emph.has(m));
+  // focus: 주로 쓰는 근육(스쿼트류는 대퇴사두). 없으면 primary. 엉덩이 강조가 스쿼트 강조가 되지 않게 한다.
+  const hits = (p) => emph.size > 0 && (p.focus || p.primary || []).some((m) => emph.has(m));
   const maxCount = part === 'core' ? (minutes <= 20 ? 4 : 8) : minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
   for (const slot of CORE_SLOTS[part] || []) {
     const e = chooseForSlot(state, part, slot, used, now, where);
@@ -277,13 +279,14 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   for (const x of planned) addPlannedSets(extra, x.p, x.sets);
   const sel = { ...where, extra, recent: lastSessionExercises(state, part, now) };
   const coreSlots = CORE_SLOTS[part] || [];
-  let open = [...(OPTIONAL_SLOTS[part] || []), ...(emph.size ? coreSlots : [])];
+  const emphSlots = emph.size ? [...coreSlots, ...(EMPHASIS_SLOTS[part] || [])] : [];
+  let open = [...(OPTIONAL_SLOTS[part] || []), ...emphSlots];
   while (open.length && planned.length < maxCount) {
     const provisional = new Set(used);
     const cands = [];
     for (const slot of open) {
       const e = chooseForSlot(state, part, slot, provisional, now, sel);
-      if (!e || (coreSlots.includes(slot) && !hits(e))) continue;
+      if (!e || (emphSlots.includes(slot) && !hits(e))) continue;
       cands.push({ p: e, slot, score: slotScore(state, e, now, sel) + (e.role === slot ? 5 : 0) + (hits(e) ? 20 : 0) });
       provisional.add(e.id);
     }
@@ -317,6 +320,7 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   return {
     planned: planned.map((x, i) => ({ id: x.p.id, slot: x.slot, sets: x.sets, warmupLevel: i === f ? 'full' : x.p.compound ? 'short' : 'none' })),
     estimatedMinutes: Math.round(total()),
+    emphasisHits: planned.filter((x) => hits(x.p)).map((x) => x.p.name),
   };
 }
 

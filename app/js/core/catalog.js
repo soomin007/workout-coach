@@ -59,6 +59,10 @@ export const OPTIONAL_SLOTS = {
   lower: ['secondary_squat', 'secondary_lower', 'glute_med'],
   core: ['core_rotation', 'core_anti_rotation'],
 };
+// 강조할 때만 여는 보조 자리 (정책 15절). 평소 구성은 그대로 둔다.
+export const EMPHASIS_SLOTS = {
+  lower: ['glute_max'],
+};
 // 시간이 남으면 같은 패턴의 두 번째 운동을 넣을 자리 (정책 8절). 자극이 오는 굽히기 · 비틀기가 먼저.
 export const SECOND_SLOTS = {
   core: ['core_flexion_lower', 'core_rotation', 'core_flexion', 'core_anti_extension'],
@@ -66,7 +70,7 @@ export const SECOND_SLOTS = {
 export const SESSION_ORDER = {
   push: ['horizontal_push', 'secondary_chest_press', 'vertical_push', 'chest_isolation', 'lateral_delt', 'triceps', 'chest_finisher'],
   pull: ['vertical_pull', 'secondary_vertical_pull', 'horizontal_pull', 'secondary_back', 'rear_delt', 'biceps', 'biceps_secondary'],
-  lower: ['squat', 'secondary_squat', 'unilateral', 'hamstring', 'secondary_lower', 'glute_med', 'calf'],
+  lower: ['squat', 'secondary_squat', 'unilateral', 'hamstring', 'secondary_lower', 'glute_max', 'glute_med', 'calf'],
   core: ['core_flexion', 'core_flexion_lower', 'core_rotation', 'core_anti_extension', 'core_anti_rotation', 'core_lateral'],
 };
 export const SLOT_COMPAT = {
@@ -80,7 +84,7 @@ export const SLOT_COMPAT = {
   rear_delt: ['rear_delt'], biceps: ['biceps', 'biceps_secondary'], biceps_secondary: ['biceps_secondary', 'biceps'],
   squat: ['squat', 'secondary_squat', 'secondary_lower'], secondary_squat: ['secondary_squat', 'squat', 'secondary_lower'],
   unilateral: ['unilateral', 'secondary_lower'], hamstring: ['hamstring'],
-  secondary_lower: ['secondary_lower', 'unilateral', 'secondary_squat'], glute_med: ['glute_med'], calf: ['calf'],
+  secondary_lower: ['secondary_lower', 'unilateral', 'secondary_squat'], glute_med: ['glute_med'], glute_max: ['glute_max', 'glute_med'], calf: ['calf'],
   core_anti_extension: ['core_anti_extension'], core_anti_rotation: ['core_anti_rotation'],
   core_lateral: ['core_lateral'], core_flexion: ['core_flexion'], core_flexion_lower: ['core_flexion_lower', 'core_flexion'], core_rotation: ['core_rotation'],
 };
@@ -91,7 +95,7 @@ export const SLOT_LABEL = {
   vertical_pull: '수직 당기기', secondary_vertical_pull: '수직 당기기 보조', horizontal_pull: '수평 당기기', secondary_back: '등 보조',
   rear_delt: '후면 어깨', biceps: '이두', biceps_secondary: '이두 보조',
   squat: '스쿼트', secondary_squat: '스쿼트 보조', unilateral: '편측 하체', hamstring: '햄스트링', secondary_lower: '하체 보조',
-  glute_med: '중둔근', calf: '종아리',
+  glute_med: '중둔근', glute_max: '둔근', calf: '종아리',
   core_anti_extension: '항신전', core_anti_rotation: '항회전', core_lateral: '항측굴', core_flexion: '윗배 굽히기', core_flexion_lower: '아랫배 말아 올리기', core_rotation: '옆구리 비틀기',
 };
 export const slotName = (x) => SLOT_LABEL[x] || String(x || '').replaceAll('_', ' ');
@@ -108,6 +112,7 @@ export const DB = {
     { id: 'lateral', name: '사이드 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 1, mode: 'per_dumbbell', priority: 95, equipment: 'dumbbell', why: '측면삼각근 직접 볼륨' },
     { id: 'cable_lateral', name: '케이블 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 82, equipment: 'cable', why: '측면삼각근 지속 장력' },
     { id: 'pushdown', name: '트라이셉 푸시다운', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, mode: 'machine', priority: 95, equipment: 'cable', why: '삼두 직접 볼륨' },
+    { id: 'oh_cable_ext', name: '오버헤드 케이블 익스텐션', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, mode: 'machine', priority: 70, equipment: 'cable', why: '팔을 머리 위로 올려 삼두 긴 갈래를 늘린 채 자극' },
     { id: 'cable_fly', name: '케이블 플라이', role: 'chest_isolation', primary: ['chest'], secondary: [], sets: 2, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 90, equipment: 'cable', why: '프레스 후 가슴 고립' },
     { id: 'pike_pushup', name: '파이크 푸쉬업', role: 'vertical_push', primary: ['front_delt'], secondary: ['triceps'], sets: 3, range: [6, 12], rest: 90, inc: 0, mode: 'bodyweight', priority: 40, equipment: 'none', compound: true, why: '집에서 하는 어깨 프레스', cue: '엉덩이를 높이 들고 머리가 손 사이로 내려가게.' },
     { id: 'pushup', name: '푸쉬업', role: 'chest_finisher', primary: ['chest'], secondary: ['triceps'], sets: 2, range: [10, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 60, equipment: 'none', why: '가벼운 마무리' },
@@ -126,13 +131,15 @@ export const DB = {
     { id: 'hammer', name: '해머컬', role: 'biceps_secondary', primary: ['biceps'], secondary: ['brachialis'], sets: 2, range: [10, 15], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 78, equipment: 'dumbbell', why: '상완근/이두 보완' },
   ],
   lower: [
-    { id: 'squat', name: '프리 스쿼트', role: 'squat', primary: ['quads', 'glute'], secondary: [], sets: 3, range: [5, 8], rest: 210, inc: 2.5, mode: 'total', priority: 100, equipment: 'rack', compound: true, why: '하체 메인 복합운동' },
-    { id: 'smith_squat', name: '스미스 스쿼트', role: 'secondary_squat', primary: ['quads', 'glute'], secondary: [], sets: 3, range: [8, 10], rest: 180, inc: 5, mode: 'per_side', priority: 95, equipment: 'smith', compound: true, why: '안정적인 하체 추가 볼륨' },
-    { id: 'bulgarian', name: '불가리안 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], secondary: ['hamstring'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, unilateral: true, why: '편측 하체와 좌우 균형', cue: '왼쪽부터 시작하고 오른쪽 반복수는 왼쪽을 넘기지 않기. 상체를 과하게 숙이지 말고 척추 중립.' },
+    { id: 'squat', name: '프리 스쿼트', role: 'squat', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [5, 8], rest: 210, inc: 2.5, mode: 'total', priority: 100, equipment: 'rack', compound: true, why: '하체 메인 복합운동' },
+    { id: 'smith_squat', name: '스미스 스쿼트', role: 'secondary_squat', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [8, 10], rest: 180, inc: 5, mode: 'per_side', priority: 95, equipment: 'smith', compound: true, why: '안정적인 하체 추가 볼륨' },
+    { id: 'bulgarian', name: '불가리안 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], focus: ['quads'], secondary: ['hamstring'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, unilateral: true, why: '편측 하체와 좌우 균형', cue: '왼쪽부터 시작하고 오른쪽 반복수는 왼쪽을 넘기지 않기. 상체를 과하게 숙이지 말고 척추 중립.' },
     { id: 'legcurl', name: '레그컬', role: 'hamstring', primary: ['hamstring'], secondary: [], sets: 3, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 95, equipment: 'leg_curl', why: '햄스트링 직접 볼륨' },
-    { id: 'legpress', name: '싱글 레그프레스', role: 'secondary_lower', primary: ['quads', 'glute'], secondary: [], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'plates', priority: 88, equipment: 'leg_press', unilateral: true, why: '편측 하체 추가 볼륨', cue: '왼쪽 무릎/대퇴사두 우세와 오른쪽 둔근 우세를 관찰. 무릎 궤적·골반 회전·뒤꿈치 들림 체크.' },
+    { id: 'legpress', name: '싱글 레그프레스', role: 'secondary_lower', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'plates', priority: 88, equipment: 'leg_press', unilateral: true, why: '편측 하체 추가 볼륨', cue: '왼쪽 무릎/대퇴사두 우세와 오른쪽 둔근 우세를 관찰. 무릎 궤적·골반 회전·뒤꿈치 들림 체크.' },
     { id: 'abduction', name: '힙 어브덕션 (다리 벌리기)', aliases: ['힙 어브덕션'], role: 'glute_med', primary: ['glute'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 78, equipment: 'abduction', why: '둔근 보조' },
-    { id: 'bw_split_squat', name: '맨몸 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], secondary: [], sets: 3, range: [10, 15], rest: 75, inc: 0, mode: 'bodyweight', priority: 45, equipment: 'none', compound: true, unilateral: true, why: '집에서 하는 편측 하체' },
+    { id: 'bw_split_squat', name: '맨몸 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [10, 15], rest: 75, inc: 0, mode: 'bodyweight', priority: 45, equipment: 'none', compound: true, unilateral: true, why: '집에서 하는 편측 하체' },
+    { id: 'hip_thrust', name: '바벨 힙 쓰러스트', role: 'glute_max', primary: ['glute'], secondary: ['hamstring'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'total', priority: 80, equipment: 'barbell', compound: true, why: '허벅지 앞쪽 부담 없이 둔근에 무게를 싣는 운동', cue: '벤치에 등 아래쪽 날개뼈를 걸치고, 턱을 당긴 채 엉덩이를 조여 올리기. 허리로 들지 않기.' },
+    { id: 'cable_kickback', name: '케이블 킥백', role: 'glute_max', primary: ['glute'], secondary: [], sets: 2, range: [12, 15], rest: 60, inc: 5, mode: 'machine', priority: 60, equipment: 'cable', unilateral: true, why: '한쪽씩 둔근 고립' },
     { id: 'glute_bridge', name: '글루트 브릿지', role: 'glute_med', primary: ['glute'], secondary: ['hamstring'], sets: 2, range: [12, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 40, equipment: 'none', why: '집에서 하는 둔근 운동', cue: '허리를 꺾지 말고 엉덩이를 조여서 올리기.' },
     { id: 'calf', name: '한발 카프레이즈', role: 'calf', primary: ['calf'], secondary: [], sets: 2, range: [12, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 75, equipment: 'none', unilateral: true, why: '종아리 보완', cue: '반동 없이 천천히. 통증/잠김/불안정이 있으면 중단.' },
   ],

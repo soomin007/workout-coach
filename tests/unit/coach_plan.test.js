@@ -253,3 +253,21 @@ test('계획: 하체 추천에 카프는 넣지 않는다 (정책 19절)', () =>
     assert.ok(!p.planned.some((x) => x.slot === 'calf' || x.id === 'calf'), `${minutes}분`);
   }
 });
+
+test('강조 (정책 15절): 엉덩이는 둔근이 주인 운동이 앞, 스쿼트류는 2세트 유지', () => {
+  const s = freshState();
+  const p = buildPlan(s, 'lower', 60, new Date(), { emphasis: ['glute'] });
+  assert.ok(['hip_thrust', 'abduction', 'cable_kickback'].includes(p.planned[0].id), p.planned[0].id);
+  assert.equal(p.planned.find((x) => x.id === 'squat').sets, 2);
+  const q = buildPlan(s, 'lower', 60, new Date(), { emphasis: ['quads'] });
+  assert.equal(q.planned[0].id, 'squat', '앞 허벅지 강조는 그대로 스쿼트가 먼저');
+});
+
+test('강조: 삼두는 두 번째 삼두 운동이 들어오고, 종목이 하나뿐인 뒤 허벅지는 안내 이름을 돌려준다', () => {
+  const s = freshState();
+  const t = buildPlan(s, 'push', 60, new Date(), { emphasis: ['triceps'] });
+  assert.ok(t.planned.some((x) => x.id === 'oh_cable_ext'));
+  assert.ok(t.emphasisHits.length >= 2);
+  assert.deepEqual(buildPlan(s, 'lower', 60, new Date(), { emphasis: ['hamstring'] }).emphasisHits, ['레그컬']);
+  assert.deepEqual(buildPlan(s, 'lower', 60).emphasisHits, []);
+});

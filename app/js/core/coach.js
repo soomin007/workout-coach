@@ -24,7 +24,7 @@ export function profileFor(state, exerciseId) {
   const g = goalRange(state.settings?.goal || 'hypertrophy', base);
   return {
     id: base.id, name: base.name, part: base.part, role: base.role,
-    primary: base.primary || [], secondary: base.secondary || [],
+    primary: base.primary || [], secondary: base.secondary || [], ...(base.focus ? { focus: base.focus } : {}),
     sets: base.sets || 2,
     range: Array.isArray(p.range) && p.range.length === 2 ? [...p.range] : [...g.range],
     rest: Number.isFinite(+p.rest) && p.rest !== null ? +p.rest : g.rest,
