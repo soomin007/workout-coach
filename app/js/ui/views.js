@@ -128,7 +128,7 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
 
 function renderDashboard(state, now) {
   const recent = PART_OPTS.map((p) => { const d = daysSince(state, p, now); return `<div class="recent part-${p}"><b>${PART_LABEL[p]}</b><span>${d >= 99 ? '기록 없음' : d === 0 ? '오늘' : `${d}일 전`}</span></div>`; }).join('');
-  const rows = Object.keys(MUSCLE_LABEL).map((m) => ({ m, v: muscleSets(state, m, now), b: MUSCLE_BUDGET[m] }));
+  const rows = Object.keys(MUSCLE_BUDGET).map((m) => ({ m, v: muscleSets(state, m, now), b: MUSCLE_BUDGET[m] }));
   const bar = ({ m, v, b }) => `<div class="bar-row"><span>${MUSCLE_LABEL[m]}</span><div class="bar"><i style="width:${Math.min(100, (v / b) * 100)}%"></i></div><span class="tiny">${v}/${b}</span></div>`;
   const lacking = rows.filter((x) => x.v < x.b * 0.5);
   const rest = rows.filter((x) => x.v >= x.b * 0.5);

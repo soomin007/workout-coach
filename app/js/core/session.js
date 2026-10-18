@@ -718,9 +718,12 @@ export function setHistoryDuration(state, historyId, minutes) {
 }
 
 // light: 가볍게 한 날로 저장 (다음 처방에 쓰지 않음, 정책 16절).
-export function finishSession(state, { now = new Date(), light = false } = {}) {
+// lightExercises: 이 운동들만 가볍게 표시하고 나머지는 평소 기록으로 남긴다(후반에 무게를 낮춘 날).
+export function finishSession(state, { now = new Date(), light = false, lightExercises = null } = {}) {
   const s = sessionOf(state);
-  if (s.recovery) light = true;
+  if (s.recovery) { light = true; lightExercises = null; }
+  if (lightExercises?.length) light = true;
+  const lightOf = (e) => light && (!lightExercises?.length || lightExercises.includes(e.exerciseId));
   const duration = activeDurationSec(s, now);
   const work = countWorkSets(s);
   const ord = actualOrder(s.exercises.map((e) => ({ key: e.uid, primary: e.primary, secondary: e.secondary, sets: e.sets })));
@@ -734,7 +737,7 @@ export function finishSession(state, { now = new Date(), light = false } = {}) {
       range: [...e.range], primary: [...e.primary], secondary: [...e.secondary],
       sets: structuredClone(done), effort: e.effort, memo: e.memo,
       ...(e.heavy ? { heavy: true } : {}),
-      ...(light ? { light: true } : {}),
+      ...(lightOf(e) ? { light: true } : {}),
       ...(e.grip ? { grip: e.grip } : {}),
       ...(o ? { order: o.order, prefatigue: o.prefatigue } : {}),
     });

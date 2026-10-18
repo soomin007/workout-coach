@@ -720,19 +720,19 @@ async function finishSession() {
   const s = store.state.session;
   if (T.countWorkSets(s) === 0 && !(await confirmSheet('완료한 본세트가 없습니다. 그래도 저장할까요?', { ok: '저장' }))) return;
   // 평소보다 확실히 가볍게 했으면 다음 처방에 쓸지 묻는다 (정책 16절). 묻지 않는 날은 평소 기록.
-  let light = false;
+  let lightExercises = null;
   const lt = s.recovery ? { suggest: false } : lighterThanUsual(store.state, s);
   if (lt.suggest) {
     const rows = lt.lighter.map((x) => `<div class="small"><b>${esc(x.name)}</b> 평소 ${x.was}kg → 오늘 ${x.now}kg</div>`).join('');
-    const v = await sheet(`<h3>오늘은 가볍게 한 날인가요?</h3>${rows}<p class="small">가볍게 한 날로 저장하면 기록과 주간 세트에는 남고, 다음 무게는 평소 기록에서 이어 잡습니다.</p>
-      <div class="list"><button data-sheet-value="light">가볍게 한 날로 저장</button><button data-sheet-value="normal">평소 기록으로 저장 (다음 처방에 반영)</button></div>`);
+    const v = await sheet(`<h3>오늘은 가볍게 한 날인가요?</h3>${rows}<p class="small">가볍게 저장하면 위 운동만 다음 무게를 평소 기록에서 이어 잡습니다. 나머지 운동은 오늘 기록으로 처방합니다. 기록과 주간 세트에는 모두 남습니다.</p>
+      <div class="list"><button data-sheet-value="light">위 운동만 가볍게 저장</button><button data-sheet-value="normal">평소 기록으로 저장 (다음 처방에 반영)</button></div>`);
     if (!v) return;
-    light = v === 'light';
+    if (v === 'light') lightExercises = lt.lighter.map((x) => x.exerciseId);
   }
-  const sum = run((st) => T.finishSession(st, { light }));
+  const sum = run((st) => T.finishSession(st, { lightExercises }));
   if (!sum) return;
   const lines = sum.exercises.map((x) => `<div class="small"><b>${esc(x.name)}</b> ${x.sets.map((z) => `${z.weight ?? ''}${z.weight !== null ? '×' : ''}${z.reps ?? '-'}`).join(' / ')}</div>`).join('');
-  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}${sum.light ? '<p class="small">가볍게 한 날로 저장했습니다. 다음 무게는 평소 기록에서 이어 잡습니다. 기록 탭의 기록 수정에서 바꿀 수 있습니다.</p>' : ''}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
+  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}${sum.light ? '<p class="small">가볍게 한 날로 저장했습니다. 가볍게 한 운동의 다음 무게는 평소 기록에서 이어 잡습니다. 기록 탭의 기록 수정에서 바꿀 수 있습니다.</p>' : ''}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
 }
 
 async function logPT() {

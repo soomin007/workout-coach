@@ -89,7 +89,7 @@ const topWeight = (sets) => {
 
 // 진행 중 세션이 평소보다 확실히 가벼운지. 비교할 수 있는 운동(무게를 단 운동 · 이전 평소 기록 있음) 중
 // 절반 이상이 직전 평소 기록 최고 무게의 85% 미만이면 suggest. 실패 뒤 감량 처방(약 90%)은 걸리지 않는 선이다.
-// 반환: { suggest, lighter: [{ name, was, now }], compared }
+// 반환: { suggest, lighter: [{ exerciseId, name, was, now }], compared }
 export function lighterThanUsual(state, session = state.session) {
   const lighter = [];
   let compared = 0;
@@ -102,7 +102,7 @@ export function lighterThanUsual(state, session = state.session) {
     const was = prev && topWeight(prev.sets);
     if (!was) continue;
     compared++;
-    if (now < was * LIGHT.ratio) lighter.push({ name: e.name, was, now });
+    if (now < was * LIGHT.ratio) lighter.push({ exerciseId: e.exerciseId, name: e.name, was, now });
   }
   return { suggest: compared > 0 && lighter.length / compared >= LIGHT.share, lighter, compared };
 }

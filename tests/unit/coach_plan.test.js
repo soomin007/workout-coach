@@ -141,7 +141,7 @@ test('추천 설명: 쉰 기간 · 부족한 근육 · 채운 근육을 문장�
   assert.equal(rec.part, 'lower');
   const lines = explainRecommendation(s, rec, now);
   assert.match(lines[0], /하체 운동 기록이 아직 없어요/);
-  assert.ok(lines.some((l) => /대퇴사두·햄스트링·둔근·종아리 세트가 목표의 절반도/.test(l)));
+  assert.ok(lines.some((l) => /대퇴사두·햄스트링·둔근 세트가 목표의 절반도/.test(l)));
   assert.ok(!lines.some((l) => /채웠어요/.test(l)), '합성 데이터는 가슴 6세트라 아직 미달');
   s.performance.push(perf('cable_fly', [[10, 12], [10, 12], [10, 12], [10, 12]], { date: '2026-09-24' }));
   assert.ok(explainRecommendation(s, rec, now).some((l) => /가슴은 이번 주 목표 세트를 채웠어요/.test(l)));
@@ -245,4 +245,11 @@ test('목표: 근력이면 복합 운동만 낮은 반복 · 긴 휴식, 근지�
   assert.deepEqual(profileFor(s, 'plank').range, [20, 45], '시간형은 그대로');
   s.prefs.curl = { range: [6, 10] };
   assert.deepEqual(profileFor(s, 'curl').range, [6, 10]);
+});
+
+test('계획: 하체 추천에 카프는 넣지 않는다 (정책 19절)', () => {
+  for (const minutes of [30, 45, 60, 90]) {
+    const p = buildPlan(freshState(), 'lower', minutes);
+    assert.ok(!p.planned.some((x) => x.slot === 'calf' || x.id === 'calf'), `${minutes}분`);
+  }
 });

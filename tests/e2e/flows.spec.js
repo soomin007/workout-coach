@@ -265,9 +265,9 @@ test('PT 혼합 기록과 이력 수정', async ({ page }) => {
   await page.getByRole('button', { name: 'PT 기록' }).first().click();
   await sheet(page).locator('input[name=part][value=push]').check();
   await sheet(page).locator('input[name=part][value=lower]').check();
-  await sheet(page).locator('input[name=sets]').fill('10');
+  await expect(sheet(page).locator('input[name=sets]')).toHaveCount(0);
   await sheet(page).getByRole('button', { name: '저장' }).click();
-  expect((await st(page)).history.map((h) => [h.part, h.workSets])).toEqual([['push', 5], ['lower', 5]]);
+  expect((await st(page)).history.map((h) => [h.part, h.workSets, h.volumeUnknown])).toEqual([['push', 0, true], ['lower', 0, true]]);
   await page.locator('#tabs').getByRole('button', { name: '기록' }).click();
   await page.locator('[data-action="hist-edit"]').first().click();
   await sheet(page).locator('input[name=date]').fill('2026-09-01');
@@ -753,7 +753,7 @@ test('가볍게 한 날: 평소보다 확실히 가벼우면 완료 때 묻고, 
   await page.locator('[data-action="finish"]').first().click();
   await expect(sheet(page)).toContainText('가볍게 한 날인가요');
   await expect(sheet(page)).toContainText('평소 12kg → 오늘 4kg');
-  await sheet(page).getByRole('button', { name: '가볍게 한 날로 저장' }).click();
+  await sheet(page).getByRole('button', { name: '위 운동만 가볍게 저장' }).click();
   await sheet(page).getByRole('button', { name: '확인' }).click();
   const s1 = await st(page);
   expect(s1.history.at(-1).light).toBe(true);

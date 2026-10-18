@@ -25,12 +25,12 @@ export const MUSCLE_LABEL = {
 };
 export const MUSCLE_BUDGET = {
   chest: 10, back: 12, upper_back: 8, front_delt: 6, side_delt: 8, rear_delt: 6, triceps: 6, biceps: 6,
-  quads: 10, hamstring: 8, glute: 8, calf: 6,
+  quads: 10, hamstring: 8, glute: 8,
 };
 export const PART_MUSCLES = {
   push: ['chest', 'front_delt', 'side_delt', 'triceps'],
   pull: ['back', 'upper_back', 'rear_delt', 'biceps'],
-  lower: ['quads', 'hamstring', 'glute', 'calf'],
+  lower: ['quads', 'hamstring', 'glute'],
 };
 
 // 오늘 강조 부위 (시작 전 미리보기 칩). 고르면 그 근육 운동이 앞으로 오고 세트 · 보조 종목이 그쪽으로 몰린다.
@@ -38,7 +38,7 @@ export const PART_MUSCLES = {
 export const EMPHASIS = {
   push: [{ id: 'chest', label: '가슴', muscles: ['chest'] }, { id: 'shoulder', label: '어깨', muscles: ['front_delt', 'side_delt'] }, { id: 'triceps', label: '삼두', muscles: ['triceps'] }],
   pull: [{ id: 'lats', label: '광배', muscles: ['back'] }, { id: 'upper_back', label: '상부 등', muscles: ['upper_back'] }, { id: 'rear_delt', label: '후면 어깨', muscles: ['rear_delt'] }, { id: 'biceps', label: '이두', muscles: ['biceps'] }],
-  lower: [{ id: 'quads', label: '앞 허벅지', muscles: ['quads'] }, { id: 'hamstring', label: '뒤 허벅지', muscles: ['hamstring'] }, { id: 'glute', label: '엉덩이', muscles: ['glute'] }, { id: 'calf', label: '종아리', muscles: ['calf'] }],
+  lower: [{ id: 'quads', label: '앞 허벅지', muscles: ['quads'] }, { id: 'hamstring', label: '뒤 허벅지', muscles: ['hamstring'] }, { id: 'glute', label: '엉덩이', muscles: ['glute'] }],
 };
 // 한 주에 같은 부위를 두 번 할 때 번갈아 강조할 짝 (정책 15절). 시간이 나는 주에 가슴 날 · 어깨 날을 나누는 대신.
 export const EMPHASIS_ALTERNATE = { push: ['chest', 'shoulder'] };
@@ -46,10 +46,11 @@ export function emphasisMuscles(part, id) {
   return (EMPHASIS[part] || []).find((x) => x.id === id)?.muscles || [];
 }
 
+// 카프는 추천에서 뺐다(정책 19절). 운동 추가로 직접 넣을 수는 있다.
 export const CORE_SLOTS = {
   push: ['horizontal_push', 'vertical_push', 'lateral_delt', 'triceps'],
   pull: ['vertical_pull', 'horizontal_pull', 'rear_delt', 'biceps'],
-  lower: ['squat', 'unilateral', 'hamstring', 'calf'],
+  lower: ['squat', 'unilateral', 'hamstring'],
   core: ['core_flexion', 'core_flexion_lower', 'core_anti_extension', 'core_lateral'],
 };
 export const OPTIONAL_SLOTS = {

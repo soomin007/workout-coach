@@ -51,7 +51,7 @@ test('감지: 평소 최고 무게의 85% 미만인 운동이 비교 가능한 �
   const r = lighterThanUsual(s, ses);
   assert.equal(r.compared, 1, '이전 기록 없는 운동은 비교에서 빠진다');
   assert.equal(r.suggest, true);
-  assert.deepEqual(r.lighter[0], { name: '랫풀다운', was: 50, now: 27.5 });
+  assert.deepEqual(r.lighter[0], { exerciseId: 'lat', name: '랫풀다운', was: 50, now: 27.5 });
 });
 
 test('감지: 실패 뒤 감량 처방(약 90%)은 가벼운 날로 묻지 않는다', () => {
@@ -103,4 +103,19 @@ test('가볍게 한 날로 시작: 평소 처방의 65% · 2세트 · 하한 반
   for (const e of s.session.exercises) for (const z of e.sets) { z.done = true; if (z.weight === null) z.reps = z.reps ?? 10; }
   T.finishSession(s, { now });
   assert.equal(s.history.at(-1).light, true);
+});
+
+test('후반에만 무게를 낮춘 날: 고른 운동만 가볍게, 나머지는 평소 기록 (10/17 하체 모양)', () => {
+  const s = freshState();
+  const now = new Date(2026, 9, 17, 19);
+  T.setCheck(s, { energy: 'normal', minutes: 45, intensity: 'normal' }, { now });
+  T.createSession(s, { part: 'pull', source: 'manual', now });
+  for (const e of s.session.exercises) for (const z of e.sets) { if (z.type !== 'main') continue; z.weight = 20; z.reps = 10; z.done = true; }
+  const [first, ...rest] = s.session.exercises;
+  const id = s.session.id;
+  T.finishSession(s, { lightExercises: [rest[0].exerciseId], now });
+  assert.equal(s.history.at(-1).light, true, '세션은 가벼운 날 표시(볼륨 중앙값 제외)');
+  const perf = s.performance.filter((p) => p.sessionId === id);
+  assert.equal(perf.find((p) => p.exerciseId === rest[0].exerciseId).light, true);
+  assert.equal('light' in perf.find((p) => p.exerciseId === first.exerciseId), false, '초반 운동은 처방에 쓴다');
 });
