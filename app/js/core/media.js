@@ -14,6 +14,7 @@ export const EX_MEDIA = {
   tbar: 't-bar-row', facepull: 'face-pull', db_rear: 'dumbbell-reverse-fly', curl: 'bicep-curl', hammer: 'hammer-curl',
   squat: 'squat', smith_squat: 'smith-machine-squat', bulgarian: 'bulgarian-split-squat', legcurl: 'seated-leg-curl',
   legpress: 'single-leg-press', abduction: 'hip-abduction', bw_split_squat: 'split-squat', glute_bridge: 'glute-bridge',
+  db_hip_thrust: 'dumbbell-hip-thrust', cable_kickback: 'cable-kickback', oh_cable_ext: 'cable-overhead-tricep-extension',
   calf: 'single-leg-calf-raise', deadbug: 'dead-bug', plank: 'plank', bird_dog: 'bird-dog-hold', pallof: 'cable-pallof-press',
   side_plank: 'side-plank', reverse_crunch: 'reverse-crunches', crunch: 'crunches', shoulder_tap: 'high-plank',
   cable_crunch: 'cable-crunch', leg_raise: 'lying-leg-raise', hanging_leg_raise: 'hanging-leg-raise', bicycle_crunch: 'bicycle-crunch',
