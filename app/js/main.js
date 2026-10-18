@@ -552,27 +552,17 @@ function stepValue(d) {
 async function exerciseMenu(uid) {
   const e = entry(uid);
   if (!e) return;
-  const idx = store.state.session.exercises.findIndex((x) => x.uid === uid);
+  // 항목은 5개 안팎으로 둔다: 교체 사유 · 순서 이동은 다음 시트에서 고른다 (known-issues 23).
   const v = await choiceSheet(e.name, [
-    { value: 'swap', label: '운동 변경', hint: '같은 동작 대체 후보가 먼저 나옵니다' },
-    { value: 'unavail', label: '오늘 기구 사용 불가', hint: '같은 동작의 다른 운동으로 자동 교체' },
-    { value: 'unavail-perm', label: '이 헬스장에 없음 (항상 제외)' },
-    { value: 'custom', label: '실제로 한 운동 이름 입력', hint: '목록에 없는 운동으로 바꾸기' },
-    { value: 'up', label: '위로 이동', disabled: idx === 0 },
-    { value: 'down', label: '아래로 이동', disabled: idx === store.state.session.exercises.length - 1 },
+    { value: 'swap', label: '운동 변경', hint: '대체 후보 · 기구 사용 불가 · 직접 입력' },
+    { value: 'move', label: '순서 바꾸기', disabled: store.state.session.exercises.length < 2 },
     { value: 'memo', label: e.memo ? '메모 수정' : '메모 남기기' },
     { value: 'pref', label: '이 운동 기본값 설정', hint: '중량 방식 · 증량 · 기본 휴식 · 반복 범위 (다음 세션에도 적용)' },
     { value: 'remove', label: '오늘 세션에서 삭제' },
   ]);
   if (!v) return;
   if (v === 'swap') return swapExercise(uid);
-  if (v === 'unavail' || v === 'unavail-perm') {
-    if (T.entryHasUserData(e) && e.sets.some((z) => !z.done && z.touched) && !(await confirmSheet('아직 완료하지 않은 입력값은 버리고 교체합니다. 계속할까요?'))) return;
-    const name = e.name;
-    return run((s) => T.markUnavailable(s, uid, { persistent: v === 'unavail-perm' }), (ne) => (ne ? `${name} → ${ne.name}` : '같은 동작의 대체 운동이 없습니다. 운동 변경이나 자동 보완을 써 보세요.'));
-  }
-  if (v === 'custom') return customExercise(uid);
-  if (v === 'up' || v === 'down') return run((s) => T.moveExercise(s, uid, idx + (v === 'up' ? -1 : 1)), (ch) => (ch?.length ? `순서가 바뀌어 ${ch.map((e) => e.name).join(', ')} 목표를 다시 잡았습니다.` : ''));
+  if (v === 'move') return moveExerciseTo(uid);
   if (v === 'memo') return editMemo(uid);
   if (v === 'pref') return editPref(e.exerciseId);
   if (v === 'remove') {
@@ -623,13 +613,34 @@ async function confirmReplace(e) {
   return true;
 }
 
+// 대체 후보 목록 아래에 교체 사유(기구 사용 불가 · 헬스장에 없음 · 직접 입력)를 함께 둔다.
 async function swapExercise(uid) {
   const e = entry(uid);
   const cands = replacementCandidates(store.state, e);
-  if (!cands.length) { toast('오늘 세션과 겹치지 않는 대체 후보가 없습니다.'); return; }
-  const id = await choiceSheet(`${e.name} 대신`, cands.map((x) => ({ value: x.id, label: x.name, hint: `${x.sameSlot ? '같은 동작' : '다른 역할'} · ${MODE_LABEL[x.mode]} · ${x.range[0]}~${x.range[1]}${x.measure === 'seconds' ? '초' : '회'}` })));
-  if (!id || !(await confirmReplace(e))) return;
+  const id = await choiceSheet(`${e.name} 대신`, [
+    ...cands.map((x) => ({ value: x.id, label: x.name, hint: `${x.sameSlot ? '같은 동작' : '다른 역할'} · ${MODE_LABEL[x.mode]} · ${x.range[0]}~${x.range[1]}${x.measure === 'seconds' ? '초' : '회'}` })),
+    { value: '__unavail', label: '오늘 기구 사용 불가', hint: '같은 동작의 다른 운동으로 자동 교체' },
+    { value: '__unavail-perm', label: '이 헬스장에 없음 (항상 제외)' },
+    { value: '__custom', label: '실제로 한 운동 이름 입력', hint: '목록에 없는 운동으로 바꾸기' },
+  ], { note: cands.length ? '' : '오늘 세션과 겹치지 않는 대체 후보가 없습니다.' });
+  if (!id) return;
+  if (id === '__custom') return customExercise(uid);
+  if (id === '__unavail' || id === '__unavail-perm') {
+    if (T.entryHasUserData(e) && e.sets.some((z) => !z.done && z.touched) && !(await confirmSheet('아직 완료하지 않은 입력값은 버리고 교체합니다. 계속할까요?'))) return;
+    const name = e.name;
+    return run((s) => T.markUnavailable(s, uid, { persistent: id === '__unavail-perm' }), (ne) => (ne ? `${name} → ${ne.name}` : '같은 동작의 대체 운동이 없습니다. 운동 변경이나 자동 보완을 써 보세요.'));
+  }
+  if (!(await confirmReplace(e))) return;
   run((s) => T.replaceExercise(s, uid, id), (ne) => `${ne.name}(으)로 바꿨습니다.`);
+}
+
+// 갈 자리를 한 번 누르면 바로 옮긴다(위로 · 아래로를 여러 번 누르지 않게).
+async function moveExerciseTo(uid) {
+  const xs = store.state.session.exercises;
+  const idx = xs.findIndex((x) => x.uid === uid);
+  const v = await choiceSheet('어디로 옮길까요?', xs.map((x, i) => ({ value: String(i), label: `${i + 1}. ${x.name}`, hint: i === idx ? '지금 위치' : i < idx ? '이 운동 앞으로' : '이 운동 뒤로', disabled: i === idx })));
+  if (v === undefined || v === null || v === '') return;
+  run((s) => T.moveExercise(s, uid, +v), (ch) => (ch?.length ? `순서가 바뀌어 ${ch.map((e) => e.name).join(', ')} 목표를 다시 잡았습니다.` : ''));
 }
 
 async function customExercise(uid) {

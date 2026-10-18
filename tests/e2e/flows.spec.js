@@ -99,7 +99,8 @@ test('미완료 입력이 있을 때 교체를 취소하면 아무것도 바뀌�
   await sheet(page).locator('.list button').first().click();
   await expect(sheet(page)).toContainText('버리고 교체');
   await sheet(page).getByRole('button', { name: '취소' }).click();
-  await menu(page, 'curl', '실제로 한 운동 이름 입력');
+  await menu(page, 'curl', '운동 변경');
+  await sheet(page).getByRole('button', { name: '실제로 한 운동 이름 입력' }).click();
   await sheet(page).locator('input[name=name]').fill('케이블 컬');
   await sheet(page).getByRole('button', { name: '바꾸기' }).click();
   await sheet(page).getByRole('button', { name: '취소' }).click();
@@ -809,4 +810,15 @@ test('기록 없는 운동 무게 찾기: 첫 세트가 가벼우면 워밍업�
   await expect(c.getByTestId('find-weight')).toHaveCount(0);
   e = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl');
   expect(e.findWeight).toBe(false);
+});
+
+test('... 메뉴는 5개, 순서 바꾸기는 갈 자리를 한 번 누르면 옮긴다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const ids = (await st(page)).session.exercises.map((x) => x.exerciseId);
+  await card(page, ids[0]).locator('[data-action="ex-menu"]').click();
+  await expect(sheet(page).locator('.list button')).toHaveCount(5);
+  await sheet(page).getByRole('button', { name: '순서 바꾸기' }).click();
+  await sheet(page).locator('.list button').last().click();
+  const after = (await st(page)).session.exercises.map((x) => x.exerciseId);
+  expect(after).toEqual([...ids.slice(1), ids[0]]);
 });
