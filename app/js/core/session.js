@@ -2,7 +2,7 @@
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, EMPHASIS, catalogById, emphasisMuscles } from './catalog.js';
-import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY, recoveryRx, RECOVERY } from './coach.js';
+import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY, recoveryRx, RECOVERY, easyRx } from './coach.js';
 import { buildPlan, autoEmphasis, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
 import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
@@ -83,7 +83,8 @@ export function setFindFeel(state, uid, setIndex, feel) {
 // 세션 처방: 가볍게 한 날로 시작했으면 평소 처방을 낮춘다 (정책 16절).
 function sessionRx(state, p, pf, grip) {
   const rx = prescribeForOrder(p, state, pf, grip);
-  return state.session?.recovery ? recoveryRx(p, rx) : rx;
+  if (state.session?.recovery) return recoveryRx(p, rx);
+  return state.session?.intensity === 'light' ? easyRx(p, rx) : rx;
 }
 
 export function makeEntry(state, exerciseId, { slot = null, setCount = null, warmupLevel = null, part, minutes } = {}) {
@@ -762,7 +763,9 @@ export function finishSession(state, { now = new Date(), light = false, lightExe
   const s = sessionOf(state);
   if (s.recovery) { light = true; lightExercises = null; }
   if (lightExercises?.length) light = true;
-  const lightOf = (e) => light && (!lightExercises?.length || lightExercises.includes(e.exerciseId));
+  // 강도 가볍게로 낮춘 무게를 그대로 했으면 그 운동은 가벼운 기록이다. 평소 무게로 올려서 했으면 실력 기록이다.
+  const easyDay = (e) => e.prescription?.kind === 'easy' && Math.max(...e.sets.filter((z) => z.done && z.type === 'main' && z.weight !== null).map((z) => z.weight), -Infinity) < e.prescription.usual;
+  const lightOf = (e) => (light && (!lightExercises?.length || lightExercises.includes(e.exerciseId))) || easyDay(e);
   const duration = activeDurationSec(s, now);
   const work = countWorkSets(s);
   const ord = actualOrder(s.exercises.map((e) => ({ key: e.uid, primary: e.primary, secondary: e.secondary, sets: e.sets })));

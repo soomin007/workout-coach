@@ -111,7 +111,7 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
     <div class="pick-label">부위</div>${chips('part', parts, part, { required: true })}
     <div class="pick-label">컨디션</div>${chips('energy', ENERGY, val('energy'), { required: true })}
     <div class="pick-label">가능 시간</div>${chips('minutes', MINUTES.map((m) => [m, `${m}분`]), val('minutes'), { required: true })}
-    <div class="pick-label">강도</div>${chips('intensity', [['light', '가볍게', '세트 적게'], ['normal', '일반', ''], ['strength', '근력 중심', '첫 메인 운동 무겁게']], val('intensity'), { required: true })}
+    <div class="pick-label">강도</div>${chips('intensity', [['light', '가볍게', '세트 적게, 무게 10% 낮게'], ['normal', '일반', ''], ['strength', '근력 중심', '첫 메인 운동 무겁게']], val('intensity'), { required: true })}
     ${last}
     <div class="pick-label">상체 근육통</div>${chips('upperDoms', DOMS, c.upperDoms)}
     <div class="pick-label">하체 근육통</div>${chips('lowerDoms', DOMS, c.lowerDoms)}

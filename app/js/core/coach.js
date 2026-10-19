@@ -79,6 +79,17 @@ export function recoveryRx(profile, rx) {
   return { ...rx, weight: w, reps: lo, kind: 'recovery', note: `가볍게 한 날: 평소 처방 ${rx.weight}kg의 약 ${Math.round(RECOVERY.pct * 100)}%인 ${w}kg로 ${lo}${u}. ${tail}` };
 }
 
+// 시작할 때 '강도: 가볍게'(피곤한 날): 세트를 줄이고(plan.js) 무게도 약 10% 낮춘다. 반복 목표는 그대로라 여유가 더 남는다.
+// 컨디션 자동 조절 도구들이 3~10% 를 쓴다(정책 16절). 근육통 때의 가볍게 한 날(65%)보다는 훨씬 덜 낮춘다.
+export const EASY = { pct: 0.9 };
+
+export function easyRx(profile, rx) {
+  if (rx.weight === null || rx.weight === undefined || isAssist(profile.mode) || profile.mode === 'bodyweight' || !(profile.inc > 0)) return rx;
+  const w = Math.max(profile.start || 0, Math.min(roundTo(rx.weight * EASY.pct, profile.inc, 'round', profile.start), rx.weight - profile.inc));
+  if (w >= rx.weight) return rx;
+  return { ...rx, weight: w, usual: rx.weight, kind: 'easy', note: `강도 가볍게: 평소 처방 ${rx.weight}kg에서 한 단계 낮춘 ${w}kg. ${rx.note || ''}`.trim() };
+}
+
 export function preferNormal(xs) {
   const n = xs.filter((p) => !p.light);
   return n.length ? n : xs;

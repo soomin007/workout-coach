@@ -119,3 +119,22 @@ test('후반에만 무게를 낮춘 날: 고른 운동만 가볍게, 나머지�
   assert.equal(perf.find((p) => p.exerciseId === rest[0].exerciseId).light, true);
   assert.equal('light' in perf.find((p) => p.exerciseId === first.exerciseId), false, '초반 운동은 처방에 쓴다');
 });
+
+test('강도 가볍게: 무게를 약 10%(최소 한 단계) 낮추고, 그 무게로 했으면 가벼운 기록, 평소 무게로 올렸으면 실력 기록 (10/17 메모)', () => {
+  const s = withHistory({ light: true });
+  const now = new Date(2026, 9, 10, 18);
+  T.setCheck(s, { energy: 'normal', minutes: 60, intensity: 'light' }, { now });
+  T.createSession(s, { part: 'pull', source: 'manual', now });
+  const lat = s.session.exercises.find((e) => e.exerciseId === 'lat');
+  assert.ok(lat, '랫풀다운이 계획에 있다');
+  assert.equal(lat.prescription.kind, 'easy');
+  assert.deepEqual([lat.prescription.usual, lat.sets.find((z) => z.type === 'main').weight], [50, 42.5], '50kg 의 90% = 45 → 스택 눈금 42.5');
+  lat.sets.forEach((z, i) => { if (z.type === 'main') T.toggleSetDone(s, lat.uid, i, { now }); });
+  const other = s.session.exercises.find((e) => e.uid !== lat.uid && e.prescription.kind === 'easy');
+  if (other) other.sets.forEach((z, i) => { if (z.type === 'main') { T.editSet(s, other.uid, i, 'weight', other.prescription.usual); T.toggleSetDone(s, other.uid, i, { now }); } });
+  T.finishSession(s, { now });
+  const recs = s.performance.filter((p) => p.sessionId === s.history.at(-1).id);
+  assert.equal(recs.find((p) => p.exerciseId === 'lat').light, true);
+  if (other) assert.equal(recs.find((p) => p.exerciseId === other.exerciseId).light, undefined);
+  assert.equal(s.history.at(-1).light, undefined, '세션 전체를 가벼운 날로 표시하지는 않는다(볼륨은 그대로 센다)');
+});
