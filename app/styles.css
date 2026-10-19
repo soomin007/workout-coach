@@ -232,6 +232,19 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .toast { position: fixed; left: 50%; bottom: calc(130px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; max-width: calc(100% - 32px);
   background: var(--text); color: var(--bg); border-radius: 10px; padding: 10px 14px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .toast.show { opacity: 1; }
+.toast { word-break: keep-all; }
+.toast.has-action { width: min(420px, calc(100% - 32px)); }
+.toast.has-action.show { pointer-events: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.toast button { background: none; border: 0; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; padding: 6px 2px; min-height: 36px; white-space: nowrap; }
+/* 세트 줄 스와이프 삭제(ui/swipe.js). 줄이 왼쪽으로 밀리면 오른쪽에 붉은 '삭제' 칸이 따라 나온다. */
+.card.ex { overflow-x: clip; }
+.sets .set { touch-action: pan-y; }
+.set.swiping { transition: none; z-index: 1; }
+.set.swipe-back { transition: transform .18s ease; }
+.set.swipe-out { transition: transform .16s ease-in; }
+.set.swiping::after, .set.swipe-out::after { content: '삭제'; position: absolute; left: 100%; top: 0; bottom: 0; width: 100vw; margin-left: 8px; padding-left: 16px;
+  display: flex; align-items: center; border-radius: 14px; background: var(--bad); color: #fff; font-weight: 700; font-size: 14px; }
+.set.swiping.armed::after { content: '놓으면 삭제'; }
 
 .hist-item { padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .hist-item:last-child { border-bottom: 0; }

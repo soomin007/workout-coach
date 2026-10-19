@@ -428,3 +428,30 @@ test('강조는 완료 기록(history)에 남는다', () => {
   T.finishSession(s, { now: new Date(now.getTime() + 600000) });
   assert.equal(s.history.at(-1).emphasis, 'shoulder');
 });
+
+test('세트 삭제: 기록한 줄도 지우고 되돌리면 같은 자리로, 휴식 타이머 줄 번호도 따라간다 (10/19 메모)', () => {
+  const s = sessionWith(freshState(), 'pull', ['curl']);
+  const e = entryOf(s, 'curl');
+  const n = e.sets.length;
+  T.toggleSetDone(s, e.uid, 1, { now });
+  assert.equal(s.session.restTimer.setIndex, 1);
+  const r = T.deleteSet(s, e.uid, 0);
+  assert.equal(entryOf(s, 'curl').sets.length, n - 1);
+  assert.equal(s.session.restTimer.setIndex, 0, '앞 줄이 빠지면 타이머 줄도 당겨진다');
+  T.restoreSet(s, r);
+  assert.equal(entryOf(s, 'curl').sets.length, n);
+  assert.equal(s.session.restTimer.setIndex, 1);
+  T.deleteSet(s, e.uid, 1);
+  assert.equal(s.session.restTimer, null, '휴식 중인 줄을 지우면 타이머도 끈다');
+});
+
+test('세트 삭제: 본세트가 하나 남으면 지우지 않는다, 워밍업은 지울 수 있다', () => {
+  const s = sessionWith(freshState(), 'pull', ['curl']);
+  const e = entryOf(s, 'curl');
+  while (entryOf(s, 'curl').sets.filter((z) => z.type !== 'warmup').length > 1) T.deleteSet(s, e.uid, 0);
+  assert.throws(() => T.deleteSet(s, e.uid, 0), /마지막 세트/);
+  T.editSet(s, e.uid, 0, 'type', 'main');
+  entryOf(s, 'curl').sets.unshift({ ...entryOf(s, 'curl').sets[0], type: 'warmup' });
+  T.deleteSet(s, e.uid, 0);
+  assert.equal(entryOf(s, 'curl').sets.length, 1);
+});

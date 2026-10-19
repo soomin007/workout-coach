@@ -822,3 +822,30 @@ test('... 메뉴는 5개, 순서 바꾸기는 갈 자리를 한 번 누르면 �
   const after = (await st(page)).session.exercises.map((x) => x.exerciseId);
   expect(after).toEqual([...ids.slice(1), ids[0]]);
 });
+
+// 세트 줄을 왼쪽으로 민다. 손가락 대신 마우스 포인터로 같은 pointer 이벤트를 낸다.
+async function swipeRow(page, row, dx) {
+  await row.scrollIntoViewIfNeeded();
+  const b = await row.boundingBox();
+  const y = b.y + b.height / 2, x = b.x + b.width * 0.6;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let k = 1; k <= 8; k++) await page.mouse.move(x + (dx * k) / 8, y + k * 0.5);
+  await page.mouse.up();
+}
+
+test('세트 줄을 왼쪽으로 밀면 지워지고, 되돌리기로 살아난다. 조금만 밀면 그대로 (10/19 메모)', async ({ page }) => {
+  await startPart(page, 'Push');
+  const c = card(page, 'bench');
+  const rows = c.locator('.sets .set');
+  const n = await rows.count();
+  await swipeRow(page, c.locator('.set.main').nth(1), -40);
+  await expect(rows).toHaveCount(n);
+  await expect(c.locator('.set.main').nth(1)).not.toHaveClass(/done/);
+  await swipeRow(page, c.locator('.set.main').nth(1), -260);
+  await expect(rows).toHaveCount(n - 1);
+  await expect(page.locator('#toast')).toContainText('지웠습니다');
+  await page.getByTestId('toast-action').click();
+  await expect(rows).toHaveCount(n);
+  expect((await st(page)).session.exercises.find((x) => x.exerciseId === 'bench').sets.filter((z) => z.done)).toEqual([]);
+});

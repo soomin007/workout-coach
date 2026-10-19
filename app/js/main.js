@@ -13,6 +13,7 @@ import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, h
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
+import { bindSwipeDelete } from './ui/swipe.js';
 import { renderLibrary, exerciseDetailHtml, addExercisesHtml, bindAddSheet } from './ui/library.js';
 import { recommendPart } from './core/plan.js';
 
@@ -247,6 +248,13 @@ document.addEventListener('click', (ev) => {
   if (b.tagName === 'SELECT' || b.tagName === 'INPUT' || b.tagName === 'TEXTAREA') return;
   const fn = actions[b.dataset.action];
   if (fn) { ev.preventDefault(); fn({ ...b.dataset }); }
+});
+// 세트 줄을 왼쪽으로 밀면 지운다. 실패(마지막 세트)하면 밀린 줄을 제자리로 다시 그린다.
+bindSwipeDelete(document, (uid, i) => {
+  const name = entry(uid)?.name || '';
+  const r = run((s) => T.deleteSet(s, uid, i));
+  if (!r) { render(); return; }
+  toast(`${name} ${i + 1}번째 줄을 지웠습니다.`, 5000, { label: '되돌리기', run: () => run((s) => T.restoreSet(s, r)) });
 });
 document.getElementById('tabs').addEventListener('click', (ev) => { const b = ev.target.closest('[data-tab]'); if (b) actions.tab({ tab: b.dataset.tab }); });
 document.addEventListener('change', (ev) => { const el = ev.target.closest('[data-action]'); const fn = el && changeActions[el.dataset.action]; if (fn) fn({ ...el.dataset }, el); });

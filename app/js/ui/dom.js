@@ -5,13 +5,21 @@ export function esc(x) {
 }
 
 let toastTimer = null;
-export function toast(msg, ms = 2200) {
+// action: { label, run } 이면 글 옆에 버튼을 붙인다(세트 삭제의 되돌리기). 누르면 바로 닫힌다.
+export function toast(msg, ms = 2200, action = null) {
   if (!msg) return;
   const el = document.getElementById('toast');
   el.textContent = msg;
+  el.classList.toggle('has-action', !!action);
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = action.label; b.dataset.testid = 'toast-action';
+    b.addEventListener('click', () => { clearTimeout(toastTimer); el.classList.remove('show', 'has-action'); action.run(); }, { once: true });
+    el.append(b);
+  }
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  toastTimer = setTimeout(() => el.classList.remove('show', 'has-action'), ms);
 }
 
 // 바텀시트. html 을 넣고, [data-sheet-value] 버튼을 누르면 그 값으로 resolve. 배경을 누르면 null.

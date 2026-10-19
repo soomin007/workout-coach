@@ -535,6 +535,33 @@ export function changeSetCount(state, uid, delta) {
   recalcEstimate(state);
 }
 
+// 세트 줄 하나를 지운다(스와이프 삭제, 10/19 메모). 기록한 세트도 지울 수 있고, 되돌리기는 restoreSet 으로 한다.
+// 본세트가 하나뿐이면 지우지 않는다: 운동을 빼는 일은 ⋯ 메뉴의 운동 빼기가 맡는다.
+export function deleteSet(state, uid, setIndex) {
+  const s = sessionOf(state);
+  const { entry } = findEntry(state, uid);
+  const z = entry.sets[setIndex];
+  need(z, 'no_set', '세트를 찾지 못했습니다.');
+  need(z.type === 'warmup' || entry.sets.filter((x) => x.type !== 'warmup').length > 1, 'last_set', '마지막 세트는 지울 수 없습니다. 운동을 빼려면 ⋯ 메뉴를 쓰세요.');
+  entry.sets.splice(setIndex, 1);
+  const rt = s.restTimer;
+  if (rt?.uid === uid) {
+    if (rt.setIndex === setIndex) s.restTimer = null;
+    else if (rt.setIndex > setIndex) rt.setIndex--;
+  }
+  recalcEstimate(state);
+  return { uid, setIndex, set: z };
+}
+
+export function restoreSet(state, { uid, setIndex, set }) {
+  const { entry } = findEntry(state, uid);
+  const i = Math.min(Math.max(0, setIndex), entry.sets.length);
+  entry.sets.splice(i, 0, set);
+  const rt = sessionOf(state).restTimer;
+  if (rt?.uid === uid && rt.setIndex >= i) rt.setIndex++;
+  recalcEstimate(state);
+}
+
 export function moveExercise(state, uid, toIndex) {
   const s = sessionOf(state);
   const { idx } = findEntry(state, uid);
