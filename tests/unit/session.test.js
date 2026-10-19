@@ -59,8 +59,8 @@ test('교체: 보조운동 → 복합운동이면 워밍업 수준과 행을 새
   assert.equal(ne.loadMode, 'total');
   const warm = ne.sets.filter((z) => z.type === 'warmup');
   assert.equal(warm.length, 3);
-  assert.ok(warm.every((z) => z.weight < 52.5));
-  assert.ok(mains(ne).every((z) => z.weight === 52.5 && z.reps === 6), '지난 기록 기반 처방으로 미리 채움');
+  assert.ok(warm.every((z) => z.weight < 55));
+  assert.ok(mains(ne).every((z) => z.weight === 55 && z.reps === 6), '지난 기록 기반 처방으로 미리 채움');
 });
 
 test('교체: 편측 → 양측이면 좌우 입력 흔적이 새 운동에 남지 않는다', () => {
@@ -124,12 +124,12 @@ test('하한 미만이면 아직 손대지 않은 남은 세트만 한 단계 �
   const s = sessionWith(freshState(), 'push', ['bench']);
   const e = entryOf(s, 'bench');
   T.editSet(s, e.uid, mi(s, 'bench', 0), 'weight', 60);
-  T.editSet(s, e.uid, mi(s, 'bench', 2), 'weight', 55);
+  T.editSet(s, e.uid, mi(s, 'bench', 2), 'weight', 50);
   T.editSet(s, e.uid, mi(s, 'bench', 0), 'reps', 4);
   T.toggleSetDone(s, e.uid, mi(s, 'bench', 0), { now });
   const x = mains(entryOf(s, 'bench'));
-  assert.equal(x[1].weight, 57.5);
-  assert.equal(x[2].weight, 55, '사용자가 고친 세트는 건드리지 않는다');
+  assert.equal(x[1].weight, 55);
+  assert.equal(x[2].weight, 50, '사용자가 고친 세트는 건드리지 않는다');
 });
 
 test('중량을 고치면 뒤따르는 미수정 세트와 워밍업이 따라 바뀐다', () => {
@@ -141,7 +141,7 @@ test('중량을 고치면 뒤따르는 미수정 세트와 워밍업이 따라 �
   T.editSet(s, e.uid, i, 'weight', 60);
   const x = entryOf(s, 'bench');
   assert.ok(mains(x).every((z) => z.weight === 60));
-  assert.deepEqual(x.sets.filter((z) => z.type === 'warmup').map((z) => z.weight), [30, 42.5, 50]);
+  assert.deepEqual(x.sets.filter((z) => z.type === 'warmup').map((z) => z.weight), [30, 40, 50]);
 });
 
 test('진행 중 세션 날짜를 바꾸면 이력과 운동 기록이 모두 그 날짜를 쓴다', () => {

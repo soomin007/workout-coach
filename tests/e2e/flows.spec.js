@@ -558,8 +558,8 @@ test('근력 중심: 첫 메인 운동이 톱세트 + 백오프, 톱세트 뒤 �
   await expect(c.locator('.set.main .no').first()).toContainText('톱');
   await expect(c.locator('.set.main')).toHaveCount(3);
   const topI = await c.locator('.set').evaluateAll((xs) => xs.findIndex((x) => x.querySelector('.no')?.textContent.startsWith('톱')));
-  await expect(c.getByTestId(`weight-${topI}`)).toContainText('97.5kg');
-  await expect(c.getByTestId(`weight-${topI + 1}`)).toContainText('87.5kg');
+  await expect(c.getByTestId(`weight-${topI}`)).toContainText('95kg');
+  await expect(c.getByTestId(`weight-${topI + 1}`)).toContainText('85kg');
   await c.locator('.set').nth(topI).locator('[data-action="done"]').click();
   await c.getByTestId('top-rir').getByRole('button', { name: '2' }).click();
   await expect(c.getByTestId('top-rir')).toHaveCount(0);

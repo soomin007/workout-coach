@@ -13,9 +13,9 @@ const v7 = () => importAny(JSON.parse(readFileSync(new URL('../fixtures/v7_synth
 const rx = (state, id) => prescribe(profileFor(state, id), lastPerformance(state, id));
 const perf = (exerciseId, sets, extra = {}) => ({ sessionId: 's', date: '2026-09-20', part: 'push', exerciseId, name: exerciseId, sets: sets.map(([weight, reps, rir = null]) => ({ type: 'main', weight, reps, rir, split: false, done: true })), effort: null, ...extra });
 
-test('처방: 벤치 50kg×8 두 세트가 상한(8) 도달 → 52.5kg, 하한 6회부터', () => {
+test('처방: 벤치 50kg×8 두 세트가 상한(8) 도달 → 55kg(바벨은 5kg 단위), 하한 6회부터', () => {
   const r = rx(v7(), 'bench');
-  assert.deepEqual([r.kind, r.weight, r.reps], ['increase', 52.5, 6]);
+  assert.deepEqual([r.kind, r.weight, r.reps], ['increase', 55, 6]);
 });
 
 test('처방: 랫풀다운 50×8, 57×5, 65×5 → 범위 안을 채운 50kg 유지, 9회', () => {
@@ -32,7 +32,7 @@ test('처방: 하한 미만만 있으면 약 10% 감량, 증량 단위로 내림
   const s = freshState();
   s.performance.push(perf('bench', [[60, 4], [60, 3]]));
   const r = rx(s, 'bench');
-  assert.deepEqual([r.kind, r.weight, r.reps], ['decrease', 52.5, 6]);
+  assert.deepEqual([r.kind, r.weight, r.reps], ['decrease', 50, 6]);
 });
 
 test('처방: 느낌이 한계면 상한을 채워도 증량하지 않는다', () => {
@@ -55,9 +55,9 @@ test('처방: 기록 없음 → 중량 비움, 보정 안내', () => {
   assert.equal(r.weight, null);
 });
 
-test('워밍업: 첫 복합 60kg → 30 · 42.5 · 50, 체중·고립 운동은 없음', () => {
+test('워밍업: 첫 복합 60kg → 30 · 40 · 50, 체중·고립 운동은 없음', () => {
   const s = freshState();
-  assert.deepEqual(warmupPlan(profileFor(s, 'bench'), 60, 'full').map((x) => x.weight), [30, 42.5, 50]);
+  assert.deepEqual(warmupPlan(profileFor(s, 'bench'), 60, 'full').map((x) => x.weight), [30, 40, 50]);
   assert.deepEqual(warmupPlan(profileFor(s, 'pullup'), 60, 'full'), []);
   assert.deepEqual(warmupPlan(profileFor(s, 'lateral'), 10, 'short'), []);
 });
@@ -281,4 +281,11 @@ test('장비: 발목 스트랩은 설정에서 켜기 전까지 없는 것으로
   s.settings.equipment.ankle_strap = true;
   assert.equal(isAvailable(s, profileFor(s, 'cable_kickback')), true);
   assert.equal(isAvailable(s, profileFor(s, 'db_hip_thrust')), true);
+});
+
+test('바벨 운동은 양쪽 합으로 5kg 단위 (가장 작은 원판 2.5kg, 10/12 · 10/19 메모)', () => {
+  const s = freshState();
+  for (const id of ['bench', 'ohp', 'squat']) assert.equal(profileFor(s, id).inc, 5, id);
+  s.performance.push(perf('bench', [[60, 5], [60, 4], [50, 10], [50, 10]]));
+  assert.equal(rx(s, 'bench').weight % 5, 0);
 });

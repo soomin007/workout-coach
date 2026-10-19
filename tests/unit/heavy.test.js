@@ -21,7 +21,7 @@ test('추정 1RM: 100kg × 3회 RIR 2 → 약 116.7kg', () => {
   assert.equal(estimate1RM(100, 15, 0), null, '12회 넘으면 추정하지 않음');
 });
 
-test('근력 중심: 첫 메인 운동만 톱세트 1 + 백오프, 10/1 기록 기준 97.5kg · 87.5kg, 휴식 240초', () => {
+test('근력 중심: 첫 메인 운동만 톱세트 1 + 백오프, 10/1 기록 기준 95kg · 85kg(바벨 5kg 단위), 휴식 240초', () => {
   const s = freshState();
   s.performance.push(squat101);
   const ex = strengthSession(s);
@@ -30,8 +30,8 @@ test('근력 중심: 첫 메인 운동만 톱세트 1 + 백오프, 10/1 기록 �
   assert.equal(sq.heavy, true);
   const mains = sq.sets.filter((z) => z.type === 'main');
   assert.equal(mains[0].heavy, 'top');
-  assert.deepEqual([mains[0].weight, mains[0].reps], [97.5, 4]);
-  assert.ok(mains.slice(1).every((z) => z.heavy === 'backoff' && z.weight === 87.5 && z.reps === 6));
+  assert.deepEqual([mains[0].weight, mains[0].reps], [95, 4]);
+  assert.ok(mains.slice(1).every((z) => z.heavy === 'backoff' && z.weight === 85 && z.reps === 6));
   assert.ok(mains.length - 1 >= 2 && mains.length - 1 <= 3);
   assert.equal(sq.restToday, 240);
   assert.ok(sq.sets.filter((z) => z.type === 'warmup').length >= 3, '워밍업을 더 올린다');
@@ -66,14 +66,14 @@ test('톱세트 무게를 고치면 백오프는 90%로, 톱세트 결과가 3�
 test('무거운 날 기록은 평소 처방을 오염시키지 않고, 다음 무거운 날은 톱세트로 진행', () => {
   const s = freshState();
   s.performance.push({ sessionId: 'n', date: '2026-09-20', part: 'lower', exerciseId: 'squat', sets: [set(80, 8), set(80, 8), set(80, 8)], effort: 'ok' });
-  s.performance.push({ sessionId: 'h', date: '2026-10-01', part: 'lower', exerciseId: 'squat', heavy: true, sets: [set(97.5, 5, 2, { heavy: 'top' }), set(87.5, 6, null, { heavy: 'backoff' }), set(87.5, 4, null, { heavy: 'backoff' })], effort: 'hard' });
+  s.performance.push({ sessionId: 'h', date: '2026-10-01', part: 'lower', exerciseId: 'squat', heavy: true, sets: [set(95, 5, 2, { heavy: 'top' }), set(85, 6, null, { heavy: 'backoff' }), set(85, 4, null, { heavy: 'backoff' })], effort: 'hard' });
   const p = profileFor(s, 'squat');
   const rx = prescribe(p, lastPerformance(s, 'squat', { heavy: false }));
   assert.equal(rx.kind, 'increase', '평소 처방은 9/20 기록 기준 (80×8 상한 → 증량)');
-  assert.equal(rx.weight, 82.5);
+  assert.equal(rx.weight, 85);
   assert.equal(heavyPrescribe(p, s).weight, 100, '톱세트 5회 RIR 2 → 한 단계 올림');
-  s.performance.at(-1).sets[0] = set(97.5, 4, 1, { heavy: 'top' });
-  assert.equal(heavyPrescribe(p, s).weight, 97.5, '여유 없었으면 유지');
+  s.performance.at(-1).sets[0] = set(95, 4, 1, { heavy: 'top' });
+  assert.equal(heavyPrescribe(p, s).weight, 95, '여유 없었으면 유지');
 });
 
 test('세션을 마치면 무거운 날 표시가 기록에 남는다', () => {
@@ -84,7 +84,7 @@ test('세션을 마치면 무거운 날 표시가 기록에 남는다', () => {
   T.finishSession(s, { now });
   const rec = s.performance.find((x) => x.sessionId === s.history.at(-1).id && x.exerciseId === 'squat');
   assert.equal(rec.heavy, true);
-  assert.equal(rec.sets.find((z) => z.heavy === 'top').weight, 97.5);
+  assert.equal(rec.sets.find((z) => z.heavy === 'top').weight, 95);
 });
 
 test('레그프레스: 양쪽 원판 합계로 적고 5kg씩 올린다', () => {

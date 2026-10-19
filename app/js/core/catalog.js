@@ -106,11 +106,11 @@ export const slotName = (x) => SLOT_LABEL[x] || String(x || '').replaceAll('_', 
 // measure: 'reps'(기본) 또는 'seconds'(버티기). range 는 measure 단위.
 export const DB = {
   push: [
-    { id: 'bench', name: '바벨 벤치프레스', role: 'horizontal_push', primary: ['chest'], secondary: ['triceps', 'front_delt'], sets: 3, range: [6, 8], rest: 180, inc: 2.5, mode: 'total', priority: 100, equipment: 'bench_rack', compound: true, why: '가슴 메인 수평 프레스', cue: '견갑을 고정하고 전완이 바닥과 수직에 가깝게. 전면어깨/삼두만 강하면 그립·터치 위치를 점검.' },
+    { id: 'bench', name: '바벨 벤치프레스', role: 'horizontal_push', primary: ['chest'], secondary: ['triceps', 'front_delt'], sets: 3, range: [6, 8], rest: 180, inc: 5, mode: 'total', priority: 100, equipment: 'bench_rack', compound: true, why: '가슴 메인 수평 프레스', cue: '견갑을 고정하고 전완이 바닥과 수직에 가깝게. 전면어깨/삼두만 강하면 그립·터치 위치를 점검.' },
     { id: 'incline_db', name: '덤벨 인클라인 프레스', role: 'secondary_chest_press', primary: ['chest'], secondary: ['front_delt', 'triceps'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, why: '상부가슴 보완 프레스' },
     { id: 'chest_press', name: '체스트프레스 머신', role: 'secondary_chest_press', primary: ['chest'], secondary: ['triceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 90, equipment: 'chest_press', compound: true, why: '안정적으로 가슴 볼륨 확보' },
     { id: 'smith_incline', name: '스미스 인클라인 프레스', role: 'secondary_chest_press', primary: ['chest'], secondary: ['front_delt', 'triceps'], sets: 3, range: [8, 12], rest: 150, inc: 5, mode: 'per_side', priority: 84, equipment: 'smith', compound: true, why: '고정 궤도의 상부가슴 프레스' },
-    { id: 'ohp', name: '바벨 오버헤드프레스', role: 'vertical_push', primary: ['front_delt'], secondary: ['side_delt', 'triceps'], sets: 3, range: [6, 10], rest: 180, inc: 2.5, mode: 'total', priority: 86, equipment: 'barbell', compound: true, why: '어깨 메인 프레스' },
+    { id: 'ohp', name: '바벨 오버헤드프레스', role: 'vertical_push', primary: ['front_delt'], secondary: ['side_delt', 'triceps'], sets: 3, range: [6, 10], rest: 180, inc: 5, mode: 'total', priority: 86, equipment: 'barbell', compound: true, why: '어깨 메인 프레스' },
     { id: 'shoulder_machine', name: '머신 숄더프레스', role: 'vertical_push', primary: ['front_delt'], secondary: ['side_delt', 'triceps'], sets: 3, range: [8, 12], rest: 150, inc: 5, mode: 'machine', priority: 84, equipment: 'shoulder_press', compound: true, why: '안정적인 어깨 프레스' },
     { id: 'lateral', name: '사이드 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 1, mode: 'per_dumbbell', priority: 95, equipment: 'dumbbell', why: '측면삼각근 직접 볼륨' },
     { id: 'cable_lateral', name: '케이블 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 82, equipment: 'cable', why: '측면삼각근 지속 장력' },
@@ -134,7 +134,7 @@ export const DB = {
     { id: 'hammer', name: '해머컬', role: 'biceps_secondary', primary: ['biceps'], secondary: ['brachialis'], sets: 2, range: [10, 15], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 78, equipment: 'dumbbell', why: '상완근/이두 보완' },
   ],
   lower: [
-    { id: 'squat', name: '프리 스쿼트', role: 'squat', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [5, 8], rest: 210, inc: 2.5, mode: 'total', priority: 100, equipment: 'rack', compound: true, why: '하체 메인 복합운동' },
+    { id: 'squat', name: '프리 스쿼트', role: 'squat', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [5, 8], rest: 210, inc: 5, mode: 'total', priority: 100, equipment: 'rack', compound: true, why: '하체 메인 복합운동' },
     { id: 'smith_squat', name: '스미스 스쿼트', role: 'secondary_squat', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [8, 10], rest: 180, inc: 5, mode: 'per_side', priority: 95, equipment: 'smith', compound: true, why: '안정적인 하체 추가 볼륨' },
     { id: 'bulgarian', name: '불가리안 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], focus: ['quads'], secondary: ['hamstring'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, unilateral: true, why: '편측 하체와 좌우 균형', cue: '왼쪽부터 시작하고 오른쪽 반복수는 왼쪽을 넘기지 않기. 상체를 과하게 숙이지 말고 척추 중립.' },
     { id: 'legcurl', name: '레그컬', role: 'hamstring', primary: ['hamstring'], secondary: [], sets: 3, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 95, equipment: 'leg_curl', why: '햄스트링 직접 볼륨' },
