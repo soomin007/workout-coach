@@ -31,6 +31,8 @@ export function findEntry(state, uid) {
 // 기록 없는 운동의 첫 무게 찾기 (정책 17절). 무게를 다는 방식만.
 const FIND_MODES = ['total', 'per_side', 'plates', 'per_dumbbell', 'machine'];
 export const FIND = { up: 1.2, down: 0.9 };
+// 워밍업 뒤 휴식 상한. 복합 운동은 원판을 갈아 끼울 시간이 들어 60초로는 모자랐다(10/17 스쿼트 메모, 정책 3절).
+const WARMUP_REST = { compound: 120, other: 60 };
 
 // 무게 찾기 중 방금 끝낸 본세트의 느낌. 반환: 질문할 세트 index 또는 -1.
 export function findWeightPending(entry) {
@@ -60,13 +62,13 @@ export function setFindFeel(state, uid, setIndex, feel) {
   }
   if (feel === 'heavy') {
     entry.findWeight = false;
-    const w = Math.max(0, Math.min(roundTo(z.weight * FIND.down, step, 'floor'), z.weight - step));
+    const w = Math.max(entry.start || 0, Math.min(roundTo(z.weight * FIND.down, step, 'floor', entry.start), z.weight - step));
     rest.forEach((x) => { x.weight = w; });
     entry.coach = rest.length ? `남은 세트를 ${w}kg로 낮췄습니다. 방금 세트는 본세트로 남깁니다.` : '본세트로 남깁니다. 다음에는 조금 가볍게 시작합니다.';
     return entry;
   }
   // light: 워밍업으로 돌리고(볼륨 · 처방에서 빠짐) 본세트 수를 그대로 유지한다.
-  const w = Math.max(roundTo(z.weight * FIND.up, step, 'ceil'), roundTo(z.weight + step, step));
+  const w = Math.max(roundTo(z.weight * FIND.up, step, 'ceil', entry.start), roundTo(z.weight + step, step, 'round', entry.start));
   z.type = 'warmup'; z.found = true;
   rest.forEach((x) => { x.weight = w; });
   const reps = entry.prescription?.reps ?? entry.range[0];
@@ -96,7 +98,7 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
   const entry = {
     uid: newId('x'), exerciseId: p.id, name: p.name, slot: sl, role: p.role,
     ...gripMuscles(p.id, grip, p), ...(grip ? { grip } : {}),
-    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, loadMode: p.mode,
+    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, start: p.start || 0, loadMode: p.mode,
     unilateral: p.unilateral, compound: p.compound, measure: p.measure, equipment: p.equipment,
     why: p.why, cue: p.cue, warmupLevel: level,
     prescription: rx, coach: '', effort: null, memo: '',
@@ -116,7 +118,7 @@ export function makeHeavy(state, entry) {
   const rx = heavyPrescribe(p, state);
   const mains = entry.sets.filter((z) => z.type !== 'warmup').length;
   const nBack = Math.max(2, Math.min(3, mains - 1));
-  const bw = backoffWeight(rx.weight, p.inc);
+  const bw = backoffWeight(rx.weight, p.inc, undefined, p.start);
   entry.heavy = true;
   entry.warmupLevel = 'heavy';
   entry.prescription = { ...rx, note: `${rx.note} 이어서 백오프 ${nBack}세트${bw !== null ? ` ${bw}kg` : ''} × ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회.` };
@@ -365,7 +367,7 @@ export function editSet(state, uid, setIndex, field, value) {
   set.touched = true;
   if (set.heavy === 'top' && field === 'weight') {
     // 톱세트 무게를 고치면 손대지 않은 백오프는 그 무게의 약 90%로. 반복은 따로 둔다.
-    const bw = backoffWeight(v, entry.increment);
+    const bw = backoffWeight(v, entry.increment, undefined, entry.start);
     entry.sets.forEach((z) => { if (z.heavy === 'backoff' && !z.done && !z.touched) z.weight = bw; });
     const p = profileFor(state, entry.exerciseId) || entry;
     recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment });
@@ -420,7 +422,7 @@ export function toggleSetDone(state, uid, setIndex, { now = new Date() } = {}) {
   if (s.timer && !s.timer.running) { s.timer.running = true; s.timer.start = t; }
   if (z.type === 'main') coachAfterSet(entry, setIndex);
   // 워밍업 뒤에는 짧게 (최대 60초)
-  s.restTimer = { uid, setIndex, startedAt: t, seconds: z.type === 'warmup' ? Math.min(60, effectiveRest(entry)) : effectiveRest(entry) };
+  s.restTimer = { uid, setIndex, startedAt: t, seconds: z.type === 'warmup' ? Math.min(entry.compound ? WARMUP_REST.compound : WARMUP_REST.other, effectiveRest(entry)) : effectiveRest(entry) };
   return { done: true };
 }
 
@@ -440,8 +442,10 @@ function coachAfterSet(entry, j) {
   if (reps < lo) {
     const next = entry.sets.slice(j + 1).filter((x) => x.type === 'main' && !x.done && !x.touched);
     let msg = `목표 하한(${lo}${u}) 미만.`;
-    if (entry.increment > 0 && z.weight !== null && next.length) {
-      const w = assist ? roundTo(z.weight + entry.increment, entry.increment) : Math.max(0, roundTo(z.weight - entry.increment, entry.increment));
+    const w = entry.increment > 0 && z.weight !== null && next.length
+      ? (assist ? roundTo(z.weight + entry.increment, entry.increment) : Math.max(entry.start || 0, roundTo(z.weight - entry.increment, entry.increment, 'round', entry.start)))
+      : null;
+    if (w !== null && w !== z.weight) {
       next.forEach((x) => { x.weight = w; });
       msg += ` 남은 세트를 ${w}kg${assist ? ' 보조' : ''}로 조정했습니다.`;
     }
@@ -455,7 +459,7 @@ function coachAfterSet(entry, j) {
     return;
   }
   if (reps >= hi + 2 && entry.increment > 0 && z.weight !== null) {
-    entry.coach = `상한보다 ${reps - hi}${u} 더 했습니다. 다음 세트는 ${assist ? '보조를 줄여도' : `${roundTo(z.weight + entry.increment, entry.increment)}kg로 올려도`} 좋습니다.`;
+    entry.coach = `상한보다 ${reps - hi}${u} 더 했습니다. 다음 세트는 ${assist ? '보조를 줄여도' : `${roundTo(z.weight + entry.increment, entry.increment, 'round', entry.start)}kg로 올려도`} 좋습니다.`;
     return;
   }
   entry.coach = '좋습니다. 같은 무게로 이어가세요.';
@@ -469,7 +473,7 @@ function coachHeavy(entry, j, reps) {
   const rest = entry.sets.slice(j + 1).filter((x) => x.heavy === 'backoff' && !x.done && !x.touched);
   if (z.heavy === 'top') {
     const pct = reps < HEAVY.top[0] ? 0.85 : HEAVY.backoffPct;
-    const bw = backoffWeight(z.weight, inc, pct);
+    const bw = backoffWeight(z.weight, inc, pct, entry.start);
     if (bw !== null) rest.forEach((x) => { x.weight = bw; });
     entry.coach = reps < HEAVY.top[0]
       ? `톱세트가 ${reps}회로 무거웠습니다. 백오프는 ${bw ?? '-'}kg로 낮춰 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회. 몇 회 더 할 수 있었는지 아래에서 골라 주세요.`
@@ -477,7 +481,7 @@ function coachHeavy(entry, j, reps) {
     return;
   }
   if (reps < HEAVY.backoff[0] && z.weight !== null && rest.length) {
-    const w = Math.max(0, roundTo(z.weight - inc, inc));
+    const w = Math.max(entry.start || 0, roundTo(z.weight - inc, inc, 'round', entry.start));
     rest.forEach((x) => { x.weight = w; });
     entry.coach = `백오프가 ${HEAVY.backoff[0]}회 아래입니다. 남은 백오프를 ${w}kg로 낮췄습니다.`;
     return;

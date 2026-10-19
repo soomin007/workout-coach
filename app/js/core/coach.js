@@ -29,6 +29,7 @@ export function profileFor(state, exerciseId) {
     range: Array.isArray(p.range) && p.range.length === 2 ? [...p.range] : [...g.range],
     rest: Number.isFinite(+p.rest) && p.rest !== null ? +p.rest : g.rest,
     inc: Number.isFinite(+p.increment) && p.increment !== null ? +p.increment : (base.inc ?? 0),
+    start: +base.start || 0,
     mode: p.loadMode || base.mode || 'machine',
     unilateral: p.unilateral ?? !!base.unilateral,
     compound: !!base.compound,
@@ -37,6 +38,7 @@ export function profileFor(state, exerciseId) {
     priority: base.priority || 50,
     risk: base.risk || null,
     kneeling: !!base.kneeling,
+    alternating: !!base.alternating,
     why: base.why || '사용자 추가 운동',
     cue: base.cue || '',
     custom: !catalogById(exerciseId),
@@ -73,7 +75,7 @@ export function recoveryRx(profile, rx) {
     return { ...rx, reps: lo, kind: 'recovery', note: `가볍게 한 날: ${lo}${u}만 하고 ${tail}` };
   }
   const step = profile.inc > 0 ? profile.inc : 0.5;
-  const w = Math.max(0, roundTo(rx.weight * RECOVERY.pct, step, 'floor'));
+  const w = Math.max(profile.start || 0, roundTo(rx.weight * RECOVERY.pct, step, 'floor', profile.start));
   return { ...rx, weight: w, reps: lo, kind: 'recovery', note: `가볍게 한 날: 평소 처방 ${rx.weight}kg의 약 ${Math.round(RECOVERY.pct * 100)}%인 ${w}kg로 ${lo}${u}. ${tail}` };
 }
 
@@ -114,9 +116,11 @@ const unitWord = (profile) => (profile.measure === 'seconds' ? '초' : '회');
 export function prescribe(profile, last) {
   const [lo, hi] = profile.range;
   const u = unitWord(profile);
+  // 양쪽을 번갈아 하는 운동은 합계로 세므로 목표를 짝수로 잡는다(10/11 바이시클 크런치 메모: 23회는 할 수 없다).
+  const even = (r) => (profile.alternating ? Math.min(hi - (hi % 2), Math.max(lo + (lo % 2), Math.ceil(r / 2) * 2)) : r);
   const main = (last?.sets || []).filter((s) => s.done && s.type === 'main' && setReps(s) !== null);
   if (!main.length) {
-    return { weight: null, reps: hi > lo ? Math.round((lo + hi) / 2) : lo, kind: 'first', note: `첫 기록: 가볍다 싶은 무게부터 적고 해 보세요. 세트를 마치면 어땠는지 묻고, 가벼웠으면 그 세트는 워밍업으로 돌리고 올립니다. 찾는 무게는 목표 ${lo}~${hi}${u}에서 2~3${u} 여유가 남는 무게.` };
+    return { weight: null, reps: even(hi > lo ? Math.round((lo + hi) / 2) : lo), kind: 'first', note: `첫 기록: 가볍다 싶은 무게부터 적고 해 보세요. 세트를 마치면 어땠는지 묻고, 가벼웠으면 그 세트는 워밍업으로 돌리고 올립니다. 찾는 무게는 목표 ${lo}~${hi}${u}에서 2~3${u} 여유가 남는 무게.` };
   }
   const hard = last.effort === 'hard';
   const weighted = main.filter((s) => s.weight !== null);
@@ -124,8 +128,9 @@ export function prescribe(profile, last) {
   if (!weighted.length || noLoad) {
     const minR = Math.min(...main.map(setReps));
     if (minR >= hi) return { weight: null, reps: hi, kind: 'bw_top', note: `지난번 모든 세트 ${hi}${u} 달성. 세트를 하나 늘리거나 추가 중량을 고려하세요.` };
-    const reps = clamp(hard ? minR : minR + 1, lo, hi);
-    return { weight: null, reps, kind: 'hold', note: `지난번 최저 ${minR}${u}. 이번 목표 ${reps}${u}.` };
+    const reps = even(clamp(hard ? minR : minR + (profile.alternating ? 2 : 1), lo, hi));
+    const side = profile.alternating ? ` (한쪽 ${reps / 2}${u}씩)` : '';
+    return { weight: null, reps, kind: 'hold', note: `지난번 최저 ${minR}${u}. 이번 목표 ${reps}${u}${side}.` };
   }
   const qualifying = weighted.filter((s) => setReps(s) >= lo);
   const step = profile.inc > 0 ? profile.inc : 0;
@@ -134,7 +139,10 @@ export function prescribe(profile, last) {
     const W = isAssist(profile.mode) ? Math.min(...weighted.map((s) => s.weight)) : Math.max(...weighted.map((s) => s.weight));
     let w;
     if (isAssist(profile.mode)) w = Math.max(roundTo(W * 1.1, step || 0.5, 'ceil'), W + step);
-    else w = Math.max(0, Math.min(roundTo(W * 0.9, step || 0.5, 'floor'), W - step));
+    else w = Math.max(profile.start || 0, Math.min(roundTo(W * 0.9, step || 0.5, 'floor', profile.start), W - step));
+    if (!isAssist(profile.mode) && w >= W) {
+      return { weight: W, reps: lo, kind: 'hold', note: `${W}kg가 이 기구의 가장 가벼운 칸이라 더 낮출 수 없습니다. 같은 무게로 ${lo}${u}를 목표로 하세요.` };
+    }
     return { weight: w, reps: lo, kind: 'decrease', note: `지난번 ${W}kg에서 목표 하한(${lo}${u})에 못 미쳤습니다. ${w}kg로 낮춰 범위 안에서 반복하세요.` };
   }
   // 작업 중량: 하한 이상을 채운 세트 중 가장 무거운(assist 는 가장 가벼운 보조) 중량
@@ -142,7 +150,7 @@ export function prescribe(profile, last) {
   const atW = weighted.filter((s) => s.weight === W);
   const minR = Math.min(...atW.map(setReps));
   if (minR >= hi && !hard && step > 0) {
-    const w = isAssist(profile.mode) ? Math.max(0, roundTo(W - step, step)) : roundTo(W + step, step);
+    const w = isAssist(profile.mode) ? Math.max(0, roundTo(W - step, step)) : roundTo(W + step, step, 'round', profile.start);
     return { weight: w, reps: lo, kind: 'increase', note: isAssist(profile.mode) ? `지난번 ${W}kg 보조로 상한 달성. 보조를 ${w}kg로 줄여 ${lo}${u}부터.` : `지난번 ${W}kg로 모든 세트 상한(${hi}${u}) 달성. ${w}kg로 올려 ${lo}${u}부터.` };
   }
   const reps = clamp(hard ? minR : minR + 1, lo, hi);
@@ -159,7 +167,7 @@ export function warmupPlan(profile, weight, level) {
   const inc = profile.inc > 0 ? profile.inc : 2.5;
   const out = [];
   for (const [pct, reps] of steps) {
-    const w = roundTo(weight * pct, inc);
+    const w = roundTo(weight * pct, inc, 'round', profile.start);
     if (w > 0 && w < weight && !out.some((x) => x.weight === w)) out.push({ weight: w, reps });
   }
   return out;
@@ -197,7 +205,7 @@ export function heavyPrescribe(profile, state) {
     const reps = setReps(t);
     const rir = setRir(t, lastHeavy) ?? HEAVY.rir;
     const up = rir >= 3 || (reps >= HEAVY.top[1] && rir >= HEAVY.rir);
-    const w = up ? roundTo(t.weight + inc, inc) : t.weight;
+    const w = up ? roundTo(t.weight + inc, inc, 'round', profile.start) : t.weight;
     return { weight: w, reps: HEAVY.target, kind: up ? 'heavy_up' : 'heavy_hold',
       note: up ? `지난 무거운 날 ${t.weight}kg × ${reps}회가 여유 있었습니다. ${w}kg로 ${HEAVY.top[0]}~${HEAVY.top[1]}회, 2회 남기고 멈추세요.`
         : `지난 무거운 날 ${t.weight}kg × ${reps}회. 같은 무게로 ${HEAVY.top[0]}~${HEAVY.top[1]}회, 2회 남기고 멈추세요.` };
@@ -212,14 +220,14 @@ export function heavyPrescribe(profile, state) {
   if (!best) {
     return { weight: null, reps: HEAVY.target, kind: 'heavy_first', note: `첫 무거운 날: 워밍업으로 무게를 올려 가며 ${HEAVY.target}회를 2회 남기고 할 수 있는 무게를 찾으세요.` };
   }
-  const w = roundTo(best.e / (1 + (HEAVY.target + HEAVY.rir) / 30), inc);
+  const w = roundTo(best.e / (1 + (HEAVY.target + HEAVY.rir) / 30), inc, 'round', profile.start);
   return { weight: w, reps: HEAVY.target, kind: 'heavy_est',
     note: `최근 ${best.z.weight}kg × ${setReps(best.z)}회 기준 추정. ${w}kg로 ${HEAVY.top[0]}~${HEAVY.top[1]}회, 2회 남기고 멈추세요. 깊이·자세는 평소와 같게.` };
 }
 
-export function backoffWeight(topWeight, inc, pct = HEAVY.backoffPct) {
+export function backoffWeight(topWeight, inc, pct = HEAVY.backoffPct, start = 0) {
   if (topWeight === null || topWeight === undefined) return null;
-  return roundTo(topWeight * pct, inc > 0 ? inc : 2.5);
+  return roundTo(topWeight * pct, inc > 0 ? inc : 2.5, 'round', start);
 }
 
 // ---------- 운동 순서 (선행 피로) ----------
@@ -275,7 +283,7 @@ function orderAdjusted(profile, rec, shift, pf) {
   // fresh>fatigued
   const step = profile.inc > 0 ? profile.inc : 0;
   let weight = rx.weight, reps = Math.max(lo, rx.reps - ORDER.repCut);
-  if (rx.kind === 'increase' && weight !== null) { weight = roundTo(weight - step, step || 0.5); reps = Math.max(lo, hi - ORDER.repCut); }
+  if (rx.kind === 'increase' && weight !== null) { weight = roundTo(weight - step, step || 0.5, 'round', profile.start); reps = Math.max(lo, hi - ORDER.repCut); }
   if (rx.kind === 'bw_top') reps = Math.max(lo, hi - ORDER.repCut);
   return { weight, reps, kind: 'order_cut', shift,
     note: `오늘은 앞에서 같은 근육을 ${pf}세트 한 뒤입니다. ${weight !== null ? `무게(${weight}kg)는 그대로 두고 ` : ''}목표를 ${reps}${u}로 낮춰 잡았습니다(먼저 했던 지난 기록 기준). 더 되면 더 하세요.` };

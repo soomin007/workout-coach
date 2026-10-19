@@ -94,7 +94,7 @@ test('가볍게 한 날로 시작: 평소 처방의 65% · 2세트 · 하한 반
   const lat = s.session.exercises.find((e) => e.exerciseId === 'lat');
   assert.ok(lat, "랫풀다운이 계획에 있다"); {
     const m = lat.sets.find((z) => z.type === 'main');
-    assert.equal(m.weight, 30, '평소 처방 50kg 의 65% = 32.5 → 증량 단위(5)로 내림 30');
+    assert.equal(m.weight, 27.5, '평소 처방 50kg 의 65% = 32.5 → 스택 눈금(5 · 12.5 · 20 · 27.5 …)으로 내림 27.5');
     assert.equal(m.reps, lat.range[0]);
     assert.equal(lat.prescription.kind, 'recovery');
   }

@@ -289,3 +289,22 @@ test('바벨 운동은 양쪽 합으로 5kg 단위 (가장 작은 원판 2.5kg, 
   s.performance.push(perf('bench', [[60, 5], [60, 4], [50, 10], [50, 10]]));
   assert.equal(rx(s, 'bench').weight % 5, 0);
 });
+
+test('랫풀다운은 스택 눈금(5 · 12.5 · 20 … 7.5 간격)으로, 케이블은 5kg 아래로 내리지 않는다 (10/3 메모)', () => {
+  const s = freshState();
+  assert.deepEqual([profileFor(s, 'lat').start, profileFor(s, 'lat').inc], [5, 7.5]);
+  s.performance.push(perf('lat', [[50, 12], [50, 12]]));
+  assert.deepEqual([rx(s, 'lat').kind, rx(s, 'lat').weight], ['increase', 57.5]);
+  s.performance.push(perf('lat', [[50, 5], [50, 4]], { date: '2026-09-21' }));
+  assert.deepEqual([rx(s, 'lat').kind, rx(s, 'lat').weight], ['decrease', 42.5]);
+  s.performance.push(perf('rear_cable', [[5, 8], [5, 7]]));
+  assert.deepEqual([rx(s, 'rear_cable').kind, rx(s, 'rear_cable').weight], ['hold', 5], '가장 가벼운 칸이면 유지');
+});
+
+test('바이시클 크런치는 양쪽 합계라 목표를 짝수로 (10/11 메모: 23회는 할 수 없다)', () => {
+  const s = freshState();
+  s.performance.push(perf('bicycle_crunch', [[null, 22], [null, 22]]));
+  const r = rx(s, 'bicycle_crunch');
+  assert.equal(r.reps, 24);
+  assert.match(r.note, /한쪽 12회씩/);
+});

@@ -27,12 +27,13 @@ export function toNum(x) {
   return Number.isFinite(n) ? n : null;
 }
 
-// 부동소수 오차 없이 step 단위로 반올림.
-export function roundTo(x, step, mode = 'round') {
+// 부동소수 오차 없이 step 단위로 반올림. origin: 눈금의 시작(랫풀다운 스택 5 · 12.5 · 20 … 이면 5).
+export function roundTo(x, step, mode = 'round', origin = 0) {
   if (!Number.isFinite(x)) return null;
   const s = step > 0 ? step : 0.5;
   const f = mode === 'floor' ? Math.floor : mode === 'ceil' ? Math.ceil : Math.round;
-  return Number((f(x / s + 1e-9) * s).toFixed(3));
+  const o = Number(origin) || 0;
+  return Number((f((x - o) / s + 1e-9) * s + o).toFixed(3));
 }
 
 export function clamp(x, lo, hi) {
