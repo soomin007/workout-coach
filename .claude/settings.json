@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/memos.mjs --unhandled 2>/dev/null || true",
+            "timeout": 30,
+            "statusMessage": "운동 메모 확인 중"
+          }
+        ]
+      }
+    ]
+  }
+}
