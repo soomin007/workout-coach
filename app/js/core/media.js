@@ -13,7 +13,7 @@ export const EX_MEDIA = {
   pullup: 'pull-up', lat: 'lat-pulldown', row: 'seated-cable-row', chest_row: 'chest-supported-db-row', db_row: 'single-arm-db-row',
   tbar: 't-bar-row', facepull: 'face-pull', db_rear: 'dumbbell-reverse-fly', curl: 'bicep-curl', hammer: 'hammer-curl',
   squat: 'squat', smith_squat: 'smith-machine-squat', bulgarian: 'bulgarian-split-squat', legcurl: 'seated-leg-curl',
-  legpress: 'single-leg-press', abduction: 'hip-abduction', bw_split_squat: 'split-squat', glute_bridge: 'glute-bridge',
+  legpress: 'single-leg-press', leg_extension: 'leg-extension', abduction: 'hip-abduction', adduction: 'hip-adduction', bw_split_squat: 'split-squat', glute_bridge: 'glute-bridge',
   db_hip_thrust: 'dumbbell-hip-thrust', cable_kickback: 'cable-kickback', oh_cable_ext: 'cable-overhead-tricep-extension',
   calf: 'single-leg-calf-raise', deadbug: 'dead-bug', plank: 'plank', bird_dog: 'bird-dog-hold', pallof: 'cable-pallof-press',
   side_plank: 'side-plank', reverse_crunch: 'reverse-crunches', crunch: 'crunches', shoulder_tap: 'high-plank',

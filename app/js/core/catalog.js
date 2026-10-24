@@ -15,7 +15,7 @@ export const EQUIPMENT = {
   barbell: '바벨', shoulder_press: '숄더프레스 머신', dumbbell: '덤벨', cable: '케이블', pullup: '풀업바',
   lat_pulldown: '랫풀다운', cable_row: '케이블 로우', chest_supported_row: '체스트 서포티드 로우',
   tbar: 'T바/플레이트 로우', rack: '스쿼트 랙', leg_curl: '레그컬', leg_extension: '레그 익스텐션', leg_press: '레그프레스',
-  abduction: '힙 어브덕션', calf_machine: '카프 머신', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
+  abduction: '어브덕션 · 어덕션 머신', calf_machine: '카프 머신', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
 };
 // 있는지 확인하기 전까지는 없는 것으로 보는 장비. 설정에서 켜야 그 운동이 추천된다.
 const EQUIPMENT_OFF_BY_DEFAULT = ['ankle_strap'];
@@ -32,7 +32,7 @@ export const LADDERS = {
 export const MUSCLE_LABEL = {
   chest: '가슴', back: '광배/등', upper_back: '상부등', front_delt: '전면어깨', side_delt: '측면어깨',
   rear_delt: '후면어깨', triceps: '삼두', biceps: '이두', quads: '대퇴사두', hamstring: '햄스트링',
-  glute: '둔근', calf: '종아리',
+  glute: '둔근', calf: '종아리', adductor: '내전근',
 };
 export const MUSCLE_BUDGET = {
   chest: 10, back: 12, upper_back: 8, front_delt: 6, side_delt: 8, rear_delt: 6, triceps: 6, biceps: 6,
@@ -147,10 +147,10 @@ export const DB = {
     { id: 'bulgarian', name: '불가리안 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], focus: ['quads'], secondary: ['hamstring'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, unilateral: true, why: '편측 하체와 좌우 균형', cue: '왼쪽부터 시작하고 오른쪽 반복수는 왼쪽을 넘기지 않기. 상체를 과하게 숙이지 말고 척추 중립.' },
     { id: 'legcurl', name: '레그컬', role: 'hamstring', primary: ['hamstring'], secondary: [], sets: 3, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 95, equipment: 'leg_curl', why: '햄스트링 직접 볼륨' },
     { id: 'legpress', name: '싱글 레그프레스', role: 'secondary_lower', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'plates', priority: 88, equipment: 'leg_press', unilateral: true, why: '편측 하체 추가 볼륨', cue: '왼쪽 무릎/대퇴사두 우세와 오른쪽 둔근 우세를 관찰. 무릎 궤적·골반 회전·뒤꿈치 들림 체크.' },
-    { id: 'leg_extension', name: '레그 익스텐션', role: 'secondary_lower', primary: ['quads'], focus: ['quads'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, mode: 'machine', priority: 84, equipment: 'leg_extension', why: '앞 허벅지 고립. 무릎만 굽혔다 펴서 허리 부담이 없다', cue: '무릎 축을 기구 회전축에 맞추고, 위에서 1초 버틴 뒤 천천히 내리기.' },
+    { id: 'leg_extension', name: '레그 익스텐션', role: 'secondary_lower', primary: ['quads'], focus: ['quads'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, mode: 'machine', priority: 84, equipment: 'leg_extension', why: '앞 허벅지 고립. 무릎만 굽혔다 펴서 허리 부담이 없다' },
     { id: 'abduction', name: '힙 어브덕션 (다리 벌리기)', aliases: ['힙 어브덕션'], role: 'glute_med', primary: ['glute'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, ladder: 'abduction', mode: 'machine', priority: 78, equipment: 'abduction', why: '둔근 보조' },
     // 추천 자리에는 넣지 않는다(내전근은 주간 볼륨 대상이 아니다). 운동 추가로 직접 넣는다(10/23 메모).
-    { id: 'adduction', name: '힙 어덕션 (다리 모으기)', aliases: ['힙 어덕션'], role: 'adductor', primary: [], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, ladder: 'abduction', mode: 'machine', priority: 60, equipment: 'abduction', why: '안쪽 허벅지. 어브덕션과 같은 머신에서 패드만 바꾼다' },
+    { id: 'adduction', name: '힙 어덕션 (다리 모으기)', aliases: ['힙 어덕션'], role: 'adductor', primary: ['adductor'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, ladder: 'abduction', mode: 'machine', priority: 60, equipment: 'abduction', why: '안쪽 허벅지. 어브덕션과 같은 머신에서 패드만 바꾼다' },
     { id: 'bw_split_squat', name: '맨몸 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [10, 15], rest: 75, inc: 0, mode: 'bodyweight', priority: 45, equipment: 'none', compound: true, unilateral: true, why: '집에서 하는 편측 하체' },
     { id: 'db_hip_thrust', name: '덤벨 힙 쓰러스트', role: 'glute_max', primary: ['glute'], secondary: ['hamstring'], sets: 3, range: [10, 15], rest: 90, inc: 2, mode: 'per_dumbbell', priority: 80, equipment: 'dumbbell_bench', why: '허벅지 앞쪽 부담 없이 둔근에 무게를 싣는 운동. 벤치 하나 자리면 된다', cue: '벤치에 날개뼈 아래쪽을 걸치고 덤벨 하나를 골반 위에 가로로 얹고 양손으로 잡기. 턱을 당긴 채 엉덩이를 조여 올리고, 허리로 들지 않기.' },
     { id: 'sl_hip_thrust', name: '한발 힙 쓰러스트', role: 'glute_max', primary: ['glute'], secondary: ['hamstring'], sets: 2, range: [10, 15], rest: 60, inc: 0, mode: 'bodyweight', priority: 65, equipment: 'dumbbell_bench', unilateral: true, why: '무게 없이 한쪽씩 둔근에 부하. 덤벨이 너무 가벼워지면 다음 단계', cue: '벤치에 날개뼈를 걸치고 한 발만 디딘 채 엉덩이를 올리기. 골반이 한쪽으로 처지지 않게.' },

@@ -15,7 +15,7 @@ const MODE_LABEL = Object.fromEntries(LOAD_MODES);
 const MUSCLE_X = { ...MUSCLE_LABEL, core: '복근', brachialis: '상완근' };
 // 부위 칩 (Leap 의 집중 영역 분류): 근육 키 → 칩
 export const LIB_GROUPS = [['all', '전체'], ['chest', '가슴'], ['back', '등'], ['shoulder', '어깨'], ['arm', '팔'], ['core', '복근'], ['leg', '다리']];
-const GROUP_OF = { chest: 'chest', back: 'back', upper_back: 'back', front_delt: 'shoulder', side_delt: 'shoulder', rear_delt: 'shoulder', biceps: 'arm', triceps: 'arm', brachialis: 'arm', core: 'core', quads: 'leg', hamstring: 'leg', glute: 'leg', calf: 'leg' };
+const GROUP_OF = { chest: 'chest', back: 'back', upper_back: 'back', front_delt: 'shoulder', side_delt: 'shoulder', rear_delt: 'shoulder', biceps: 'arm', triceps: 'arm', brachialis: 'arm', core: 'core', quads: 'leg', hamstring: 'leg', glute: 'leg', calf: 'leg', adductor: 'leg' };
 
 const names = (xs) => xs.map((m) => MUSCLE_X[m] || m).join(', ');
 
