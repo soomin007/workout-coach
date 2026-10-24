@@ -2,10 +2,10 @@
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
 import { CORE_SLOTS, EMPHASIS, catalogById, emphasisMuscles } from './catalog.js';
-import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY, recoveryRx, RECOVERY, easyRx } from './coach.js';
+import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY, recoveryRx, RECOVERY, easyRx, bigJump, learnedWarmups } from './coach.js';
 import { buildPlan, autoEmphasis, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
-import { newId, localISODate, roundTo, parseDateLocal } from './util.js';
+import { newId, localISODate, roundTo, parseDateLocal, snapW, stepW } from './util.js';
 import { plannedPrefatigue, actualOrder, fatigueClass } from './order.js';
 import { lastGrip, gripById, gripMuscles } from './grips.js';
 
@@ -50,7 +50,6 @@ export function setFindFeel(state, uid, setIndex, feel) {
   const z = entry.sets[setIndex];
   need(entry.findWeight && z && z.done && z.type === 'main' && typeof z.weight === 'number', 'no_set', '무게를 찾는 중인 세트가 아닙니다.');
   need(['light', 'ok', 'heavy'].includes(feel), 'bad_feel', feel);
-  const step = entry.increment > 0 ? entry.increment : 0.5;
   const u = entry.measure === 'seconds' ? '초' : '회';
   const rest = entry.sets.filter((x) => x.type === 'main' && !x.done && !x.touched);
   z.feel = feel;
@@ -62,13 +61,13 @@ export function setFindFeel(state, uid, setIndex, feel) {
   }
   if (feel === 'heavy') {
     entry.findWeight = false;
-    const w = Math.max(entry.start || 0, Math.min(roundTo(z.weight * FIND.down, step, 'floor', entry.start), z.weight - step));
+    const w = Math.max(entry.start || 0, Math.min(snapW(z.weight * FIND.down, entry, 'floor'), stepW(z.weight, -1, entry)));
     rest.forEach((x) => { x.weight = w; });
     entry.coach = rest.length ? `남은 세트를 ${w}kg로 낮췄습니다. 방금 세트는 본세트로 남깁니다.` : '본세트로 남깁니다. 다음에는 조금 가볍게 시작합니다.';
     return entry;
   }
   // light: 워밍업으로 돌리고(볼륨 · 처방에서 빠짐) 본세트 수를 그대로 유지한다.
-  const w = Math.max(roundTo(z.weight * FIND.up, step, 'ceil', entry.start), roundTo(z.weight + step, step, 'round', entry.start));
+  const w = Math.max(snapW(z.weight * FIND.up, entry, 'ceil'), stepW(z.weight, 1, entry));
   z.type = 'warmup'; z.found = true;
   rest.forEach((x) => { x.weight = w; });
   const reps = entry.prescription?.reps ?? entry.range[0];
@@ -95,18 +94,19 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
   const n = recovery ? Math.min(setCount ?? RECOVERY.sets, RECOVERY.sets) : setCount ?? adjustedSetCount(state, p, part ?? p.part, minutes ?? 60, sl);
   const grip = lastGrip(state, p.id);
   const rx = sessionRx(state, p, null, grip);
-  const level = recovery ? 'none' : warmupLevel ?? (p.compound ? 'short' : 'none');
+  const pattern = recovery ? null : learnedWarmups(state, p.id);
+  const level = recovery ? 'none' : pattern ? 'learned' : warmupLevel ?? (p.compound ? 'short' : 'none');
   const entry = {
     uid: newId('x'), exerciseId: p.id, name: p.name, slot: sl, role: p.role,
     ...gripMuscles(p.id, grip, p), ...(grip ? { grip } : {}),
-    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, start: p.start || 0, loadMode: p.mode,
+    range: [...p.range], rest: p.rest, restToday: null, increment: p.inc, start: p.start || 0, ...(p.ladder ? { ladder: p.ladder } : {}), loadMode: p.mode,
     unilateral: p.unilateral, compound: p.compound, measure: p.measure, equipment: p.equipment,
-    why: p.why, cue: p.cue, warmupLevel: level,
+    why: p.why, cue: p.cue, warmupLevel: level, ...(pattern ? { warmupPattern: pattern } : {}),
     prescription: rx, coach: '', effort: null, memo: '',
     ...(rx.kind === 'first' && FIND_MODES.includes(p.mode) && p.measure !== 'seconds' ? { findWeight: true } : {}),
     sets: [],
   };
-  for (const w of warmupPlan(p, rx.weight, level)) entry.sets.push(makeSet('warmup', w.weight, w.reps));
+  for (const w of warmupPlan(p, rx.weight, level, pattern)) entry.sets.push(makeSet('warmup', w.weight, w.reps));
   for (let i = 0; i < n; i++) entry.sets.push(makeSet('main', rx.weight, rx.reps));
   return entry;
 }
@@ -119,7 +119,7 @@ export function makeHeavy(state, entry) {
   const rx = heavyPrescribe(p, state);
   const mains = entry.sets.filter((z) => z.type !== 'warmup').length;
   const nBack = Math.max(2, Math.min(3, mains - 1));
-  const bw = backoffWeight(rx.weight, p.inc, undefined, p.start);
+  const bw = backoffWeight(rx.weight, p);
   entry.heavy = true;
   entry.warmupLevel = 'heavy';
   entry.prescription = { ...rx, note: `${rx.note} 이어서 백오프 ${nBack}세트${bw !== null ? ` ${bw}kg` : ''} × ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회.` };
@@ -347,7 +347,7 @@ function recomputeWarmups(entry, p) {
   const untouched = entry.sets.filter((z) => z.type === 'warmup').every((z) => !z.done && !z.touched);
   // 무게 찾기 중에는 자동 워밍업을 만들지 않는다: 가볍게 해 본 세트가 곧 워밍업이다 (정책 17절).
   if (!untouched || !firstMain || entry.findWeight) return;
-  const rows = warmupPlan(p, firstMain.weight, entry.warmupLevel).map((w) => makeSet('warmup', w.weight, w.reps));
+  const rows = warmupPlan(p, firstMain.weight, entry.warmupLevel, entry.warmupPattern).map((w) => makeSet('warmup', w.weight, w.reps));
   entry.sets = [...rows, ...entry.sets.filter((z) => z.type !== 'warmup')];
 }
 
@@ -368,10 +368,10 @@ export function editSet(state, uid, setIndex, field, value) {
   set.touched = true;
   if (set.heavy === 'top' && field === 'weight') {
     // 톱세트 무게를 고치면 손대지 않은 백오프는 그 무게의 약 90%로. 반복은 따로 둔다.
-    const bw = backoffWeight(v, entry.increment, undefined, entry.start);
+    const bw = backoffWeight(v, entry);
     entry.sets.forEach((z) => { if (z.heavy === 'backoff' && !z.done && !z.touched) z.weight = bw; });
     const p = profileFor(state, entry.exerciseId) || entry;
-    recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment });
+    recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment, ladder: entry.ladder || p.ladder });
     return;
   }
   if (set.heavy === 'top') return;
@@ -382,7 +382,7 @@ export function editSet(state, uid, setIndex, field, value) {
     }
     if (field === 'weight' && entry.sets.findIndex((z) => z.type === 'main') === setIndex) {
       const p = profileFor(state, entry.exerciseId) || entry;
-      recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment });
+      recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment, ladder: entry.ladder || p.ladder });
     }
   }
 }
@@ -444,7 +444,7 @@ function coachAfterSet(entry, j) {
     const next = entry.sets.slice(j + 1).filter((x) => x.type === 'main' && !x.done && !x.touched);
     let msg = `목표 하한(${lo}${u}) 미만.`;
     const w = entry.increment > 0 && z.weight !== null && next.length
-      ? (assist ? roundTo(z.weight + entry.increment, entry.increment) : Math.max(entry.start || 0, roundTo(z.weight - entry.increment, entry.increment, 'round', entry.start)))
+      ? (assist ? roundTo(z.weight + entry.increment, entry.increment) : Math.max(entry.start || 0, stepW(z.weight, -1, entry)))
       : null;
     if (w !== null && w !== z.weight) {
       next.forEach((x) => { x.weight = w; });
@@ -460,7 +460,10 @@ function coachAfterSet(entry, j) {
     return;
   }
   if (reps >= hi + 2 && entry.increment > 0 && z.weight !== null) {
-    entry.coach = `상한보다 ${reps - hi}${u} 더 했습니다. 다음 세트는 ${assist ? '보조를 줄여도' : `${roundTo(z.weight + entry.increment, entry.increment, 'round', entry.start)}kg로 올려도`} 좋습니다.`;
+    const jump = assist ? null : bigJump(z.weight, entry);
+    entry.coach = jump
+      ? `상한보다 ${reps - hi}${u} 더 했습니다. 다음 무게 ${jump}kg는 차이가 커서, 같은 무게로 반복을 늘려 가세요.`
+      : `상한보다 ${reps - hi}${u} 더 했습니다. 다음 세트는 ${assist ? '보조를 줄여도' : `${stepW(z.weight, 1, entry)}kg로 올려도`} 좋습니다.`;
     return;
   }
   entry.coach = '좋습니다. 같은 무게로 이어가세요.';
@@ -470,11 +473,10 @@ function coachAfterSet(entry, j) {
 function coachHeavy(entry, j, reps) {
   const z = entry.sets[j];
   if (reps === null) { entry.coach = ''; return; }
-  const inc = entry.increment > 0 ? entry.increment : 2.5;
   const rest = entry.sets.slice(j + 1).filter((x) => x.heavy === 'backoff' && !x.done && !x.touched);
   if (z.heavy === 'top') {
     const pct = reps < HEAVY.top[0] ? 0.85 : HEAVY.backoffPct;
-    const bw = backoffWeight(z.weight, inc, pct, entry.start);
+    const bw = backoffWeight(z.weight, entry, pct);
     if (bw !== null) rest.forEach((x) => { x.weight = bw; });
     entry.coach = reps < HEAVY.top[0]
       ? `톱세트가 ${reps}회로 무거웠습니다. 백오프는 ${bw ?? '-'}kg로 낮춰 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회. 몇 회 더 할 수 있었는지 아래에서 골라 주세요.`
@@ -482,7 +484,7 @@ function coachHeavy(entry, j, reps) {
     return;
   }
   if (reps < HEAVY.backoff[0] && z.weight !== null && rest.length) {
-    const w = Math.max(entry.start || 0, roundTo(z.weight - inc, inc, 'round', entry.start));
+    const w = Math.max(entry.start || 0, stepW(z.weight, -1, entry, 2.5));
     rest.forEach((x) => { x.weight = w; });
     entry.coach = `백오프가 ${HEAVY.backoff[0]}회 아래입니다. 남은 백오프를 ${w}kg로 낮췄습니다.`;
     return;
@@ -632,7 +634,11 @@ export function setPref(state, exerciseId, patch) {
   state.prefs[exerciseId] = cur;
   for (const e of state.session?.exercises || []) {
     if (e.exerciseId !== exerciseId) continue;
-    if ('loadMode' in patch) e.loadMode = patch.loadMode;
+    if ('loadMode' in patch) {
+      e.loadMode = patch.loadMode;
+      const ladder = profileFor(state, exerciseId)?.ladder;
+      if (ladder) e.ladder = ladder; else delete e.ladder;
+    }
     if ('increment' in patch) e.increment = Number(patch.increment) || 0;
     if ('rest' in patch) e.rest = Number(patch.rest) || e.rest;
     if ('range' in patch) e.range = [...patch.range];

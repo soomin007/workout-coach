@@ -36,6 +36,35 @@ export function roundTo(x, step, mode = 'round', origin = 0) {
   return Number((f((x - o) / s + 1e-9) * s + o).toFixed(3));
 }
 
+// 기구 무게 눈금. g: { inc, start, ladder } (세션 운동은 inc 대신 increment).
+// ladder 가 있으면 그 목록에 있는 무게만 쓴다(헬스장 덤벨 20 뒤 26 · 30, 어브덕션 스택 25 뒤 32 · 40).
+// 없으면 start 에서 inc 간격(랫풀다운 5 · 12.5 · 20 …). fallback 은 inc 가 0 일 때 쓸 간격.
+export function snapW(x, g, mode = 'round', fallback = 0.5) {
+  if (!Number.isFinite(x)) return null;
+  const L = g?.ladder;
+  if (!L?.length) {
+    const inc = +(g?.inc ?? g?.increment) || 0;
+    return roundTo(x, inc > 0 ? inc : fallback, mode, g?.start);
+  }
+  const lo = [...L].reverse().find((v) => v <= x + 1e-9) ?? L[0];
+  const hi = L.find((v) => v >= x - 1e-9) ?? L[L.length - 1];
+  if (mode === 'floor') return lo;
+  if (mode === 'ceil') return hi;
+  return x - lo <= hi - x ? lo : hi;
+}
+
+// 눈금을 n 칸 옮긴 무게. 눈금 끝을 넘지 않는다.
+export function stepW(w, n, g, fallback = 0.5) {
+  const L = g?.ladder;
+  if (!L?.length) {
+    const inc = +(g?.inc ?? g?.increment) || 0;
+    const s = inc > 0 ? inc : fallback;
+    return roundTo(w + n * s, s, 'round', g?.start);
+  }
+  const i = L.indexOf(snapW(w, g));
+  return L[Math.max(0, Math.min(L.length - 1, i + n))];
+}
+
 export function clamp(x, lo, hi) {
   return Math.max(lo, Math.min(hi, x));
 }

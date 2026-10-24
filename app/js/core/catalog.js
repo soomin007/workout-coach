@@ -14,12 +14,20 @@ export const EQUIPMENT = {
   bench_rack: '벤치/랙', dumbbell_bench: '덤벨+벤치', chest_press: '체스트프레스 머신', smith: '스미스 머신',
   barbell: '바벨', shoulder_press: '숄더프레스 머신', dumbbell: '덤벨', cable: '케이블', pullup: '풀업바',
   lat_pulldown: '랫풀다운', cable_row: '케이블 로우', chest_supported_row: '체스트 서포티드 로우',
-  tbar: 'T바/플레이트 로우', rack: '스쿼트 랙', leg_curl: '레그컬', leg_press: '레그프레스',
+  tbar: 'T바/플레이트 로우', rack: '스쿼트 랙', leg_curl: '레그컬', leg_extension: '레그 익스텐션', leg_press: '레그프레스',
   abduction: '힙 어브덕션', calf_machine: '카프 머신', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
 };
 // 있는지 확인하기 전까지는 없는 것으로 보는 장비. 설정에서 켜야 그 운동이 추천된다.
 const EQUIPMENT_OFF_BY_DEFAULT = ['ankle_strap'];
 export const hasEquipment = (equipment, k) => (EQUIPMENT_OFF_BY_DEFAULT.includes(k) ? equipment?.[k] === true : equipment?.[k] !== false);
+
+// 사용자 헬스장의 실제 무게 눈금 (10/22 · 10/23 메모). 눈금이 고르지 않은 기구만 적는다.
+// 덤벨은 20kg까지 2kg 단위이고 그 뒤로 26 · 30 · 35 · 40 이 있다. 덤벨 1개당 운동은 모두 이 눈금을 쓴다.
+// 힙 어브덕션 머신(벌리기 · 모으기 겸용)의 스택 표시값은 25 뒤로 7~8kg 간격이다.
+export const LADDERS = {
+  dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 26, 30, 35, 40],
+  abduction: [5, 10, 15, 20, 25, 32, 40, 47, 55, 62, 70, 78, 85, 92, 100],
+};
 
 export const MUSCLE_LABEL = {
   chest: '가슴', back: '광배/등', upper_back: '상부등', front_delt: '전면어깨', side_delt: '측면어깨',
@@ -87,7 +95,7 @@ export const SLOT_COMPAT = {
   rear_delt: ['rear_delt'], biceps: ['biceps', 'biceps_secondary'], biceps_secondary: ['biceps_secondary', 'biceps'],
   squat: ['squat', 'secondary_squat', 'secondary_lower'], secondary_squat: ['secondary_squat', 'squat', 'secondary_lower'],
   unilateral: ['unilateral', 'secondary_lower'], hamstring: ['hamstring'],
-  secondary_lower: ['secondary_lower', 'unilateral', 'secondary_squat'], glute_med: ['glute_med'], glute_max: ['glute_max', 'glute_med'], calf: ['calf'],
+  secondary_lower: ['secondary_lower', 'unilateral', 'secondary_squat'], glute_med: ['glute_med'], glute_max: ['glute_max', 'glute_med'], calf: ['calf'], adductor: ['adductor'],
   core_anti_extension: ['core_anti_extension'], core_anti_rotation: ['core_anti_rotation'],
   core_lateral: ['core_lateral'], core_flexion: ['core_flexion'], core_flexion_lower: ['core_flexion_lower', 'core_flexion'], core_rotation: ['core_rotation'],
 };
@@ -98,7 +106,7 @@ export const SLOT_LABEL = {
   vertical_pull: '수직 당기기', secondary_vertical_pull: '수직 당기기 보조', horizontal_pull: '수평 당기기', secondary_back: '등 보조',
   rear_delt: '후면 어깨', biceps: '이두', biceps_secondary: '이두 보조',
   squat: '스쿼트', secondary_squat: '스쿼트 보조', unilateral: '편측 하체', hamstring: '햄스트링', secondary_lower: '하체 보조',
-  glute_med: '중둔근', glute_max: '둔근', calf: '종아리',
+  glute_med: '중둔근', glute_max: '둔근', calf: '종아리', adductor: '안쪽 허벅지',
   core_anti_extension: '항신전', core_anti_rotation: '항회전', core_lateral: '항측굴', core_flexion: '윗배 굽히기', core_flexion_lower: '아랫배 말아 올리기', core_rotation: '옆구리 비틀기',
 };
 export const slotName = (x) => SLOT_LABEL[x] || String(x || '').replaceAll('_', ' ');
@@ -139,7 +147,10 @@ export const DB = {
     { id: 'bulgarian', name: '불가리안 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], focus: ['quads'], secondary: ['hamstring'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, unilateral: true, why: '편측 하체와 좌우 균형', cue: '왼쪽부터 시작하고 오른쪽 반복수는 왼쪽을 넘기지 않기. 상체를 과하게 숙이지 말고 척추 중립.' },
     { id: 'legcurl', name: '레그컬', role: 'hamstring', primary: ['hamstring'], secondary: [], sets: 3, range: [10, 15], rest: 90, inc: 5, mode: 'machine', priority: 95, equipment: 'leg_curl', why: '햄스트링 직접 볼륨' },
     { id: 'legpress', name: '싱글 레그프레스', role: 'secondary_lower', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'plates', priority: 88, equipment: 'leg_press', unilateral: true, why: '편측 하체 추가 볼륨', cue: '왼쪽 무릎/대퇴사두 우세와 오른쪽 둔근 우세를 관찰. 무릎 궤적·골반 회전·뒤꿈치 들림 체크.' },
-    { id: 'abduction', name: '힙 어브덕션 (다리 벌리기)', aliases: ['힙 어브덕션'], role: 'glute_med', primary: ['glute'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, mode: 'machine', priority: 78, equipment: 'abduction', why: '둔근 보조' },
+    { id: 'leg_extension', name: '레그 익스텐션', role: 'secondary_lower', primary: ['quads'], focus: ['quads'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, mode: 'machine', priority: 84, equipment: 'leg_extension', why: '앞 허벅지 고립. 무릎만 굽혔다 펴서 허리 부담이 없다', cue: '무릎 축을 기구 회전축에 맞추고, 위에서 1초 버틴 뒤 천천히 내리기.' },
+    { id: 'abduction', name: '힙 어브덕션 (다리 벌리기)', aliases: ['힙 어브덕션'], role: 'glute_med', primary: ['glute'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, ladder: 'abduction', mode: 'machine', priority: 78, equipment: 'abduction', why: '둔근 보조' },
+    // 추천 자리에는 넣지 않는다(내전근은 주간 볼륨 대상이 아니다). 운동 추가로 직접 넣는다(10/23 메모).
+    { id: 'adduction', name: '힙 어덕션 (다리 모으기)', aliases: ['힙 어덕션'], role: 'adductor', primary: [], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, ladder: 'abduction', mode: 'machine', priority: 60, equipment: 'abduction', why: '안쪽 허벅지. 어브덕션과 같은 머신에서 패드만 바꾼다' },
     { id: 'bw_split_squat', name: '맨몸 스플릿 스쿼트', role: 'unilateral', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [10, 15], rest: 75, inc: 0, mode: 'bodyweight', priority: 45, equipment: 'none', compound: true, unilateral: true, why: '집에서 하는 편측 하체' },
     { id: 'db_hip_thrust', name: '덤벨 힙 쓰러스트', role: 'glute_max', primary: ['glute'], secondary: ['hamstring'], sets: 3, range: [10, 15], rest: 90, inc: 2, mode: 'per_dumbbell', priority: 80, equipment: 'dumbbell_bench', why: '허벅지 앞쪽 부담 없이 둔근에 무게를 싣는 운동. 벤치 하나 자리면 된다', cue: '벤치에 날개뼈 아래쪽을 걸치고 덤벨 하나를 골반 위에 가로로 얹고 양손으로 잡기. 턱을 당긴 채 엉덩이를 조여 올리고, 허리로 들지 않기.' },
     { id: 'sl_hip_thrust', name: '한발 힙 쓰러스트', role: 'glute_max', primary: ['glute'], secondary: ['hamstring'], sets: 2, range: [10, 15], rest: 60, inc: 0, mode: 'bodyweight', priority: 65, equipment: 'dumbbell_bench', unilateral: true, why: '무게 없이 한쪽씩 둔근에 부하. 덤벨이 너무 가벼워지면 다음 단계', cue: '벤치에 날개뼈를 걸치고 한 발만 디딘 채 엉덩이를 올리기. 골반이 한쪽으로 처지지 않게.' },

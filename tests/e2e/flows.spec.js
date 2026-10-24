@@ -300,6 +300,8 @@ test('세트 번호를 누르면 유형 변경과 세트별 RIR 입력을 할 �
 });
 
 test('키패드 완료(Enter)로 숫자 입력이 바로 적용되고 시트가 닫힌다 · 0kg 은 빈 기구로 표시', async ({ page }) => {
+  // 하체 보조 자리에 원판 합계 운동(레그프레스)이 오도록 레그 익스텐션을 뺀다.
+  await page.evaluate(() => { window.__store.state.settings.unavailableExercises.push('leg_extension'); });
   await startPart(page, 'Lower', 60);
   const c = card(page, 'legpress');
   await c.getByTestId('weight-0').locator('.val').click();
