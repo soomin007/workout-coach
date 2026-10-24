@@ -1,5 +1,5 @@
 // v10 상태 구조. 네 계층: 카탈로그(catalog.js) / prefs / session / history+performance.
-import { EQUIPMENT, PARTS, catalogByName } from './catalog.js';
+import { EQUIPMENT, PARTS, catalogByName, RETIRED_IDS } from './catalog.js';
 import { parseDateLocal, toNum } from './util.js';
 import { actualOrder } from './order.js';
 
@@ -86,16 +86,15 @@ export function normalizeState(src) {
 }
 
 // 사용자가 직접 만든 운동과 같은 이름의 운동이 카탈로그에 생기면(10/23 레그 익스텐션), 기록 · 선호 · 진행 중 세션을
-// 카탈로그 id 로 옮기고 사용자 운동은 지운다. 처방이 지난 기록에서 그대로 이어진다.
+// 카탈로그 id 로 옮기고 사용자 운동은 지운다. 처방이 지난 기록에서 그대로 이어진다. 카탈로그에서 뺀 id(RETIRED_IDS)도 같이 옮긴다.
 function adoptCatalog(n) {
-  const moved = new Map();
+  const moved = new Map(Object.entries(RETIRED_IDS));
   n.customExercises = n.customExercises.filter((c) => {
     const cat = catalogByName(c?.name);
     if (!cat || cat.id === c.id) return true;
     moved.set(c.id, cat.id);
     return false;
   });
-  if (!moved.size) return;
   for (const p of n.performance) if (moved.has(p.exerciseId)) p.exerciseId = moved.get(p.exerciseId);
   for (const e of n.session?.exercises || []) if (moved.has(e.exerciseId)) e.exerciseId = moved.get(e.exerciseId);
   for (const [from, to] of moved) {

@@ -43,14 +43,14 @@ export const GRIPS = {
       ['가로 손잡이를 손등이 위를 보게 넓게 잡습니다.', '팔꿈치를 옆으로 벌려 뒤로 당기고, 끝에서 어깨뼈를 모아 1초 멈춥니다.'],
       { primary: ['upper_back'], secondary: ['back', 'rear_delt', 'biceps'] }),
   ] },
-  tbar: { def: 'neutral_close', list: [
-    G('neutral_close', 'V핸들 · 좁은 뉴트럴', '좁은 손잡이', { attach: 'v_handle', hand: 'neutral', width: 'close', fixed: true }, '손바닥끼리 마주 봄',
-      '등 가운데 전체. 무게를 많이 다루기 좋습니다.',
-      ['바 끝에 V핸들을 끼우거나 기구의 좁은 손잡이를 손바닥끼리 마주 보게 잡습니다.', '엉덩이를 뒤로 빼 상체를 45도쯤 숙이고, 허리를 중립으로 둔 채 손잡이를 배꼽 쪽으로 당깁니다.']),
-    G('overhand_wide', '넓은 손잡이 · 오버핸드', '넓은 손잡이', { attach: 'straight_bar', hand: 'over', width: 'mid', fixed: true }, '손등이 위',
-      '등 위쪽과 후면 어깨를 더 강조합니다.',
-      ['기구의 넓은 가로 손잡이를 손등이 위를 보게 잡습니다.', '팔꿈치를 옆으로 벌려 가슴 아래쪽으로 당기고 어깨뼈를 모읍니다.'],
-      { primary: ['upper_back'], secondary: ['rear_delt', 'back', 'biceps'] }),
+  iso_row: { def: 'neutral', list: [
+    G('neutral', '세로 손잡이 · 뉴트럴', '세로 손잡이', { attach: 'machine_handles', hand: 'neutral', width: 'shoulder', fixed: true }, '손바닥끼리 마주 봄',
+      '광배와 등 가운데를 고르게. 팔꿈치가 몸 옆을 지나갑니다.',
+      ['가슴 패드에 몸을 붙이고 세로 손잡이를 손바닥끼리 마주 보게 잡습니다.', '팔꿈치를 몸 옆으로 붙여 뒤로 당기고, 끝에서 어깨뼈를 모읍니다.']),
+    G('overhand_wide', '가로 손잡이 · 오버핸드', '가로 손잡이', { attach: 'machine_handles', hand: 'over', width: 'mid', fixed: true }, '손등이 위',
+      '등 위쪽(승모 중·하부, 능형근)과 후면 어깨 강조.',
+      ['가로 손잡이를 손등이 위를 보게 잡습니다.', '팔꿈치를 옆으로 벌려 뒤로 당기고, 끝에서 어깨뼈를 모아 1초 멈춥니다.'],
+      { primary: ['upper_back'], secondary: ['back', 'rear_delt', 'biceps'] }),
   ] },
   pullup: { def: 'overhand_mid', list: [
     G('overhand_mid', '풀업 · 오버핸드', '오버핸드', { attach: 'pullup_bar', hand: 'over', width: 'mid' }, '손등이 내 쪽',

@@ -13,8 +13,8 @@ export const LOAD_MODES = [
 export const EQUIPMENT = {
   bench_rack: '벤치/랙', dumbbell_bench: '덤벨+벤치', chest_press: '체스트프레스 머신', smith: '스미스 머신',
   barbell: '바벨', shoulder_press: '숄더프레스 머신', dumbbell: '덤벨', cable: '케이블', pullup: '풀업바',
-  lat_pulldown: '랫풀다운', cable_row: '케이블 로우', chest_supported_row: '체스트 서포티드 로우',
-  tbar: 'T바/플레이트 로우', rack: '스쿼트 랙', leg_curl: '레그컬', leg_extension: '레그 익스텐션', leg_press: '레그프레스',
+  lat_pulldown: '랫풀다운', cable_row: '케이블 로우', chest_supported_row: '가슴 패드 T바',
+  iso_row: '아이소레터럴 로우 머신', rack: '스쿼트 랙', leg_curl: '레그컬', leg_extension: '레그 익스텐션', leg_press: '레그프레스',
   abduction: '어브덕션 · 어덕션 머신', calf_machine: '카프 머신', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
 };
 // 있는지 확인하기 전까지는 없는 것으로 보는 장비. 설정에서 켜야 그 운동이 추천된다.
@@ -132,9 +132,11 @@ export const DB = {
     { id: 'pullup', name: '풀업', role: 'vertical_pull', primary: ['back'], secondary: ['biceps'], sets: 3, range: [6, 10], rest: 180, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'pullup', compound: true, why: '수직 당기기 메인', cue: '첫 세트를 실패까지 밀지 말고 RIR 1~2를 남겨 이후 세트 붕괴를 줄이기.' },
     { id: 'lat', name: '랫풀다운', aliases: ['시티드 랫풀다운'], role: 'secondary_vertical_pull', primary: ['back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 7.5, start: 5, mode: 'machine', priority: 92, equipment: 'lat_pulldown', compound: true, why: '광배 추가 볼륨' },
     { id: 'row', name: '시티드 케이블 로우', role: 'horizontal_pull', primary: ['back', 'upper_back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 7.5, mode: 'machine', priority: 95, equipment: 'cable_row', compound: true, why: '수평 당기기 메인' },
-    { id: 'chest_row', name: '체스트 서포티드 로우', role: 'horizontal_pull', primary: ['back', 'upper_back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 93, equipment: 'chest_supported_row', compound: true, why: '허리 부담을 줄인 수평 당기기' },
+    // 가슴 패드에 엎드려 기대고 발판에 서서 당기는 T바 기구(10/24 사용자 확인). 원판을 봉 끝에 꽂는다.
+    { id: 'chest_row', name: '체스트 서포티드 T바 로우', aliases: ['체스트 서포티드 로우', 'T바 로우', 'T바/플레이트 로우'], role: 'horizontal_pull', primary: ['back', 'upper_back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'plates', priority: 93, equipment: 'chest_supported_row', compound: true, why: '가슴을 패드에 대서 허리 부담을 줄인 수평 당기기' },
     { id: 'db_row', name: '원암 덤벨 로우', role: 'horizontal_pull', primary: ['back'], secondary: ['upper_back', 'biceps', 'rear_delt'], sets: 3, range: [8, 12], rest: 90, inc: 2, mode: 'per_dumbbell', priority: 80, equipment: 'dumbbell', compound: true, unilateral: true, why: '덤벨만으로 하는 수평 당기기', cue: '허리는 중립, 팔꿈치를 골반 쪽으로 당기기.' },
-    { id: 'tbar', name: 'T바/플레이트 로우', aliases: ['T바 로우'], role: 'secondary_back', primary: ['upper_back'], secondary: ['back', 'biceps'], sets: 2, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 86, equipment: 'tbar', compound: true, why: '상부 등 보완' },
+    // 수직으로 앉아 가슴을 패드에 대고 양팔을 따로 당기는 원판식 머신. 무게는 한쪽 팔에 꽂은 원판(10/15 PT 메모 '한쪽당 20').
+    { id: 'iso_row', name: '아이소레터럴 로우', aliases: ['체스트 어시스트 로우'], role: 'secondary_back', primary: ['back', 'upper_back'], secondary: ['biceps', 'rear_delt'], sets: 2, range: [8, 12], rest: 120, inc: 2.5, mode: 'per_side', priority: 86, equipment: 'iso_row', compound: true, why: '양팔을 따로 당겨 좌우 차이를 보는 등 보조' },
     { id: 'rear_cable', name: '케이블 리어델트 플라이', role: 'rear_delt', primary: ['rear_delt'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 92, equipment: 'cable', why: '후면삼각근 직접 볼륨' },
     { id: 'facepull', name: '페이스풀', role: 'rear_delt', primary: ['rear_delt'], secondary: ['upper_back'], sets: 2, range: [12, 20], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 84, equipment: 'cable', why: '후면어깨/견갑 보완' },
     { id: 'db_rear', name: '덤벨 리버스 플라이', role: 'rear_delt', primary: ['rear_delt'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 1, mode: 'per_dumbbell', priority: 76, equipment: 'dumbbell', why: '후면삼각근 대체' },
@@ -177,6 +179,9 @@ export const DB = {
     { id: 'side_plank', name: '사이드 플랭크', role: 'core_lateral', primary: ['core'], secondary: [], sets: 2, range: [15, 40], measure: 'seconds', rest: 45, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '옆구리 항측굴 (McGill 빅3)' },
   ],
 };
+
+// 카탈로그에서 뺀 id → 기록을 이어받을 id. 앱의 'T바/플레이트 로우'는 사용자 헬스장에서 체스트 서포티드 T바와 같은 기구였다(10/24).
+export const RETIRED_IDS = { tbar: 'chest_row' };
 
 export const ALL_CATALOG = Object.entries(DB).flatMap(([part, xs]) => xs.map((x) => ({ ...x, part })));
 

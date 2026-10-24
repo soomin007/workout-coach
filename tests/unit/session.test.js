@@ -45,9 +45,9 @@ test('교체: 머신 → 덤벨이면 프로필 전체가 새 운동 값이 된�
 });
 
 test('교체: 2세트 운동을 3세트 기본 운동으로 바꾸면 세트 수를 새로 계산한다 (이전 수로 제한하지 않음)', () => {
-  const s = sessionWith(freshState(), 'pull', ['tbar']);
-  assert.equal(mains(entryOf(s, 'tbar')).length, 2);
-  const ne = T.replaceExercise(s, entryOf(s, 'tbar').uid, 'row', { now });
+  const s = sessionWith(freshState(), 'pull', ['iso_row']);
+  assert.equal(mains(entryOf(s, 'iso_row')).length, 2);
+  const ne = T.replaceExercise(s, entryOf(s, 'iso_row').uid, 'row', { now });
   assert.equal(mains(ne).length, adjustedSetCount(s, profileFor(s, 'row'), 'pull', s.session.minutes, ne.slot));
   assert.equal(mains(ne).length, 3);
 });
@@ -74,12 +74,12 @@ test('교체: 편측 → 양측이면 좌우 입력 흔적이 새 운동에 남�
 
 test('교체 취소 · 실패는 상태를 조금도 바꾸지 않는다 (store 원자성)', () => {
   const store = createStore({ local: memoryLocal() });
-  store.commit((s) => sessionWith(s, 'pull', ['tbar', 'curl']));
+  store.commit((s) => sessionWith(s, 'pull', ['iso_row', 'curl']));
   const e = entryOf(store.state, 'curl');
   store.commit((s) => { T.toggleSetDone(s, e.uid, 0, { now }); T.toggleSetDone(s, e.uid, 1, { now }); });
   const before = JSON.stringify(store.state);
   assert.throws(() => store.commit((s) => T.replaceExercise(s, e.uid, 'hammer', { now })), (err) => err.code === 'all_done');
-  assert.throws(() => store.commit((s) => { T.createCustomExercise(s, { name: '임시', part: 'pull', role: 'biceps' }); T.replaceExercise(s, entryOf(s, 'tbar').uid, 'tbar', { now }); }));
+  assert.throws(() => store.commit((s) => { T.createCustomExercise(s, { name: '임시', part: 'pull', role: 'biceps' }); T.replaceExercise(s, entryOf(s, 'iso_row').uid, 'iso_row', { now }); }));
   assert.equal(JSON.stringify(store.state), before, '사용자 운동도 남지 않는다');
 });
 

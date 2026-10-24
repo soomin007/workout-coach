@@ -115,3 +115,23 @@ test('직접 만든 운동과 같은 이름이 카탈로그에 생기면 기록�
   assert.equal(rx.kind, 'increase');
   assert.equal(rx.weight, 35);
 });
+
+test('T바/플레이트 로우 기록은 체스트 서포티드 T바 로우로 이어진다 (같은 기구, 10/24 사용자 확인)', () => {
+  const s = freshState();
+  s.performance.push(rec('2026-09-23', 'tbar', [set(20, 12), set(20, 12)]));
+  s.prefs.tbar = { rest: 90 };
+  s.settings.unavailableExercises = ['tbar'];
+  const n = normalizeState(s);
+  assert.equal(n.performance[0].exerciseId, 'chest_row');
+  assert.equal(n.prefs.chest_row.rest, 90);
+  assert.equal(n.prefs.tbar, undefined);
+  assert.deepEqual(n.settings.unavailableExercises, ['chest_row']);
+  assert.equal(profileFor(n, 'chest_row').mode, 'plates');
+  assert.equal(profileFor(n, 'tbar'), null);
+});
+
+test('아이소레터럴 로우는 한쪽당 원판, 증량은 원판 한 장(2.5kg)', () => {
+  const p = profileFor(freshState(), 'iso_row');
+  assert.equal(p.mode, 'per_side');
+  assert.equal(p.inc, 2.5);
+});
