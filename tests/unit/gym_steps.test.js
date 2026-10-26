@@ -135,3 +135,23 @@ test('아이소레터럴 로우는 한쪽당 원판, 증량은 원판 한 장(2.
   assert.equal(p.mode, 'per_side');
   assert.equal(p.inc, 2.5);
 });
+
+test('시티드 로우 스택도 랫풀다운처럼 5에서 시작해 7.5씩: 가볍게 · 무게 찾기 · 감량이 35 · 42.5 · 50 에 떨어진다 (10/26 메모)', () => {
+  const s = freshState();
+  s.performance.push({ ...rec('2026-10-26', 'row', [set(42.5, 12), set(42.5, 12)]), part: 'pull' });
+  const p = profileFor(s, 'row');
+  const onStack = (w) => Math.abs(((w - 5) / 7.5) - Math.round((w - 5) / 7.5)) < 1e-9;
+  const rx = prescribeForOrder(p, s, 0);
+  assert.ok(onStack(rx.weight), `평소 처방 ${rx.weight}`);
+  assert.equal(easyRx(p, rx).weight, stepW(rx.weight, -1, p));
+  assert.ok(onStack(easyRx(p, rx).weight));
+  assert.equal(stepW(42.5, 1, p), 50);
+  assert.equal(snapW(42.5 * 1.2, p, 'ceil'), 57.5);
+  assert.equal(snapW(42.5 * 0.9, p, 'floor'), 35);
+});
+
+test('7.5 간격 스택 기구는 모두 시작 칸(start)이 있다', async () => {
+  const { ALL_CATALOG } = await import('../../app/js/core/catalog.js');
+  const missing = ALL_CATALOG.filter((x) => x.inc === 7.5 && x.mode === 'machine' && !x.start).map((x) => x.id);
+  assert.deepEqual(missing, []);
+});
