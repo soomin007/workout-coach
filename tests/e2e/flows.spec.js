@@ -264,16 +264,23 @@ test('JSON 내보내기 → 다른 기기(새 브라우저)에서 복원하면 �
 
 test('PT 혼합 기록과 이력 수정', async ({ page }) => {
   await page.getByRole('button', { name: 'PT 기록' }).first().click();
+  await expect(sheet(page).getByTestId('pt-emph-push')).toBeHidden();
   await sheet(page).locator('input[name=part][value=push]').check();
   await sheet(page).locator('input[name=part][value=lower]').check();
   await expect(sheet(page).locator('input[name=sets]')).toHaveCount(0);
+  // 고른 부위의 강조 줄만 보인다
+  await expect(sheet(page).getByTestId('pt-emph-push')).toBeVisible();
+  await expect(sheet(page).getByTestId('pt-emph-pull')).toBeHidden();
+  await sheet(page).getByTestId('pt-emph-push').getByText('어깨').click();
   await sheet(page).getByRole('button', { name: '저장' }).click();
-  expect((await st(page)).history.map((h) => [h.part, h.workSets, h.volumeUnknown])).toEqual([['push', 0, true], ['lower', 0, true]]);
+  expect((await st(page)).history.map((h) => [h.part, h.workSets, h.volumeUnknown, h.emphasis])).toEqual([['push', 0, true, 'shoulder'], ['lower', 0, true, null]]);
   await page.locator('#tabs').getByRole('button', { name: '기록' }).click();
-  await page.locator('[data-action="hist-edit"]').first().click();
+  await expect(page.locator('.hist-item').filter({ hasText: 'Push' })).toContainText('어깨 위주');
+  await page.locator('.hist-item').filter({ hasText: 'Push' }).locator('[data-action="hist-edit"]').click();
+  await sheet(page).locator('select[name=emph]').selectOption('triceps');
   await sheet(page).locator('input[name=date]').fill('2026-09-01');
   await sheet(page).getByRole('button', { name: '저장' }).click();
-  expect((await st(page)).history.some((h) => h.date === '2026-09-01')).toBe(true);
+  expect((await st(page)).history.find((h) => h.part === 'push')).toMatchObject({ date: '2026-09-01', emphasis: 'triceps' });
 });
 
 test('운동별 기본값 설정은 명시적으로 저장한 것만 남고 현재 세션에도 반영', async ({ page }) => {

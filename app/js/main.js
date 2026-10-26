@@ -7,7 +7,7 @@ import { toCSV, toTXT } from './core/export.js';
 import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo, transferLink, parseTransfer } from './core/sync.js';
 import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
 import { profileFor, lastPerformance, lighterThanUsual, recoverySuggested, RECOVERY } from './core/coach.js';
-import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, slotName } from './core/catalog.js';
+import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, EMPHASIS, slotName } from './core/catalog.js';
 import { localISODate } from './core/util.js';
 import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
@@ -759,11 +759,14 @@ async function logPT() {
     <label class="field">날짜<input type="date" name="date" value="${localISODate()}"></label>
     <div class="small" style="margin-top:8px">주요 부위 (여러 개 가능)</div>
     <div class="row">${['push', 'pull', 'lower', 'core'].map((p) => `<label class="chip"><input type="checkbox" name="part" value="${p}"> ${PART_LABEL[p]}</label>`).join('')}</div>
+    ${Object.keys(EMPHASIS).map((p) => `<div class="pt-emph" data-part="${p}" data-testid="pt-emph-${p}"><div class="small">${PART_LABEL[p]}에서 주로 한 부위</div>
+      <div class="row"><label class="chip"><input type="radio" name="emph-${p}" value="" checked> 골고루</label>${EMPHASIS[p].map((x) => `<label class="chip"><input type="radio" name="emph-${p}" value="${x.id}"> ${esc(x.label)}</label>`).join('')}</div></div>`).join('')}
     <label class="field" style="margin-top:8px">메모<textarea name="note" autocomplete="off" placeholder="예: 스쿼트, 스미스 스쿼트, 불가리안"></textarea></label>
     <div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
-  { collect: (b) => ({ date: b.querySelector('[name=date]').value, parts: [...b.querySelectorAll('[name=part]:checked')].map((x) => x.value), note: b.querySelector('[name=note]').value }) });
+  { collect: (b) => ({ date: b.querySelector('[name=date]').value, parts: [...b.querySelectorAll('[name=part]:checked')].map((x) => x.value), note: b.querySelector('[name=note]').value,
+    emphasis: Object.fromEntries(Object.keys(EMPHASIS).map((p) => [p, b.querySelector(`[name=emph-${p}]:checked`)?.value || null])) }) });
   if (!r) return;
-  run((s) => T.logPT(s, { date: r.data.date, parts: r.data.parts, note: r.data.note }), 'PT 기록을 저장했습니다.');
+  run((s) => T.logPT(s, { date: r.data.date, parts: r.data.parts, note: r.data.note, emphasis: r.data.emphasis }), 'PT 기록을 저장했습니다.');
 }
 
 async function editHistory(id) {
@@ -774,14 +777,15 @@ async function editHistory(id) {
     <label class="field">부위<select name="part">${['push', 'pull', 'lower', 'core'].map((p) => `<option value="${p}"${p === h.part ? ' selected' : ''}>${PART_LABEL[p]}</option>`).join('')}</select></label>
     <label class="field">운동 시간(분)<input type="number" name="min" min="0" max="600" inputmode="numeric" enterkeyhint="done" placeholder="모름" value="${h.durationSec ? Math.round(h.durationSec / 60) : ''}"></label></div>
     ${h.source === 'pt' ? '' : `<label class="setting" style="margin-top:8px"><span>가볍게 한 날 (다음 무게 처방에 쓰지 않음)</span><input type="checkbox" name="light"${h.light ? ' checked' : ''}></label>`}
+    ${h.source === 'pt' && EMPHASIS[h.part] ? `<label class="field" style="margin-top:8px">주로 한 부위<select name="emph"><option value="">골고루</option>${EMPHASIS[h.part].map((x) => `<option value="${x.id}"${h.emphasis === x.id ? ' selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label>` : ''}
     <div class="actions"><button class="btn danger" data-sheet-value="delete">삭제</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
-  { collect: (b) => ({ date: b.querySelector('[name=date]').value, part: b.querySelector('[name=part]').value, min: b.querySelector('[name=min]').value, light: !!b.querySelector('[name=light]')?.checked }) });
+  { collect: (b) => ({ date: b.querySelector('[name=date]').value, part: b.querySelector('[name=part]').value, min: b.querySelector('[name=min]').value, light: !!b.querySelector('[name=light]')?.checked, emph: b.querySelector('[name=emph]')?.value }) });
   if (!r) return;
   if (r.value === 'delete') {
     if (await confirmSheet(`${h.date} ${PART_LABEL[h.part]} 기록과 연결된 운동 기록을 삭제할까요?`, { ok: '삭제', danger: true })) run((s) => T.deleteHistory(s, id), '삭제했습니다.');
     return;
   }
-  run((s) => { if (r.data.date !== h.date) T.updateHistoryDate(s, id, r.data.date); if (r.data.part !== h.part) T.updateHistoryPart(s, id, r.data.part); T.setHistoryDuration(s, id, r.data.min === '' ? null : +r.data.min); if (h.source !== 'pt' && r.data.light !== !!h.light) T.setHistoryLight(s, id, r.data.light); }, '수정했습니다.');
+  run((s) => { if (r.data.date !== h.date) T.updateHistoryDate(s, id, r.data.date); if (r.data.part !== h.part) T.updateHistoryPart(s, id, r.data.part); T.setHistoryDuration(s, id, r.data.min === '' ? null : +r.data.min); if (h.source !== 'pt' && r.data.light !== !!h.light) T.setHistoryLight(s, id, r.data.light); if (r.data.emph !== undefined && r.data.part === h.part) T.setHistoryEmphasis(s, id, r.data.emph || null); }, '수정했습니다.');
 }
 
 function download(name, text, type) {

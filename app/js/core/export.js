@@ -33,6 +33,7 @@ export function toTXT(state) {
       const main = p.sets.filter((z) => z.type !== 'warmup');
       o += `  - ${p.name} (${LOAD_LABEL[p.loadMode] || p.loadMode}): ${main.map((z) => setText(z, p.measure)).join(' / ')}${p.effort ? ` · 느낌 ${EFFORT_LABEL[p.effort]}` : ''}${p.memo ? ` · ${p.memo}` : ''}\n`;
     }
+    for (const x of h.ptExercises || []) o += `  - ${x.name} (PT): ${(x.sets || []).map((z) => `${z.weight ?? '?'}×${z.reps ?? '?'}`).join(' / ')}\n`;
   }
   return o;
 }

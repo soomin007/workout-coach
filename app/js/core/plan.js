@@ -1,5 +1,5 @@
 // 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
-import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById, hasEquipment } from './catalog.js';
+import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById, hasEquipment, emphasisMuscles } from './catalog.js';
 import { profileFor } from './coach.js';
 import { parseDateLocal, endOfDay, localISODate } from './util.js';
 
@@ -10,6 +10,9 @@ export const POLICY = {
   // 보조 종목 로테이션: 지난 같은 부위 세션에 했던 보조 종목은 이만큼 감점해, 비슷한 후보끼리 번갈아 나오게 한다.
   // 메인(핵심 슬롯)은 진행을 추적해야 하므로 돌리지 않는다 (Kassiano 2022: 체계적 변화는 이득, 잦은 무작위 교체는 손해).
   accessoryRepeatPenalty: 1.5,
+  // PT 에서 강조를 고르면 세트의 이만큼을 강조 근육 몫으로 친다. 같은 강조로 앱이 짜는 세션을 재 보니
+  // 강조 근육 몫이 0.16~0.71, 중앙값 0.48 이었다 (2026-10-26 실기록, 60분).
+  ptEmphasisShare: 0.5,
 };
 
 const DAY = 86400000;
@@ -19,18 +22,68 @@ function inWindow(dateStr, now, days) {
   return !!d && d.getTime() >= now.getTime() - days * DAY && d.getTime() <= endOfDay(now);
 }
 
+// 운동 하나가 근육마다 준 세트 (직접 1.0, 간접 0.5). x 는 운동 기록이나 PT 운동, sets 는 센 세트 수.
+function creditMuscles(out, x, sets) {
+  const prof = x.exerciseId ? catalogById(x.exerciseId) : null;
+  const primary = Array.isArray(x.primary) ? x.primary : prof?.primary || [];
+  const secondary = Array.isArray(x.secondary) ? x.secondary : prof?.secondary || [];
+  for (const m of primary) out[m] = (out[m] || 0) + sets;
+  for (const m of secondary) out[m] = (out[m] || 0) + sets * POLICY.secondarySetCredit;
+  return out;
+}
+
+const mainSetCount = (p) => (p.sets || []).filter((x) => x.done && x.type === 'main').length;
+
 export function muscleSets(state, muscle, now = new Date()) {
   let n = 0;
   for (const p of state.performance || []) {
-    if (!inWindow(p.date, now, 7)) continue;
-    const sets = (p.sets || []).filter((x) => x.done && x.type === 'main').length;
-    const prof = catalogById(p.exerciseId);
-    const primary = Array.isArray(p.primary) ? p.primary : prof?.primary || [];
-    const secondary = Array.isArray(p.secondary) ? p.secondary : prof?.secondary || [];
-    if (primary.includes(muscle)) n += sets;
-    if (secondary.includes(muscle)) n += sets * POLICY.secondarySetCredit;
+    if (inWindow(p.date, now, 7)) n += creditMuscles({}, p, mainSetCount(p))[muscle] || 0;
+  }
+  for (const h of state.history || []) {
+    if (h.source === 'pt' && inWindow(h.date, now, 7)) n += ptMuscleSets(state, h)[muscle] || 0;
   }
   return Math.round(n * 10) / 10;
+}
+
+// 그 부위를 직접 한 최근 세션 5번. PT · 세트 수 모름 · 가볍게 한 날은 평소 양이 아니라서 뺀다.
+function directSessions(state, part) {
+  return state.history.filter((h) => h.part === part && h.source !== 'pt' && !h.volumeUnknown && !h.light && +h.workSets > 0)
+    .sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
+}
+
+// 직접 한 같은 부위 세션에서 근육마다 받은 세트의 비율. 기록이 없으면 고르게.
+function partMuscleRatio(state, part) {
+  const ms = PART_MUSCLES[part] || [];
+  const ids = new Set(directSessions(state, part).map((h) => h.id));
+  const got = {};
+  for (const p of state.performance || []) if (ids.has(p.sessionId)) creditMuscles(got, p, mainSetCount(p));
+  const sum = ms.reduce((a, m) => a + (got[m] || 0), 0);
+  return Object.fromEntries(ms.map((m) => [m, sum ? (got[m] || 0) / sum : 1 / ms.length]));
+}
+
+// PT 한 번이 근육마다 준 세트 (정책 18절). 메모에서 옮겨 적은 운동(ptExercises)이 있으면 그대로 센다.
+// 없으면 그 부위 세트 수(모르면 중앙값)를 평소 같은 부위 세션의 근육 비율로 나누고,
+// 강조를 골랐으면 그 몫(ptEmphasisShare)을 강조 근육에 먼저 준다.
+export function ptMuscleSets(state, h) {
+  const out = {};
+  if (Array.isArray(h.ptExercises) && h.ptExercises.length) {
+    for (const x of h.ptExercises) creditMuscles(out, x, (x.sets || []).length);
+    return out;
+  }
+  const ms = PART_MUSCLES[h.part] || [];
+  const total = h.volumeUnknown ? typicalSets(state, h.part) : +h.workSets || 0;
+  if (!ms.length || !total) return out;
+  const ratio = partMuscleRatio(state, h.part);
+  const emph = emphasisMuscles(h.part, h.emphasis).filter((m) => ms.includes(m));
+  if (!emph.length) {
+    for (const m of ms) out[m] = total * ratio[m];
+    return out;
+  }
+  const rest = ms.filter((m) => !emph.includes(m));
+  const restRatio = rest.reduce((a, m) => a + ratio[m], 0);
+  for (const m of emph) out[m] = (total * POLICY.ptEmphasisShare) / emph.length;
+  for (const m of rest) out[m] = total * (1 - POLICY.ptEmphasisShare) * (restRatio ? ratio[m] / restRatio : 1 / rest.length);
+  return out;
 }
 
 // extra: 오늘 계획에 이미 들어간 세트 (근육 → 세트 수). 같은 자극을 겹쳐 고르지 않게 한다.
@@ -94,8 +147,7 @@ export function daysSince(state, part, now = new Date()) {
 // 세트 수를 모르는 기록(PT)은 그 부위를 직접 한 최근 세션 5번의 세트 수 중앙값으로 친다(정책 18절).
 // 직접 한 기록이 없으면 0. 가볍게 한 날은 평소 양이 아니라서 뺀다.
 export function typicalSets(state, part) {
-  const xs = state.history.filter((h) => h.part === part && h.source !== 'pt' && !h.volumeUnknown && !h.light && +h.workSets > 0)
-    .sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5).map((h) => +h.workSets).sort((a, b) => a - b);
+  const xs = directSessions(state, part).map((h) => +h.workSets).sort((a, b) => a - b);
   return xs.length ? xs[Math.floor((xs.length - 1) / 2)] : 0;
 }
 

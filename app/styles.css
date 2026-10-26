@@ -214,6 +214,11 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .sheet { width: min(560px, 100%); max-height: 88vh; overflow: auto; background: var(--surface); border-radius: 18px 18px 0 0; border: 1px solid var(--line);
   padding-top: 16px; padding-left: 16px; padding-right: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .sheet h3 { margin: 0 0 10px; font-size: 17px; }
+/* PT 기록: 부위를 고른 줄만 강조 칩을 보인다 */
+.pt-emph { display: none; margin-top: 8px; }
+.sheet:has(input[name=part][value=push]:checked) .pt-emph[data-part=push],
+.sheet:has(input[name=part][value=pull]:checked) .pt-emph[data-part=pull],
+.sheet:has(input[name=part][value=lower]:checked) .pt-emph[data-part=lower] { display: block; }
 .sheet .list { display: grid; gap: 6px; }
 .sheet .list button { text-align: left; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface2); padding-left: 12px; padding-right: 12px; }
 .sheet .list button .tiny { display: block; }

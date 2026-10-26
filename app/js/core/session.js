@@ -817,6 +817,7 @@ export function updateHistoryPart(state, historyId, part) {
   need(h, 'no_history', '기록을 찾을 수 없습니다.');
   need(['push', 'pull', 'lower', 'core'].includes(part), 'bad_part', part);
   h.part = part;
+  if (h.emphasis) h.emphasis = validEmphasis(part, h.emphasis);
   state.performance.forEach((p) => { if (p.sessionId === historyId) p.part = part; });
 }
 
@@ -836,7 +837,8 @@ export function deleteHistory(state, historyId) {
 }
 
 // PT 기록. parts 가 여러 개면(혼합) 세트 수를 나눠 기록한다.
-export function logPT(state, { date, parts, sets = null, note = '' }) {
+// emphasis: 부위 → 주로 한 강조 id (예: { push: 'shoulder' }). 근육별 주간 세트와 다음 강조 번갈이에 쓴다.
+export function logPT(state, { date, parts, sets = null, note = '', emphasis = {} }) {
   need(parseDateLocal(date), 'bad_date', '날짜 형식이 올바르지 않습니다.');
   const ps = [...new Set((parts || []).filter((x) => ['push', 'pull', 'lower', 'core'].includes(x)))];
   need(ps.length, 'no_part', '부위를 하나 이상 고르세요.');
@@ -846,7 +848,19 @@ export function logPT(state, { date, parts, sets = null, note = '' }) {
   ps.forEach((part, i) => state.history.push({
     id: ps.length > 1 ? `${base}_${i}` : base, date, part, source: 'pt',
     workSets: n === null ? 0 : Math.round(n / ps.length), durationSec: null, note, overrideReason: '', performanceScore: null, volumeUnknown: n === null,
+    emphasis: validEmphasis(part, emphasis?.[part]),
   }));
+}
+
+function validEmphasis(part, id) {
+  return (EMPHASIS[part] || []).some((x) => x.id === id) ? id : null;
+}
+
+// 지난 기록의 강조 부위를 고친다 (PT 기록 수정). 그 부위에 없는 강조는 지운다.
+export function setHistoryEmphasis(state, historyId, id) {
+  const h = state.history.find((x) => x.id === historyId);
+  need(h, 'no_history', '기록을 찾을 수 없습니다.');
+  h.emphasis = validEmphasis(h.part, id);
 }
 
 export { CORE_SLOTS, catalogById };

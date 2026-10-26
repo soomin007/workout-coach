@@ -171,3 +171,11 @@
   node · Playwright 는 `/c/Users` 를 현재 드라이브 기준 경로로 읽어 `C:\c\Users` 가 된다.
 - 규칙: node · Playwright · Python 이 읽는 파일 안에는 `C:/Users/...` 형식(`cygpath -m "$S"`)이나 프로젝트 기준 상대 경로만 쓴다.
   파일을 저장하는 스크립트를 돌린 뒤에는 의도한 경로에 파일이 생겼는지 `ls` 로 확인한다.
+
+## 29. PT 기록이 근육별 주간 세트에 들어가지 않았다
+- 증상: 10/22 어깨 위주 PT(오버헤드 프레스 · 레터럴 · 후면 어깨 · 푸시다운)를 기록했는데, 다음 날 측면 어깨 주간 세트가 0이었다.
+  그날 밀기를 했다면 "어깨가 부족하다"며 어깨를 또 강조할 상황이었다(2026-10-26 사용자 지적).
+- 원인: PT 기록은 history 한 줄만 만들고 performance 는 만들지 않는다. 정책 18절은 부위 볼륨(weeklySets)에만 PT 를 넣었고,
+  근육 세트(muscleSets)는 performance 만 읽어서 PT 를 몰랐다. 부위 단위와 근육 단위 집계가 따로 있다는 걸 놓쳤다.
+- 규칙: 볼륨을 세는 규칙을 바꾸면 weeklySets(부위)와 muscleSets(근육) 둘 다에 반영됐는지 확인한다.
+  PT 운동은 performance 에 넣지 않는다(처방 · 로테이션 · 그립이 모두 performance 를 읽는다). 근육 계산은 history 의 emphasis · ptExercises 로 한다.
