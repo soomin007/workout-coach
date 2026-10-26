@@ -179,3 +179,9 @@
   근육 세트(muscleSets)는 performance 만 읽어서 PT 를 몰랐다. 부위 단위와 근육 단위 집계가 따로 있다는 걸 놓쳤다.
 - 규칙: 볼륨을 세는 규칙을 바꾸면 weeklySets(부위)와 muscleSets(근육) 둘 다에 반영됐는지 확인한다.
   PT 운동은 performance 에 넣지 않는다(처방 · 로테이션 · 그립이 모두 performance 를 읽는다). 근육 계산은 history 의 emphasis · ptExercises 로 한다.
+
+## 30. 한글 문단이 낱말 중간에서 꺾였다
+- 증상: 운동 안내가 "허리가 뜨 / 면", "바닥에 붙입 / 니다"처럼 어절 중간에서 줄이 바뀌었다. 앱 전체가 그랬다(2026-10-26 실측, 320 · 360 · 390 폭).
+- 원인: 브라우저 기본값(word-break: normal)은 한글을 음절마다 끊을 수 있게 본다. 스타일에 keep-all 이 토스트에만 있었다.
+- 규칙: body 에 `word-break: keep-all; overflow-wrap: anywhere;` 를 둔다. 글을 바꾸면 Range 로 줄 끝을 재서,
+  줄 끝이 공백이 아닌 줄이 없는지 확인한다(이번 세션의 측정 스크립트 방식). 레이아웃 E2E 로 넘침을 같이 본다.
