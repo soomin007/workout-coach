@@ -67,7 +67,9 @@ export function normalizeState(src) {
   n.settings.unavailableExercises = Array.isArray(x.settings?.unavailableExercises) ? [...new Set(x.settings.unavailableExercises)] : [];
   n.settings.homeEquipment = Array.isArray(x.settings?.homeEquipment) ? [...new Set(x.settings.homeEquipment)] : [];
   n.prefs = x.prefs && typeof x.prefs === 'object' ? x.prefs : {};
-  n.customExercises = Array.isArray(x.customExercises) ? x.customExercises : [];
+  // 예전에 '장비 불필요'로 저장된 기구 운동은 헬스장 기구로 바로잡는다 (session.js customEquipment 와 같은 규칙)
+  n.customExercises = (Array.isArray(x.customExercises) ? x.customExercises : [])
+    .map((c) => (c && c.equipment === 'none' && c.mode && c.mode !== 'bodyweight' ? { ...c, equipment: 'gym' } : c));
   n.history = Array.isArray(x.history) ? x.history.filter((h) => h && PARTS.includes(h.part) && parseDateLocal(h.date)) : [];
   n.performance = Array.isArray(x.performance)
     ? x.performance.filter((p) => p && parseDateLocal(p.date) && Array.isArray(p.sets)).map((p) => ({ ...p, sets: p.sets.map(normalizeSet) }))

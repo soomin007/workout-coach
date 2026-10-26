@@ -155,3 +155,61 @@ test('7.5 간격 스택 기구는 모두 시작 칸(start)이 있다', async () 
   const missing = ALL_CATALOG.filter((x) => x.inc === 7.5 && x.mode === 'machine' && !x.start).map((x) => x.id);
   assert.deepEqual(missing, []);
 });
+
+test('직접 추가한 암 풀 다운은 스트레이트 암 풀다운(케이블, 집 운동 제외)으로 옮겨지고 40kg × 10 에서 잇는다 (10/27)', async () => {
+  const { isAvailable } = await import('../../app/js/core/plan.js');
+  const s = freshState();
+  const cid = 'custom:암_풀_다운:mvozdd81';
+  s.customExercises.push({ id: cid, name: '암 풀 다운', part: 'pull', role: 'secondary_back', primary: ['back'], secondary: [], mode: 'machine', inc: 5, range: [8, 12], equipment: 'none' });
+  s.performance.push({ ...rec('2026-10-26', cid, [set(40, 10), set(40, 10)]), part: 'pull' });
+  const n = normalizeState(s);
+  assert.equal(n.customExercises.length, 0);
+  assert.equal(n.performance[0].exerciseId, 'straight_arm_pd');
+  const p = profileFor(n, 'straight_arm_pd');
+  assert.equal(p.equipment, 'cable');
+  assert.equal(isAvailable(n, p, { home: true }), false);
+  assert.equal(prescribeForOrder(p, n, 0).weight, 40);
+});
+
+test('이지바 운동은 빈 바 10kg부터 5kg 단위 총중량, 이지바를 끄면 추천하지 않는다', async () => {
+  const { isAvailable } = await import('../../app/js/core/plan.js');
+  const s = freshState();
+  for (const id of ['skull_crusher', 'ez_curl']) {
+    const p = profileFor(s, id);
+    assert.equal(p.mode, 'total');
+    assert.equal(snapW(12, p), 10);
+    assert.equal(stepW(10, 1, p), 15);
+    assert.equal(stepW(25, -1, p), 20);
+    // 가볍게 처방도 빈 바(10kg) 아래로 내려가지 않는다
+    assert.equal(easyRx(p, { weight: 10, reps: 10, kind: 'hold', note: '' }).weight, 10);
+    assert.equal(isAvailable(s, p), true);
+  }
+  s.settings.equipment.ez_bar = false;
+  assert.equal(isAvailable(s, profileFor(s, 'ez_curl')), false);
+});
+
+test('Pull 60분: 지난번에 한 랫풀다운도 남고, 스트레이트 암 풀다운은 75분에 더해진다', async () => {
+  const { buildPlan } = await import('../../app/js/core/plan.js');
+  const s = freshState();
+  s.performance.push({ ...rec('2026-10-09', 'lat', [set(27.5, 12), set(27.5, 12)]), part: 'pull' });
+  const now = new Date(2026, 9, 10, 18);
+  const ids = (m) => buildPlan(s, 'pull', m, now).planned.map((x) => x.id);
+  assert.ok(ids(60).includes('lat'));
+  assert.ok(!ids(60).includes('straight_arm_pd'));
+  assert.ok(ids(75).includes('straight_arm_pd'));
+});
+
+test('직접 추가한 기구 운동은 헬스장 기구로 저장돼 집 운동에서 빠지고, 맨몸 운동만 집에서도 나온다', async () => {
+  const { isAvailable } = await import('../../app/js/core/plan.js');
+  const s = freshState();
+  const m = T.createCustomExercise(s, { name: '케이블 무언가', part: 'pull', role: 'secondary_back', mode: 'machine', inc: 5 });
+  const b = T.createCustomExercise(s, { name: '맨몸 무언가', part: 'core', role: 'core_flexion', mode: 'bodyweight' });
+  assert.equal(m.equipment, 'gym');
+  assert.equal(b.equipment, 'none');
+  assert.equal(isAvailable(s, profileFor(s, m.id), { home: true }), false);
+  assert.equal(isAvailable(s, profileFor(s, m.id)), true);
+  assert.equal(isAvailable(s, profileFor(s, b.id), { home: true }), true);
+  // 예전에 '장비 불필요'로 저장된 기구 운동도 바로잡는다
+  s.customExercises.push({ ...m, id: 'custom:old:1', name: '옛 기구 운동', equipment: 'none' });
+  assert.equal(normalizeState(s).customExercises.find((x) => x.id === 'custom:old:1').equipment, 'gym');
+});

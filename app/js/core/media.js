@@ -19,6 +19,7 @@ export const EX_MEDIA = {
   side_plank: 'side-plank', reverse_crunch: 'reverse-crunches', crunch: 'crunches', shoulder_tap: 'high-plank',
   cable_crunch: 'cable-crunch', leg_raise: 'lying-leg-raise', hanging_leg_raise: 'hanging-leg-raise', bicycle_crunch: 'bicycle-crunch',
   russian_twist: 'russian-twist', hollow_hold: 'hollow-body-hold',
+  db_oh_ext: 'seated-dumbbell-tricep-extension', skull_crusher: 'ez-bar-lying-tricep-extension', straight_arm_pd: 'straight-arm-pulldown', ez_curl: 'ez-bar-curl',
 };
 
 // 그립마다 다른 그림이 있으면 그것으로 (grips.js 의 그립 id)

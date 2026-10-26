@@ -18,6 +18,8 @@ export const LIB_GROUPS = [['all', '전체'], ['chest', '가슴'], ['back', '등
 const GROUP_OF = { chest: 'chest', back: 'back', upper_back: 'back', front_delt: 'shoulder', side_delt: 'shoulder', rear_delt: 'shoulder', biceps: 'arm', triceps: 'arm', brachialis: 'arm', core: 'core', quads: 'leg', hamstring: 'leg', glute: 'leg', calf: 'leg', adductor: 'leg' };
 
 const names = (xs) => xs.map((m) => MUSCLE_X[m] || m).join(', ');
+// 'gym': 이름을 모르는 헬스장 기구 (직접 추가 운동)
+const equipLabel = (p) => EQUIPMENT[p.equipment] || (p.equipment === 'gym' ? '헬스장 기구' : '맨몸');
 
 function allExercises(state) {
   const custom = (state.customExercises || []).map((x) => x.id);
@@ -26,7 +28,7 @@ function allExercises(state) {
 
 function searchText(p) {
   const base = ALL_CATALOG.find((x) => x.id === p.id);
-  return [p.name, ...(base?.aliases || []), names(p.primary), names(p.secondary), EQUIPMENT[p.equipment] || ''].join(' ').toLowerCase();
+  return [p.name, ...(base?.aliases || []), names(p.primary), names(p.secondary), equipLabel(p)].join(' ').toLowerCase();
 }
 
 export function renderLibrary(state, ui) {
@@ -38,7 +40,7 @@ export function renderLibrary(state, ui) {
     const text = searchText(p);
     return `<button class="lib-item${q && !text.includes(q) ? ' hidden' : ''}" data-action="ex-detail" data-id="${esc(p.id)}" data-search="${esc(text)}">
       <span class="lib-thumb" aria-hidden="true">${exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy" decoding="async">` : bodyMap(p)}</span>
-      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(names(p.primary))} · ${esc(EQUIPMENT[p.equipment] || '맨몸')}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
+      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(names(p.primary))} · ${esc(equipLabel(p))}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
     </button>`;
   }).join('');
   return `<section class="lib-head">
@@ -68,7 +70,7 @@ export function exerciseDetailHtml(state, id) {
   const u = p.measure === 'seconds' ? '초' : '회';
   const facts = [
     ['집중 영역', names(p.primary)], ['보조', p.secondary.length ? names(p.secondary) : '-'],
-    ['장비', EQUIPMENT[p.equipment] || '맨몸'], ['목표', `${p.range[0]}~${p.range[1]}${u} · 휴식 ${p.rest}초`],
+    ['장비', equipLabel(p)], ['목표', `${p.range[0]}~${p.range[1]}${u} · 휴식 ${p.rest}초`],
     ['무게 적는 법', MODE_LABEL[p.mode] || p.mode],
   ].map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
   const gripHtml = grips ? `<div class="guide-h">그립</div><div class="grip-list compact">${grips.map((x) => `<div class="grip-opt${x.id === gNow ? ' on' : ''}">${gripArt(x, { arm: gripArm(id) })}<div class="grip-name">${esc(x.name)}${x.id === gNow ? ' <span class="tag">지난번</span>' : ''}</div><p class="small">${esc(x.emphasis)}</p></div>`).join('')}</div>` : '';

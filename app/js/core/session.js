@@ -593,6 +593,9 @@ export function addExercise(state, exerciseId, { now = new Date() } = {}) {
   return e;
 }
 
+// 직접 추가 운동은 기구 이름을 묻지 않는다. 맨몸이 아니면 헬스장 기구('gym')로 두어 집 운동에서 뺀다 (10/27, 암 풀 다운이 '장비 불필요'로 저장됐던 일).
+export function customEquipment(mode) { return mode === 'bodyweight' ? 'none' : 'gym'; }
+
 // 사용자 운동 정의를 만든다 (세션과 무관). def: { name, part, role, mode, inc, range, rest, unilateral, primary, compound, measure }
 export function createCustomExercise(state, def) {
   const name = String(def.name || '').trim();
@@ -602,7 +605,7 @@ export function createCustomExercise(state, def) {
   const x = {
     id, name, part: def.part, role: def.role, primary: def.primary || [], secondary: def.secondary || [],
     sets: 3, range: [lo, hi], rest: Math.max(30, Number(def.rest) || 90), inc: Math.max(0, Number(def.inc) || 0),
-    mode: def.mode || 'machine', priority: 50, equipment: 'none', compound: !!def.compound, unilateral: !!def.unilateral,
+    mode: def.mode || 'machine', priority: 50, equipment: customEquipment(def.mode), compound: !!def.compound, unilateral: !!def.unilateral,
     measure: def.measure === 'seconds' ? 'seconds' : 'reps', why: '사용자 직접 추가 운동',
   };
   state.customExercises.push(x);

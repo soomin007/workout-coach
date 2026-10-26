@@ -15,7 +15,7 @@ export const EQUIPMENT = {
   barbell: '바벨', shoulder_press: '숄더프레스 머신', dumbbell: '덤벨', cable: '케이블', pullup: '풀업바',
   lat_pulldown: '랫풀다운', cable_row: '케이블 로우', chest_supported_row: '가슴 패드 T바',
   iso_row: '아이소레터럴 로우 머신', rack: '스쿼트 랙', leg_curl: '레그컬', leg_extension: '레그 익스텐션', leg_press: '레그프레스',
-  abduction: '어브덕션 · 어덕션 머신', calf_machine: '카프 머신', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
+  abduction: '어브덕션 · 어덕션 머신', calf_machine: '카프 머신', ez_bar: '이지바', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
 };
 // 있는지 확인하기 전까지는 없는 것으로 보는 장비. 설정에서 켜야 그 운동이 추천된다.
 const EQUIPMENT_OFF_BY_DEFAULT = ['ankle_strap'];
@@ -66,7 +66,7 @@ export const CORE_SLOTS = {
 };
 export const OPTIONAL_SLOTS = {
   push: ['secondary_chest_press', 'chest_isolation', 'chest_finisher'],
-  pull: ['secondary_vertical_pull', 'secondary_back', 'biceps_secondary'],
+  pull: ['secondary_vertical_pull', 'secondary_back', 'lat_isolation', 'biceps_secondary'],
   lower: ['secondary_squat', 'secondary_lower', 'glute_med'],
   core: ['core_rotation', 'core_anti_rotation'],
 };
@@ -80,7 +80,7 @@ export const SECOND_SLOTS = {
 };
 export const SESSION_ORDER = {
   push: ['horizontal_push', 'secondary_chest_press', 'vertical_push', 'chest_isolation', 'lateral_delt', 'triceps', 'chest_finisher'],
-  pull: ['vertical_pull', 'secondary_vertical_pull', 'horizontal_pull', 'secondary_back', 'rear_delt', 'biceps', 'biceps_secondary'],
+  pull: ['vertical_pull', 'secondary_vertical_pull', 'horizontal_pull', 'secondary_back', 'lat_isolation', 'rear_delt', 'biceps', 'biceps_secondary'],
   lower: ['squat', 'secondary_squat', 'unilateral', 'hamstring', 'secondary_lower', 'glute_max', 'glute_med', 'calf'],
   core: ['core_flexion', 'core_flexion_lower', 'core_rotation', 'core_anti_extension', 'core_anti_rotation', 'core_lateral'],
 };
@@ -92,6 +92,7 @@ export const SLOT_COMPAT = {
   vertical_pull: ['vertical_pull', 'secondary_vertical_pull'],
   secondary_vertical_pull: ['secondary_vertical_pull', 'vertical_pull'],
   horizontal_pull: ['horizontal_pull', 'secondary_back'], secondary_back: ['secondary_back', 'horizontal_pull'],
+  lat_isolation: ['lat_isolation'],
   rear_delt: ['rear_delt'], biceps: ['biceps', 'biceps_secondary'], biceps_secondary: ['biceps_secondary', 'biceps'],
   squat: ['squat', 'secondary_squat', 'secondary_lower'], secondary_squat: ['secondary_squat', 'squat', 'secondary_lower'],
   unilateral: ['unilateral', 'secondary_lower'], hamstring: ['hamstring'],
@@ -103,7 +104,7 @@ export const SLOT_COMPAT = {
 export const SLOT_LABEL = {
   horizontal_push: '수평 밀기', secondary_chest_press: '가슴 보조 프레스', vertical_push: '어깨 프레스', lateral_delt: '측면 어깨',
   triceps: '삼두', chest_isolation: '가슴 고립', chest_finisher: '가슴 마무리',
-  vertical_pull: '수직 당기기', secondary_vertical_pull: '수직 당기기 보조', horizontal_pull: '수평 당기기', secondary_back: '등 보조',
+  vertical_pull: '수직 당기기', secondary_vertical_pull: '수직 당기기 보조', horizontal_pull: '수평 당기기', secondary_back: '등 보조', lat_isolation: '광배 고립',
   rear_delt: '후면 어깨', biceps: '이두', biceps_secondary: '이두 보조',
   squat: '스쿼트', secondary_squat: '스쿼트 보조', unilateral: '편측 하체', hamstring: '햄스트링', secondary_lower: '하체 보조',
   glute_med: '중둔근', glute_max: '둔근', calf: '종아리', adductor: '안쪽 허벅지',
@@ -124,6 +125,10 @@ export const DB = {
     { id: 'cable_lateral', name: '케이블 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 82, equipment: 'cable', why: '측면삼각근 지속 장력' },
     { id: 'pushdown', name: '트라이셉 푸시다운', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 95, equipment: 'cable', why: '삼두 직접 볼륨' },
     { id: 'oh_cable_ext', name: '오버헤드 케이블 익스텐션', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 70, equipment: 'cable', why: '팔을 머리 위로 올려 삼두 긴 갈래를 늘린 채 자극' },
+    // 덤벨 · 이지바 삼두 (2026-10-27): 케이블이 찼을 때의 교체 후보, 삼두 강조 날의 두 번째 운동. 오버헤드 자세가 긴 갈래를 더 키운다(Maeo 2022).
+    { id: 'db_oh_ext', name: '덤벨 오버헤드 익스텐션', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 66, equipment: 'dumbbell', why: '덤벨 하나를 두 손으로 머리 위에 들어 삼두 긴 갈래를 늘린 채 자극' },
+    // 원판 끼우는 이지바, 빈 바 10kg (10/27 사용자 확인). 무게는 바와 원판을 합친 총중량, 원판 2.5kg × 양쪽 = 5kg 단위.
+    { id: 'skull_crusher', name: '이지바 스컬 크러셔', aliases: ['라잉 트라이셉 익스텐션'], role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [8, 12], rest: 90, inc: 5, start: 10, mode: 'total', priority: 64, equipment: 'ez_bar', why: '벤치에 누워 이지바를 이마 뒤로 내렸다 펴는 삼두 운동' },
     { id: 'cable_fly', name: '케이블 플라이', role: 'chest_isolation', primary: ['chest'], secondary: [], sets: 2, range: [10, 15], rest: 90, inc: 5, start: 5, mode: 'machine', priority: 90, equipment: 'cable', why: '프레스 후 가슴 고립' },
     { id: 'pike_pushup', name: '파이크 푸쉬업', role: 'vertical_push', primary: ['front_delt'], secondary: ['triceps'], sets: 3, range: [6, 12], rest: 90, inc: 0, mode: 'bodyweight', priority: 40, equipment: 'none', compound: true, why: '집에서 하는 어깨 프레스', cue: '엉덩이를 높이 들고 머리가 손 사이로 내려가게.' },
     { id: 'pushup', name: '푸쉬업', role: 'chest_finisher', primary: ['chest'], secondary: ['triceps'], sets: 2, range: [10, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 60, equipment: 'none', why: '가벼운 마무리' },
@@ -131,6 +136,10 @@ export const DB = {
   pull: [
     { id: 'pullup', name: '풀업', role: 'vertical_pull', primary: ['back'], secondary: ['biceps'], sets: 3, range: [6, 10], rest: 180, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'pullup', compound: true, why: '수직 당기기 메인', cue: '첫 세트를 실패까지 밀지 말고 RIR 1~2를 남겨 이후 세트 붕괴를 줄이기.' },
     { id: 'lat', name: '랫풀다운', aliases: ['시티드 랫풀다운'], role: 'secondary_vertical_pull', primary: ['back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 7.5, start: 5, mode: 'machine', priority: 92, equipment: 'lat_pulldown', compound: true, why: '광배 추가 볼륨' },
+    // 사용자가 직접 추가했던 '암 풀 다운'(10/26)을 카탈로그로 옮겼다. 같은 이름의 직접 추가 운동과 기록은 adoptCatalog 가 이 id 로 옮긴다.
+    // 자리는 따로(lat_isolation) 둔다. 랫풀다운 자리에 넣으면 보조 로테이션이 랫풀다운(복합)과 번갈아 빼 버린다.
+    // 우선순위 60: 지난번에 한 랫풀다운(92/20 - 1.5 = 3.1)보다 낮아서, 60분이면 랫풀다운이 남고 75분이나 광배 강조 날에 더해진다.
+    { id: 'straight_arm_pd', name: '스트레이트 암 풀다운', aliases: ['암 풀 다운', '암 풀다운'], role: 'lat_isolation', primary: ['back'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 60, equipment: 'cable', why: '팔을 편 채 케이블을 허벅지까지 끌어내려, 이두가 지치기 전에 광배만 따로 자극' },
     { id: 'row', name: '시티드 케이블 로우', role: 'horizontal_pull', primary: ['back', 'upper_back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 7.5, start: 5, mode: 'machine', priority: 95, equipment: 'cable_row', compound: true, why: '수평 당기기 메인' },
     // 가슴 패드에 엎드려 기대고 발판에 서서 당기는 T바 기구(10/24 사용자 확인). 원판을 봉 끝에 꽂는다.
     { id: 'chest_row', name: '체스트 서포티드 T바 로우', aliases: ['체스트 서포티드 로우', 'T바 로우', 'T바/플레이트 로우'], role: 'horizontal_pull', primary: ['back', 'upper_back'], secondary: ['biceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'plates', priority: 93, equipment: 'chest_supported_row', compound: true, why: '가슴을 패드에 대서 허리 부담을 줄인 수평 당기기' },
@@ -142,6 +151,7 @@ export const DB = {
     { id: 'db_rear', name: '덤벨 리버스 플라이', role: 'rear_delt', primary: ['rear_delt'], secondary: [], sets: 2, range: [12, 20], rest: 75, inc: 1, mode: 'per_dumbbell', priority: 76, equipment: 'dumbbell', why: '후면삼각근 대체' },
     { id: 'curl', name: '덤벨 바이셉 컬', role: 'biceps', primary: ['biceps'], secondary: [], sets: 2, range: [8, 12], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 90, equipment: 'dumbbell', why: '이두 직접 볼륨' },
     { id: 'hammer', name: '해머컬', role: 'biceps_secondary', primary: ['biceps'], secondary: ['brachialis'], sets: 2, range: [10, 15], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 78, equipment: 'dumbbell', why: '상완근/이두 보완' },
+    { id: 'ez_curl', name: '이지바 컬', role: 'biceps', primary: ['biceps'], secondary: [], sets: 2, range: [8, 12], rest: 75, inc: 5, start: 10, mode: 'total', priority: 76, equipment: 'ez_bar', why: '두 손으로 함께 드는 이두 운동. 굽은 바라 손목이 편하다' },
   ],
   lower: [
     { id: 'squat', name: '프리 스쿼트', role: 'squat', primary: ['quads', 'glute'], focus: ['quads'], secondary: [], sets: 3, range: [5, 8], rest: 210, inc: 5, mode: 'total', priority: 100, equipment: 'rack', compound: true, why: '하체 메인 복합운동' },
