@@ -213,3 +213,21 @@ test('직접 추가한 기구 운동은 헬스장 기구로 저장돼 집 운동
   s.customExercises.push({ ...m, id: 'custom:old:1', name: '옛 기구 운동', equipment: 'none' });
   assert.equal(normalizeState(s).customExercises.find((x) => x.id === 'custom:old:1').equipment, 'gym');
 });
+
+test('카탈로그 운동은 한발 힙 쓰러스트를 빼고 모두 동작 그림이 있고, 그림 파일이 실제로 있다', async () => {
+  const { ALL_CATALOG } = await import('../../app/js/core/catalog.js');
+  const { exerciseImages } = await import('../../app/js/core/media.js');
+  const { existsSync } = await import('node:fs');
+  const noImage = ALL_CATALOG.filter((x) => !exerciseImages(x.id).length).map((x) => x.id);
+  assert.deepEqual(noImage, ['sl_hip_thrust']);
+  const missing = ALL_CATALOG.flatMap((x) => exerciseImages(x.id)).filter((p) => !existsSync(new URL(`../../app/${p}`, import.meta.url)));
+  assert.deepEqual(missing, []);
+});
+
+test('덤벨 스쿼트는 집에 덤벨이 있으면 집 운동에 나오고, 스미스 힙 쓰러스트는 나오지 않는다', async () => {
+  const { isAvailable } = await import('../../app/js/core/plan.js');
+  const s = freshState();
+  s.settings.homeEquipment = ['dumbbell'];
+  assert.equal(isAvailable(s, profileFor(s, 'db_squat'), { home: true }), true);
+  assert.equal(isAvailable(s, profileFor(s, 'smith_hip_thrust'), { home: true }), false);
+});

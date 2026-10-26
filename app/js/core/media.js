@@ -1,7 +1,7 @@
 // 운동 동작 그림: RepDB 무료 등급(github.com/sergei-argutin/exercise-dataset, 2026-10-04 받음).
 // 조건: 앱 안 사용, "Exercise data by RepDB (repdb.co)" 표기(설정 탭 · README), 데이터셋으로 재배포 금지.
 // 우리 운동에 맞는 것만 골라 320px 로 줄여 app/img/ex/ 에 넣었다. 키는 RepDB id, 파일은 <id>-start|peak|main.webp.
-// 맞는 그림이 없는 운동(케이블 리어델트 플라이 등)은 근육 지도만 쓴다.
+// 맞는 그림이 없는 운동(한발 힙 쓰러스트: RepDB 에는 바닥 브릿지만 있다)은 근육 지도만 쓴다.
 
 // hold: 시작 · 끝 두 장이 아니라 한 장(main)인 버티기 운동
 const HOLD = new Set(['plank', 'bird-dog-hold', 'side-plank', 'high-plank', 'hollow-body-hold']);
@@ -20,6 +20,8 @@ export const EX_MEDIA = {
   cable_crunch: 'cable-crunch', leg_raise: 'lying-leg-raise', hanging_leg_raise: 'hanging-leg-raise', bicycle_crunch: 'bicycle-crunch',
   russian_twist: 'russian-twist', hollow_hold: 'hollow-body-hold',
   db_oh_ext: 'seated-dumbbell-tricep-extension', skull_crusher: 'ez-bar-lying-tricep-extension', straight_arm_pd: 'straight-arm-pulldown', ez_curl: 'ez-bar-curl',
+  rear_cable: 'cable-reverse-fly', db_bench: 'db-bench-press', db_shoulder_press: 'seated-db-press', incline_db_fly: 'incline-dumbbell-fly',
+  incline_curl: 'incline-db-curl', db_squat: 'db-squat', smith_hip_thrust: 'smith-machine-hip-thrust', hanging_knee_raise: 'hanging-knee-raise',
 };
 
 // 그립마다 다른 그림이 있으면 그것으로 (grips.js 의 그립 id)
