@@ -63,11 +63,33 @@ export function bigJump(w, g) {
   return next > w && next - w > inc && (next - w) / w > JUMP.ratio ? next : null;
 }
 
+// ---------- 기준일 (코칭 정책 21절) ----------
+// 깊이나 자세를 바꿔 예전 무게와 비교할 수 없게 된 운동은 prefs[id].since 날짜부터 다시 잰다.
+// 그 전 기록은 기록 화면과 리포트에 남고, 처방과 무거운 날 추정, 워밍업 학습, 가벼운 날 감지에서만 빠진다.
+export function baselineSince(state, exerciseId) {
+  const d = state.prefs?.[exerciseId]?.since;
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
+}
+// 이 운동의 처방에 쓸 수 있는 기록인지 (같은 운동이고 기준일 이후).
+export function usableRecord(state, exerciseId) {
+  const since = baselineSince(state, exerciseId);
+  return (p) => p.exerciseId === exerciseId && (!since || p.date >= since);
+}
+// 기준일 뒤 첫 처방이면 예전 기록을 왜 안 쓰는지 앞에 붙인다. 예전 기록이 없으면 그냥 첫 기록이라 그대로 둔다.
+function withBaselineNote(state, exerciseId, rx) {
+  const since = baselineSince(state, exerciseId);
+  if (!since || !['first', 'heavy_first'].includes(rx.kind)) return rx;
+  if (!(state.performance || []).some((p) => p.exerciseId === exerciseId && p.date < since)) return rx;
+  const [, m, d] = since.split('-').map(Number);
+  return { ...rx, note: `${m}/${d}부터 깊이나 자세를 바꿔 다시 재는 운동이라, 그 전 기록은 처방에 쓰지 않습니다. ${rx.note}` };
+}
+
 // heavy: undefined → 전부, false → 평소 기록만, true → 무거운 날 기록만.
 // 평소 처방(더블 프로그레션)은 무거운 날 기록을 보지 않는다: 3~5회 톱세트가 "하한 미달"로 읽혀 감량 처방이 나오지 않게.
 export function lastPerformance(state, exerciseId, { heavy } = {}) {
+  const ok = usableRecord(state, exerciseId);
   const xs = (state.performance || []).map((p, i) => ({ p, i }))
-    .filter(({ p }) => p.exerciseId === exerciseId && (heavy === undefined || !!p.heavy === heavy));
+    .filter(({ p }) => ok(p) && (heavy === undefined || !!p.heavy === heavy));
   xs.sort((a, b) => b.p.date.localeCompare(a.p.date) || b.i - a.i);
   return preferNormal(xs.map((x) => x.p))[0] || null;
 }
@@ -129,7 +151,8 @@ export function lighterThanUsual(state, session = state.session) {
     if (e.heavy || e.loadMode === 'assist' || e.loadMode === 'bodyweight') continue;
     const now = topWeight(e.sets);
     if (now === null) continue;
-    const prev = (state.performance || []).filter((p) => p.exerciseId === e.exerciseId && !p.light && !p.heavy && p.date <= session.date)
+    const ok = usableRecord(state, e.exerciseId);
+    const prev = (state.performance || []).filter((p) => ok(p) && !p.light && !p.heavy && p.date <= session.date)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
     const was = prev && topWeight(prev.sets);
     if (!was) continue;
@@ -215,8 +238,9 @@ export function warmupPlan(profile, weight, level, pattern = null) {
 // 가장 가벼운 워밍업은 비율 대신 그 무게(abs) 그대로 둔다: 빈 봉(20kg)이나 가장 가벼운 칸으로 시작하는 습관이라
 // 본세트가 줄었다고 봉보다 가벼워지면 안 된다.
 export function learnedWarmups(state, exerciseId) {
+  const ok = usableRecord(state, exerciseId);
   const rec = (state.performance || []).map((p, i) => ({ p, i }))
-    .filter(({ p }) => p.exerciseId === exerciseId && !p.heavy)
+    .filter(({ p }) => ok(p) && !p.heavy)
     .sort((a, b) => b.p.date.localeCompare(a.p.date) || b.i - a.i)[0]?.p;
   const main = rec?.sets.find((z) => z.done && z.type === 'main' && z.weight > 0)?.weight;
   const warm = (rec?.sets || []).filter((z) => z.done && z.type === 'warmup' && !z.found);
@@ -249,7 +273,7 @@ function lastMainOf(rec) { return [...(rec.sets || [])].reverse().find((x) => x.
 // 지난 무거운 날이 있으면 그 톱세트로 진행(쉬웠으면 한 단계 올림, 아니면 유지),
 // 없으면 최근 평소 기록 3개에서 추정 1RM 을 구해 4회 · RIR 2 무게를 잡는다.
 export function heavyPrescribe(profile, state) {
-  const all = preferNormal((state.performance || []).filter((p) => p.exerciseId === profile.id).sort((a, b) => b.date.localeCompare(a.date)));
+  const all = preferNormal((state.performance || []).filter(usableRecord(state, profile.id)).sort((a, b) => b.date.localeCompare(a.date)));
   const lastHeavy = all.find((p) => p.heavy);
   const topOf = (p) => (p.sets || []).find((z) => z.done && z.heavy === 'top' && z.weight !== null && setReps(z) !== null);
   const t = lastHeavy && topOf(lastHeavy);
@@ -270,7 +294,7 @@ export function heavyPrescribe(profile, state) {
     }
   }
   if (!best) {
-    return { weight: null, reps: HEAVY.target, kind: 'heavy_first', note: `첫 무거운 날: 워밍업으로 무게를 올려 가며 ${HEAVY.target}회를 2회 남기고 할 수 있는 무게를 찾으세요.` };
+    return withBaselineNote(state, profile.id, { weight: null, reps: HEAVY.target, kind: 'heavy_first', note: `첫 무거운 날: 워밍업으로 무게를 올려 가며 ${HEAVY.target}회를 2회 남기고 할 수 있는 무게를 찾으세요.` });
   }
   const w = snapW(best.e / (1 + (HEAVY.target + HEAVY.rir) / 30), profile, 'round', 2.5);
   return { weight: w, reps: HEAVY.target, kind: 'heavy_est',
@@ -288,8 +312,9 @@ export function backoffWeight(topWeight, g, pct = HEAVY.backoffPct) {
 // 조건을 모르는 옛 기록은 어느 쪽과도 같다고 보지 않는다 (shift 없이 그대로 쓴다).
 // grip 을 주면 같은 그립 기록만 본다. 그 그립 기록이 없으면 다른 그립 기록을 쓰되 otherGrip 으로 알린다.
 export function recordForOrder(state, exerciseId, cls, grip = null) {
+  const ok = usableRecord(state, exerciseId);
   const sorted = (state.performance || []).map((p, i) => ({ p, i }))
-    .filter(({ p }) => p.exerciseId === exerciseId && !p.heavy)
+    .filter(({ p }) => ok(p) && !p.heavy)
     .sort((a, b) => b.p.date.localeCompare(a.p.date) || b.i - a.i).map((x) => x.p);
   const all = preferNormal(sorted);
   const same = grip ? all.filter((p) => gripOf(p) === grip) : all;
@@ -313,7 +338,7 @@ function pickByOrder(xs, cls) {
 // - 지난번은 먼저, 오늘은 지친 상태: 무게는 그대로 두고 목표 반복을 낮춘다. 증량 처방은 미룬다.
 export function prescribeForOrder(profile, state, pf, grip = null) {
   const { rec, shift, otherGrip } = recordForOrder(state, profile.id, fatigueClass(pf), grip);
-  const rx = orderAdjusted(profile, rec, shift, pf);
+  const rx = withBaselineNote(state, profile.id, orderAdjusted(profile, rec, shift, pf));
   if (!otherGrip) return rx;
   const from = gripById(profile.id, otherGrip)?.short || '다른 그립';
   return { ...rx, kind: rx.kind === 'first' ? 'first' : 'grip_change', note: `이 그립은 첫 기록입니다. 지난번 ${from} 기록 기준이라, 첫 세트로 무게를 다시 맞추세요. ${rx.note}` };

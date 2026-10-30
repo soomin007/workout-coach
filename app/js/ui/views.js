@@ -431,7 +431,7 @@ export function renderSettings(state, ui) {
   const unav = (st.unavailableExercises || []).map((id) => `<div class="setting"><span>${esc(catalogById(id)?.name || state.customExercises.find((c) => c.id === id)?.name || id)}</span><button class="btn sm" data-action="unavail-remove" data-id="${esc(id)}">다시 사용</button></div>`).join('') || '<div class="small">없음</div>';
   const all = [...ALL_CATALOG, ...state.customExercises];
   const prefIds = Object.keys(state.prefs || {});
-  const prefs = prefIds.map((id) => { const x = all.find((y) => y.id === id); const p = state.prefs[id]; return `<div class="setting"><span>${esc(x?.name || id)}<span class="tiny" style="display:block">${[p.loadMode && MODE_LABEL[p.loadMode], p.increment !== undefined && `증량 ${p.increment}`, p.rest && `휴식 ${p.rest}초`, p.range && `${p.range[0]}~${p.range[1]}회`].filter(Boolean).join(' · ')}</span></span><button class="btn sm" data-action="pref-edit" data-id="${esc(id)}">수정</button></div>`; }).join('') || '<div class="small">기본값 그대로 사용 중</div>';
+  const prefs = prefIds.map((id) => { const x = all.find((y) => y.id === id); const p = state.prefs[id]; return `<div class="setting"><span>${esc(x?.name || id)}<span class="tiny" style="display:block">${[p.loadMode && MODE_LABEL[p.loadMode], p.increment !== undefined && `증량 ${p.increment}`, p.rest && `휴식 ${p.rest}초`, p.range && `${p.range[0]}~${p.range[1]}회`, p.since && `${p.since}부터 다시 잼`].filter(Boolean).join(' · ')}</span></span><button class="btn sm" data-action="pref-edit" data-id="${esc(id)}">수정</button></div>`; }).join('') || '<div class="small">기본값 그대로 사용 중</div>';
   const storage = ui.storage || {};
   return `${goalCard}
   <section class="card"><h3>일정 · 개인 정책</h3>

@@ -729,7 +729,7 @@ async function editPref(exerciseId) {
     <div class="actions"><button class="btn" data-sheet-value="reset">기본값으로</button><button class="btn primary" data-sheet-value="ok">저장</button></div>`,
   { collect: (b) => Object.fromEntries([...b.querySelectorAll('[name]')].map((x) => [x.name, x.value])) });
   if (!r) return;
-  if (r.value === 'reset') { run((s) => { delete s.prefs[exerciseId]; }, '기본값으로 되돌렸습니다. 새로 만드는 세션부터 적용됩니다.'); return; }
+  if (r.value === 'reset') { run((s) => { const since = s.prefs[exerciseId]?.since; delete s.prefs[exerciseId]; if (since) s.prefs[exerciseId] = { since }; }, '기본값으로 되돌렸습니다. 새로 만드는 세션부터 적용됩니다.'); return; }
   const f = r.data;
   const lo = Math.max(1, +f.lo || 1), hi = Math.max(lo, +f.hi || lo);
   run((s) => T.setPref(s, exerciseId, { loadMode: f.loadMode, increment: Math.max(0, +f.increment || 0), rest: +f.rest, unilateral: f.unilateral === '1', range: [lo, hi] }), '저장했습니다.');
