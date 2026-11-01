@@ -26,6 +26,7 @@ export function profileFor(state, exerciseId) {
   return {
     id: base.id, name: base.name, part: base.part, role: base.role,
     primary: base.primary || [], secondary: base.secondary || [], ...(base.focus ? { focus: base.focus } : {}),
+    ...(base.stretches ? { stretches: base.stretches } : {}),
     sets: base.sets || 2,
     range: Array.isArray(p.range) && p.range.length === 2 ? [...p.range] : [...g.range],
     rest: Number.isFinite(+p.rest) && p.rest !== null ? +p.rest : g.rest,
@@ -164,6 +165,7 @@ export function lighterThanUsual(state, session = state.session) {
 
 const isAssist = (mode) => mode === 'assist';
 const unitWord = (profile) => (profile.measure === 'seconds' ? '초' : '회');
+const STRETCH_FIRST = 45;
 
 // 다음 처방. 반환: { weight, reps, kind, note }
 export function prescribe(profile, last) {
@@ -172,6 +174,11 @@ export function prescribe(profile, last) {
   // 양쪽을 번갈아 하는 운동은 합계로 세므로 목표를 짝수로 잡는다(10/11 바이시클 크런치 메모: 23회는 할 수 없다).
   const even = (r) => (profile.alternating ? Math.min(hi - (hi % 2), Math.max(lo + (lo % 2), Math.ceil(r / 2) * 2)) : r);
   const main = (last?.sets || []).filter((s) => s.done && s.type === 'main' && setReps(s) !== null);
+  // 스트레칭(정책 22절): 시간을 늘려 가지 않는다. 지난번에 버틴 시간을 범위 안에서 그대로 쓰고, 처음이면 45초.
+  if (profile.role === 'stretch') {
+    const reps = main.length ? clamp(Math.min(...main.map(setReps)), lo, hi) : STRETCH_FIRST;
+    return { weight: null, reps, kind: 'stretch', note: `${reps}초씩${profile.unilateral ? ' 좌우' : ''}. 당기는 느낌은 있지만 아프지 않은 곳에서 멈추고, 숨을 쉬며 버팁니다. 반동은 주지 않습니다.` };
+  }
   if (!main.length) {
     return { weight: null, reps: even(hi > lo ? Math.round((lo + hi) / 2) : lo), kind: 'first', note: `첫 기록: 가볍다 싶은 무게부터 적고 해 보세요. 세트를 마치면 어땠는지 묻고, 가벼웠으면 그 세트는 워밍업으로 돌리고 올립니다. 찾는 무게는 목표 ${lo}~${hi}${u}에서 2~3${u} 여유가 남는 무게.` };
   }
@@ -346,7 +353,7 @@ export function prescribeForOrder(profile, state, pf, grip = null) {
 
 function orderAdjusted(profile, rec, shift, pf) {
   const rx = prescribe(profile, rec);
-  if (!shift || rx.kind === 'first' || isAssist(profile.mode)) return { ...rx, shift: null };
+  if (!shift || rx.kind === 'first' || rx.kind === 'stretch' || isAssist(profile.mode)) return { ...rx, shift: null };
   const [lo, hi] = profile.range;
   const u = unitWord(profile);
   if (shift === 'fatigued>fresh') {

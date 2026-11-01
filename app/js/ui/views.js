@@ -1,6 +1,6 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (actions.js 가 위임 처리).
 import { esc } from './dom.js';
-import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment } from '../core/catalog.js';
+import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment, isStretch } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
 import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
@@ -153,8 +153,9 @@ function weightLabel(e, w) {
 }
 
 // 코어 맨몸 운동은 무게를 더할 일이 거의 없어 버튼 없이 '체중'만 보인다(10/11 메모). 이미 +kg 을 적은 세트가 있으면 그대로 둔다.
+// 스트레칭도 같다(정책 22절).
 function noWeight(e) {
-  return e.loadMode === 'bodyweight' && (e.primary || []).includes('core') && e.sets.every((z) => z.weight === null || z.weight === undefined);
+  return e.loadMode === 'bodyweight' && ((e.primary || []).includes('core') || isStretch(e)) && e.sets.every((z) => z.weight === null || z.weight === undefined);
 }
 
 function stepper(action, uid, i, field, label, testid) {
@@ -195,17 +196,18 @@ function renderSetRow(e, z, i, mainNo, isNext) {
 function renderExercise(state, e, idx, ui, next) {
   const mains = e.sets.filter((z) => z.type !== 'warmup');
   const allDone = mains.length > 0 && mains.every((z) => z.done);
-  // 다 끝났고 느낌까지 받았으면 한 줄로 접는다 (눌러서 다시 펼침).
-  if (allDone && e.effort && !ui.expanded?.has(e.uid)) {
+  // 다 끝났고 느낌까지 받았으면 한 줄로 접는다 (눌러서 다시 펼침). 스트레칭은 느낌을 묻지 않아 끝나면 바로 접는다.
+  const stretch = isStretch(e);
+  if (allDone && (e.effort || stretch) && !ui.expanded?.has(e.uid)) {
     return `<section class="card ex collapsed" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
       <button class="ex-fold" data-action="expand" data-uid="${e.uid}"><span class="ex-title"><span class="ok">✓</span> ${idx + 1}. ${esc(e.name)}</span>
-      <span class="small" data-testid="ex-summary">${mains.map((z) => setSummary(e, z)).join(' · ')} · ${EFFORT_LABEL[e.effort]}</span></button></section>`;
+      <span class="small" data-testid="ex-summary">${mains.map((z) => setSummary(e, z)).join(' · ')}${e.effort ? ` · ${EFFORT_LABEL[e.effort]}` : ''}</span></button></section>`;
   }
-  const badge = e.unilateral ? '좌우' : e.compound ? '복합' : '보조';
+  const badge = stretch ? '스트레칭' : e.unilateral ? '좌우' : e.compound ? '복합' : '보조';
   const restNow = e.restToday ?? e.rest;
   let mainNo = 0;
   const rows = e.sets.map((z, i) => renderSetRow(e, z, i, z.type === 'warmup' ? 0 : ++mainNo, !!next && next.e.uid === e.uid && next.i === i)).join('');
-  const effort = allDone
+  const effort = allDone && !stretch
     ? `<div class="effort-ask">마지막 세트 어땠나요? <span class="tiny">다음 처방에 반영됩니다</span></div><div class="effort" data-testid="effort">${EFFORTS.map((k) => `<button class="${e.effort === k ? 'on' : ''}" data-action="effort" data-uid="${e.uid}" data-v="${k}">${EFFORT_LABEL[k]}</button>`).join('')}</div>`
     : '';
   const top = e.heavy ? e.sets.find((z) => z.heavy === 'top') : null;
@@ -215,7 +217,7 @@ function renderExercise(state, e, idx, ui, next) {
   const fj = findWeightPending(e);
   const findAsk = fj >= 0
     ? `<div class="effort-ask">${e.sets[fj].weight}kg, 본세트 무게로 어땠나요? <span class="tiny">가벼우면 워밍업으로 돌리고 무게를 올립니다</span></div><div class="effort" data-testid="find-weight">${[['light', '가벼움'], ['ok', '적당'], ['heavy', '무거움']].map(([v, l]) => `<button data-action="find-feel" data-uid="${e.uid}" data-i="${fj}" data-v="${v}">${l}</button>`).join('')}</div>` : '';
-  const fold = allDone && e.effort ? `<button class="btn sm ghost" data-action="collapse" data-uid="${e.uid}">접기</button>` : '';
+  const fold = allDone && (e.effort || stretch) ? `<button class="btn sm ghost" data-action="collapse" data-uid="${e.uid}">접기</button>` : '';
   return `<section class="card ex${allDone ? ' complete' : ''}${next && next.e.uid === e.uid ? ' current' : ''}" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
     <div class="ex-head">
       <button class="ex-thumb" data-action="ex-detail" data-id="${esc(e.exerciseId)}" aria-label="${esc(e.name)} 설명 보기">${thumbHtml(e.exerciseId, e.grip, e)}</button>
@@ -327,7 +329,7 @@ function guideHtml(e) {
     ${gr ? `<div class="guide-h">지금 그립: ${esc(gr.name)} (${esc(gr.hold)})</div>${list(gr.how, 'ul')}` : ''}
     ${g ? `<div class="guide-h">하는 방법</div>${list(g.how, 'ol')}<div class="guide-h">주의할 점</div>${list(g.caution, 'ul')}` : '<div class="small">직접 만든 운동이라 설명이 없습니다. 메모에 자세 포인트를 적어 두세요.</div>'}
     ${e.cue ? `<div class="guide-h">내 체크 포인트</div><div>${esc(e.cue)}</div>` : ''}
-    <div class="tiny" style="margin-top:6px">${esc(slotLabel(e.slot))} · 주로 ${esc(muscles)} · ${esc(e.why)}</div></details>`;
+    <div class="tiny" style="margin-top:6px">${esc(slotLabel(e.slot))}${muscles ? ` · 주로 ${esc(muscles)}` : ''} · ${esc(e.why)}</div></details>`;
 }
 
 export function renderSession(state, ui, now = new Date()) {

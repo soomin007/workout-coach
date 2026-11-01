@@ -1,5 +1,6 @@
 // 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
-import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById, hasEquipment, emphasisMuscles } from './catalog.js';
+import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById, hasEquipment, emphasisMuscles, STRETCH_PARTS, isStretch } from './catalog.js';
+import { HOLD } from './hold.js';
 import { profileFor } from './coach.js';
 import { parseDateLocal, endOfDay, localISODate } from './util.js';
 
@@ -281,6 +282,11 @@ function slotScore(state, p, now, opts) {
 }
 
 export function estimateMinutes(profile, sets, withFullWarmup = false) {
+  // 스트레칭: 버티는 시간(범위 중간)에 좌우 자세 바꾸기를 더한다. 준비 동작이 짧아 setup 을 따로 두지 않는다.
+  if (isStretch(profile)) {
+    const hold = (profile.range[0] + profile.range[1]) / 2, sides = profile.unilateral ? 2 : 1;
+    return 0.5 + (sets * sides * (hold + HOLD.switch)) / 60 + (Math.max(0, sets - 1) * profile.rest) / 60;
+  }
   const setup = profile.compound ? 2.5 : 1.2;
   const warm = withFullWarmup && profile.compound ? 5 : profile.compound ? 1.5 : 0.5;
   return setup + warm + 0.75 * sets + Math.max(0, sets - 1) * (profile.rest / 60);
@@ -367,6 +373,21 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
     used.add(e.id);
     est += cost;
   }
+  // 남는 시간에 맨몸 스트레칭 (정책 22절). 순위대로 넣고, 다 안 들어가면 세트를 줄여 본다.
+  // 운동 종목 상한(maxCount)과 따로 센다: 코어는 8종목을 채우면 시간을 늘려도 더 넣을 것이 없었다.
+  if (STRETCH_PARTS.includes(part)) {
+    const pool = partPool(state, part).filter((x) => isStretch(x) && isAvailable(state, x, where) && !used.has(x.id)).sort((a, b) => b.priority - a.priority);
+    for (const x of pool) {
+      for (let sets = x.sets; sets >= 1; sets--) {
+        const cost = estimateMinutes(x, sets);
+        if (est + cost > minutes * 1.06) continue;
+        planned.push({ p: x, slot: 'stretch', sets });
+        used.add(x.id);
+        est += cost;
+        break;
+      }
+    }
+  }
   sortPlan();
   const f = firstCompoundIdx();
   return {
@@ -381,7 +402,7 @@ export function replacementCandidates(state, entry, now = new Date()) {
   const s = state.session;
   const used = new Set(s.exercises.filter((e) => e.uid !== entry.uid).map((e) => e.exerciseId));
   return partPool(state, s.part)
-    .filter((x) => x.id !== entry.exerciseId && isAvailable(state, x) && !used.has(x.id))
+    .filter((x) => x.id !== entry.exerciseId && isAvailable(state, x) && !used.has(x.id) && isStretch(x) === isStretch(entry))
     .map((x) => ({ ...x, sameSlot: supportsSlot(x, entry.slot) }))
     .sort((a, b) => (b.sameSlot - a.sameSlot) || ((b.role === entry.slot) - (a.role === entry.slot)) || (optionNeedScore(state, b, now) - optionNeedScore(state, a, now)) || (b.priority - a.priority));
 }

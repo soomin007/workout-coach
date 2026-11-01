@@ -82,8 +82,11 @@ export const SESSION_ORDER = {
   push: ['horizontal_push', 'secondary_chest_press', 'vertical_push', 'chest_isolation', 'lateral_delt', 'triceps', 'chest_finisher'],
   pull: ['vertical_pull', 'secondary_vertical_pull', 'horizontal_pull', 'secondary_back', 'lat_isolation', 'rear_delt', 'biceps', 'biceps_secondary'],
   lower: ['squat', 'secondary_squat', 'unilateral', 'hamstring', 'secondary_lower', 'glute_max', 'glute_med', 'calf'],
-  core: ['core_flexion', 'core_flexion_lower', 'core_rotation', 'core_anti_extension', 'core_anti_rotation', 'core_lateral'],
+  core: ['core_flexion', 'core_flexion_lower', 'core_rotation', 'core_anti_extension', 'core_anti_rotation', 'core_lateral', 'stretch'],
 };
+// 남는 시간에 맨몸 스트레칭을 붙이는 부위 (정책 22절). 스트레칭은 세트 수 · 처방 진행 · 근육 볼륨에 넣지 않는다.
+export const STRETCH_PARTS = ['core'];
+export const isStretch = (x) => x?.role === 'stretch';
 export const SLOT_COMPAT = {
   horizontal_push: ['horizontal_push', 'secondary_chest_press', 'chest_finisher'],
   secondary_chest_press: ['secondary_chest_press', 'horizontal_push'],
@@ -99,6 +102,7 @@ export const SLOT_COMPAT = {
   secondary_lower: ['secondary_lower', 'unilateral', 'secondary_squat'], glute_med: ['glute_med'], glute_max: ['glute_max', 'glute_med'], calf: ['calf'], adductor: ['adductor'],
   core_anti_extension: ['core_anti_extension'], core_anti_rotation: ['core_anti_rotation'],
   core_lateral: ['core_lateral'], core_flexion: ['core_flexion'], core_flexion_lower: ['core_flexion_lower', 'core_flexion'], core_rotation: ['core_rotation'],
+  stretch: ['stretch'],
 };
 
 export const SLOT_LABEL = {
@@ -109,6 +113,7 @@ export const SLOT_LABEL = {
   squat: '스쿼트', secondary_squat: '스쿼트 보조', unilateral: '편측 하체', hamstring: '햄스트링', secondary_lower: '하체 보조',
   glute_med: '중둔근', glute_max: '둔근', calf: '종아리', adductor: '안쪽 허벅지',
   core_anti_extension: '항신전', core_anti_rotation: '항회전', core_lateral: '항측굴', core_flexion: '윗배 굽히기', core_flexion_lower: '아랫배 말아 올리기', core_rotation: '옆구리 비틀기',
+  stretch: '스트레칭',
 };
 export const slotName = (x) => SLOT_LABEL[x] || String(x || '').replaceAll('_', ' ');
 
@@ -196,6 +201,13 @@ export const DB = {
     { id: 'bird_dog', name: '버드독', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [6, 10], rest: 45, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', unilateral: true, kneeling: true, why: '골반 회전을 막는 항회전 (McGill 빅3)', cue: '뻗은 자세에서 2~3초 멈추기. 골반이 돌아가지 않게.' },
     { id: 'pallof', name: '팰로프 프레스', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [10, 12], rest: 45, inc: 5, start: 5, mode: 'machine', priority: 90, equipment: 'cable', unilateral: true, why: '케이블 당김에 버티는 항회전' },
     { id: 'side_plank', name: '사이드 플랭크', role: 'core_lateral', primary: ['core'], secondary: [], sets: 2, range: [15, 40], measure: 'seconds', rest: 45, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '옆구리 항측굴 (McGill 빅3)' },
+    // 2026-11-01 추가(정책 22절): 코어 날 남는 시간에 붙이는 맨몸 정적 스트레칭. PT 선생님이 햄스트링이 뻣뻣하다고 했다.
+    // primary 를 비워 근육별 주간 세트에 들어가지 않게 하고, 늘리는 근육은 stretches 에 적는다(근육 지도 · 운동 목록 표시용).
+    // 허리 이력이 있어 서서 상체를 숙이는 자세는 넣지 않았다. 누워서 하면 허리를 바닥에 둔 채 다리만 움직인다.
+    { id: 'hamstring_stretch_lying', name: '누워서 햄스트링 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['hamstring'], sets: 3, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '뒤 허벅지 스트레칭. 수건을 발에 걸어 누워서 하므로 허리를 숙이지 않는다' },
+    { id: 'hamstring_stretch_wall', name: '벽에 다리 올려 햄스트링 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['hamstring'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', unilateral: true, why: '손을 쓰지 않고 벽이나 문틀에 다리를 기대 오래 버티는 뒤 허벅지 스트레칭' },
+    { id: 'figure4_stretch', name: '누워서 4자 엉덩이 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['glute'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', unilateral: true, why: '엉덩이 깊은 근육 스트레칭. 햄스트링과 함께 골반 뒤쪽을 푼다' },
+    { id: 'hip_flexor_stretch', name: '무릎 꿇고 고관절 앞쪽 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['quads'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 70, equipment: 'none', unilateral: true, kneeling: true, why: '골반 앞쪽(엉덩허리근)과 허벅지 앞쪽 스트레칭' },
   ],
 };
 

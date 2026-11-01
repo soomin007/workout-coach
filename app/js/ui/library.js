@@ -28,19 +28,19 @@ function allExercises(state) {
 
 function searchText(p) {
   const base = ALL_CATALOG.find((x) => x.id === p.id);
-  return [p.name, ...(base?.aliases || []), names(p.primary), names(p.secondary), equipLabel(p)].join(' ').toLowerCase();
+  return [p.name, ...(base?.aliases || []), names(p.primary), names(p.secondary), names(p.stretches || []), equipLabel(p)].join(' ').toLowerCase();
 }
 
 export function renderLibrary(state, ui) {
   const group = ui.libGroup || 'all';
   const q = (ui.libQuery || '').trim().toLowerCase();
   const unav = new Set(state.settings.unavailableExercises || []);
-  const items = allExercises(state).filter((p) => group === 'all' || p.primary.some((m) => GROUP_OF[m] === group));
+  const items = allExercises(state).filter((p) => group === 'all' || [...p.primary, ...(p.stretches || [])].some((m) => GROUP_OF[m] === group));
   const list = items.map((p) => {
     const text = searchText(p);
     return `<button class="lib-item${q && !text.includes(q) ? ' hidden' : ''}" data-action="ex-detail" data-id="${esc(p.id)}" data-search="${esc(text)}">
       <span class="lib-thumb" aria-hidden="true">${exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy" decoding="async">` : bodyMap(p)}</span>
-      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(names(p.primary))} · ${esc(equipLabel(p))}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
+      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))} · ${esc(equipLabel(p))}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
     </button>`;
   }).join('');
   return `<section class="lib-head">
@@ -69,14 +69,14 @@ export function exerciseDetailHtml(state, id) {
   const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}>`;
   const u = p.measure === 'seconds' ? '초' : '회';
   const facts = [
-    ['집중 영역', names(p.primary)], ['보조', p.secondary.length ? names(p.secondary) : '-'],
+    ...(p.stretches ? [['늘리는 곳', names(p.stretches)]] : [['집중 영역', names(p.primary)], ['보조', p.secondary.length ? names(p.secondary) : '-']]),
     ['장비', equipLabel(p)], ['목표', `${p.range[0]}~${p.range[1]}${u} · 휴식 ${p.rest}초`],
     ['무게 적는 법', MODE_LABEL[p.mode] || p.mode],
   ].map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
   const gripHtml = grips ? `<div class="guide-h">그립</div><div class="grip-list compact">${grips.map((x) => `<div class="grip-opt${x.id === gNow ? ' on' : ''}">${gripArt(x, { arm: gripArm(id) })}<div class="grip-name">${esc(x.name)}${x.id === gNow ? ' <span class="tag">지난번</span>' : ''}</div><p class="small">${esc(x.emphasis)}</p></div>`).join('')}</div>` : '';
   const imgs = exerciseImages(id, gNow);
   const frames = imgs.length ? `<div class="ex-frames${imgs.length === 1 ? ' one' : ''}" data-testid="ex-frames">${imgs.map((src, k) => `<figure><img src="${src}" alt="${esc(p.name)} ${imgs.length === 1 ? '자세' : k ? '끝 자세' : '시작 자세'}" loading="lazy"><figcaption>${imgs.length === 1 ? '자세' : k ? '끝' : '시작'}</figcaption></figure>`).join('')}</div>` : '';
-  const desc = `${frames}${bodyMap(p, { label: `${p.name} 근육 지도` })}
+  const desc = `${frames}${bodyMap(p.stretches ? { primary: p.stretches } : p, { label: `${p.name} 근육 지도` })}
     <div class="facts">${facts}</div>
     ${g ? `<div class="guide-h">하는 방법</div>${list(g.how, 'ol')}<div class="guide-h">주의할 점</div>${list(g.caution, 'ul')}` : '<p class="small">직접 만든 운동이라 설명이 없습니다.</p>'}
     ${p.cue ? `<div class="guide-h">내 체크 포인트</div><p>${esc(p.cue)}</p>` : ''}
@@ -103,7 +103,7 @@ export function addExercisesHtml(state, session) {
   const thumb = (p) => (exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy">` : bodyMap(p));
   const items = pool.map((p) => `<button type="button" class="add-item" data-id="${esc(p.id)}" data-search="${esc(searchText(p))}" aria-pressed="false">
       <span class="add-check" aria-hidden="true"></span><span class="lib-thumb" aria-hidden="true">${thumb(p)}</span>
-      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(names(p.primary))}${p.part !== session.part ? ` · ${esc(p.part.toUpperCase())}` : ''}</span></span></button>`).join('');
+      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))}${p.part !== session.part ? ` · ${esc(p.part.toUpperCase())}` : ''}</span></span></button>`).join('');
   return `<div class="add-sheet" data-testid="add-sheet">
     <h3>운동 추가</h3>
     <input type="search" class="lib-search add-search" autocomplete="off" placeholder="운동 · 근육 · 장비 검색" aria-label="운동 검색">

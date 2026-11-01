@@ -1,7 +1,7 @@
 // 세션 상태 전이. 모든 함수는 전달받은 state(초안)를 직접 수정한다.
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
-import { CORE_SLOTS, EMPHASIS, catalogById, emphasisMuscles } from './catalog.js';
+import { CORE_SLOTS, EMPHASIS, catalogById, emphasisMuscles, isStretch } from './catalog.js';
 import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY, recoveryRx, RECOVERY, easyRx, bigJump, learnedWarmups } from './coach.js';
 import { buildPlan, autoEmphasis, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
@@ -173,7 +173,9 @@ export function createSession(state, { part, source = 'manual', date = null, ove
   // emphasis 를 넘기지 않으면(undefined) 이번 주 같은 부위 기록으로 자동 선택, null 이면 강조 없음.
   const auto = emphasis === undefined ? autoEmphasis(state, part, now) : null;
   if (emphasis === undefined) emphasis = auto?.id || null;
-  const minutes = part === 'core' ? Math.min(30, c.minutes) : c.minutes;
+  // 코어도 고른 시간을 그대로 쓴다. v9 원본은 코어를 30분으로 잘라, 시간을 늘려도 늘 32분 언저리였다(11/1 메모).
+  // 운동은 8종목에서 멈추고, 남는 시간은 스트레칭이 채운다(정책 22절).
+  const minutes = c.minutes;
   const plan = buildPlan(state, part, minutes, now, { home, avoid, emphasis: emphasisMuscles(part, emphasis) });
   const emph = emphasisMuscles(part, emphasis).length ? emphasis : null;
   state.session = {
@@ -277,7 +279,7 @@ export function recalcEstimate(state) {
   if (!s) return [];
   const changed = applyOrderContext(state);
   const f = firstCompoundUid(s);
-  s.estimatedMinutes = Math.round(s.exercises.reduce((a, e) => a + estimateMinutes({ compound: e.compound, rest: e.restToday ?? e.rest }, e.sets.filter((z) => z.type !== 'warmup').length, e.uid === f), 0));
+  s.estimatedMinutes = Math.round(s.exercises.reduce((a, e) => a + estimateMinutes({ compound: e.compound, rest: e.restToday ?? e.rest, role: e.role, range: e.range, unilateral: e.unilateral }, e.sets.filter((z) => z.type !== 'warmup').length, e.uid === f), 0));
   return changed;
 }
 
@@ -687,13 +689,14 @@ export function toggleSessionTimer(state, { now = new Date() } = {}) {
   else { t.running = true; t.start = now.getTime(); }
 }
 
+// 스트레칭은 세트로 세지 않는다(정책 22절). 세면 코어 주간 세트와 부위 추천이 부풀려진다.
 export function countWorkSets(session) {
-  return session.exercises.reduce((a, e) => a + e.sets.filter((z) => z.done && z.type === 'main').length, 0);
+  return session.exercises.filter((e) => !isStretch(e)).reduce((a, e) => a + e.sets.filter((z) => z.done && z.type === 'main').length, 0);
 }
 
 function performanceScore(session) {
   const vals = [];
-  for (const e of session.exercises) {
+  for (const e of session.exercises.filter((x) => !isStretch(x))) {
     for (const z of e.sets.filter((x) => x.done && x.type === 'main')) {
       const r = setReps(z);
       if (r === null) continue;

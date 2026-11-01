@@ -210,8 +210,8 @@ test('코어: 30분이면 굽히기(윗배 · 아랫배)가 먼저, 버티기가
 test('코어: 시간이 남으면 같은 패턴의 두 번째 운동으로 채운다 (10/11 메모: 30분 골랐는데 20분에 끝남)', () => {
   const now = new Date(2026, 9, 11, 18, 0);
   const short = buildPlan(freshState(), 'core', 20, now, { home: true }).planned;
-  assert.equal(short.length, 4, '20분은 핵심 4종목');
-  const p = buildPlan(freshState(), 'core', 30, now, { home: true }).planned;
+  assert.equal(short.filter((x) => x.slot !== 'stretch').length, 4, '20분은 핵심 4종목');
+  const p = buildPlan(freshState(), 'core', 30, now, { home: true }).planned.filter((x) => x.slot !== 'stretch');
   assert.ok(p.length > 6, String(p.length));
   const roles = p.map((x) => x.slot);
   assert.ok(roles.filter((x) => x === 'core_flexion_lower').length === 2, '아랫배 두 번째 운동이 먼저 들어온다');
