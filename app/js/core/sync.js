@@ -136,8 +136,10 @@ export async function syncOnce({ cfg, store, fetchImpl = fetch, resolve = async 
   if (remote && (action === 'conflict' || action === 'pull') && remote.text === store.exportJSON()) action = 'same';
   if (action === 'conflict') action = (await resolve('conflict')) || 'hold';
   if (action === 'push') {
-    next.sha = await putRemote(next, store.exportJSON(), remote?.sha ?? null, `기록 동기화 · 저장 번호 ${store.state.revision}`, fetchImpl);
-    next.revision = store.state.revision;
+    // 올리는 동안 세트를 체크하면 revision 이 오른다. 올린 내용의 번호를 미리 잡아 두어야 그 변경이 다음 동기화에 올라간다.
+    const revision = store.state.revision;
+    next.sha = await putRemote(next, store.exportJSON(), remote?.sha ?? null, `기록 동기화 · 저장 번호 ${revision}`, fetchImpl);
+    next.revision = revision;
   } else if (action === 'pull') {
     store.importJSON(remote.text);
     next.sha = remote.sha;

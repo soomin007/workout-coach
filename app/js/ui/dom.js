@@ -108,9 +108,37 @@ export async function confirmSheet(message, { ok = '확인', cancel = '취소', 
   return v === 'ok';
 }
 
+// 메뉴 항목 앞 아이콘 (24 칸 선 그림). 글을 끝까지 읽지 않아도 항목을 찾게 한다(2026-11-02, 애플 HIG 메뉴 지침).
+// 뜻이 분명한 그림만 쓴다. 맞는 그림이 없는 항목은 아이콘을 달지 않는다.
+const ICON_PATHS = {
+  swap: 'M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4',
+  move: 'M8 20V4M4 8l4-4 4 4M16 4v16M12 16l4 4 4-4',
+  memo: 'M4 20v-4L15 5l4 4L8 20zM13 7l4 4',
+  pref: 'M4 6h8M16 6h4M12 6a2 2 0 1 0 4 0a2 2 0 1 0-4 0M4 12h2M10 12h10M6 12a2 2 0 1 0 4 0a2 2 0 1 0-4 0M4 18h10M18 18h2M14 18a2 2 0 1 0 4 0a2 2 0 1 0-4 0',
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
+  plus: 'M12 5v14M5 12h14',
+  checks: 'M7 12l5 5L22 7M2 12l5 5M12 12l5-5',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+  replan: 'M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4',
+};
+const iconSvg = (k) => (ICON_PATHS[k] ? `<svg class="li-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS[k]}"/></svg>` : '');
+
+// 선택 목록. item: { value, label, hint, icon, danger, disabled, group }.
+// group 이 바뀌는 곳에서 상자를 나눈다: 자주 쓰는 동작과 다음에도 남는 설정, 지우는 동작을 떼어 놓아 모양으로 구분한다.
+// 같은 묶음 안에서는 아이콘을 모두 달거나 모두 뺀다. 지우는 동작(danger)은 빨간 글자로 맨 아래 묶음에 둔다.
+export function listHtml(items) {
+  const groups = [];
+  for (const it of items) {
+    const g = groups[groups.length - 1];
+    if (g && g.key === (it.group ?? null)) g.items.push(it);
+    else groups.push({ key: it.group ?? null, items: [it] });
+  }
+  const row = (it) => `<button data-sheet-value="${esc(it.value)}"${it.danger ? ' class="danger"' : ''}${it.disabled ? ' disabled' : ''}>${iconSvg(it.icon)}<span class="li-text">${esc(it.label)}${it.hint ? `<span class="tiny">${esc(it.hint)}</span>` : ''}</span></button>`;
+  return `<div class="list">${groups.map((g) => `<div class="list-group">${g.items.map(row).join('')}</div>`).join('')}</div>`;
+}
+
 export async function choiceSheet(title, items, { note = '' } = {}) {
-  const list = items.map((it) => `<button data-sheet-value="${esc(it.value)}"${it.disabled ? ' disabled' : ''}>${esc(it.label)}${it.hint ? `<span class="tiny">${esc(it.hint)}</span>` : ''}</button>`).join('');
-  return sheet(`<h3>${esc(title)}</h3>${note ? `<p class="small">${esc(note)}</p>` : ''}<div class="list">${list}</div><div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`);
+  return sheet(`<h3>${esc(title)}</h3>${note ? `<p class="small">${esc(note)}</p>` : ''}${listHtml(items)}<div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`);
 }
 
 // 숫자 입력 시트: 화면 키패드(Leap 방식, 폰 키보드를 띄우지 않는다) + 최근 칩.

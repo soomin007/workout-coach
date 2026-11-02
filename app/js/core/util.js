@@ -77,7 +77,3 @@ export function fmtClock(sec) {
   const s = Math.max(0, Math.floor(sec));
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
-
-export function clone(x) {
-  return structuredClone(x);
-}

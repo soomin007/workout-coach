@@ -19,6 +19,7 @@ self.addEventListener('activate', (e) => {
 });
 
 // 글꼴(jsdelivr)은 버전과 무관한 별도 캐시에 담아 오프라인에서도 쓴다.
+// 이름을 바꾸거나 캐시를 더하면 main.js 의 SHARED_CACHES 도 고친다(설정 탭 버전 표시가 이 캐시를 버전으로 읽는다).
 const FONT_CACHE = 'wc-fonts';
 const IMG_CACHE = 'wc-img';
 self.addEventListener('fetch', (e) => {

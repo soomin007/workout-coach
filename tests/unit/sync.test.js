@@ -90,6 +90,24 @@ test('폰에서 기록하면 다음 동기화에 올린다', async () => {
   assert.equal(JSON.parse(gh.file.text).history.length, 1);
 });
 
+// 올리는 요청이 오가는 사이(1초 안팎)에 세트를 체크한 경우. 그 변경은 이번 파일에 없으므로 다음 동기화가 올려야 한다.
+test('올리는 사이에 바뀐 기록은 올린 것으로 치지 않고 다음 동기화에 올린다', async () => {
+  const gh = fakeGitHub();
+  const store = phone();
+  logPush(store);
+  const slow = async (url, init = {}) => {
+    if (init.method === 'PUT') logPush(store);
+    return gh.fetch(url, init);
+  };
+  const r = await syncOnce({ cfg: cfg0, store, fetchImpl: slow });
+  assert.equal(r.action, 'push');
+  assert.equal(JSON.parse(gh.file.text).history.length, 1);
+  assert.notEqual(r.cfg.revision, store.state.revision);
+  const r2 = await syncOnce({ cfg: r.cfg, store, fetchImpl: gh.fetch });
+  assert.equal(r2.action, 'push');
+  assert.equal(JSON.parse(gh.file.text).history.length, 2);
+});
+
 test('PC 에서 원격을 고치면 폰이 받는다', async () => {
   const gh = fakeGitHub();
   const store = phone();

@@ -34,6 +34,8 @@ body { font-family: "Pretendard Variable", Pretendard, system-ui, -apple-system,
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 .hidden { display: none !important; }
+/* 끊기면 뜻이 흐려지는 짧은 묶음 (320 폭에서도 한 줄에 들어가는 길이만) */
+.nw { white-space: nowrap; }
 
 .topbar { position: sticky; top: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 8px;
   padding-top: calc(10px + env(safe-area-inset-top)); padding-bottom: 10px; padding-left: 16px; padding-right: 16px;
@@ -221,9 +223,18 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .sheet:has(input[name=part][value=push]:checked) .pt-emph[data-part=push],
 .sheet:has(input[name=part][value=pull]:checked) .pt-emph[data-part=pull],
 .sheet:has(input[name=part][value=lower]:checked) .pt-emph[data-part=lower] { display: block; }
-.sheet .list { display: grid; gap: 6px; }
-.sheet .list button { text-align: left; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface2); padding-left: 12px; padding-right: 12px; }
-.sheet .list button .tiny { display: block; }
+/* 선택 목록: 묶음마다 한 상자, 상자 안 항목은 가는 선으로 나눈다. 아이콘과 빨간 삭제로 항목을 모양으로 구분한다 (dom.js listHtml) */
+.sheet .list { display: grid; gap: 10px; }
+.sheet .list-group { display: grid; border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); overflow: hidden; }
+.sheet .list button { display: flex; align-items: center; gap: 12px; text-align: left; min-height: 48px; border: 0; border-radius: 0; background: transparent;
+  padding-top: 8px; padding-bottom: 8px; padding-left: 14px; padding-right: 14px; }
+.sheet .list button + button { border-top: 1px solid var(--line); }
+.sheet .list button .tiny { display: block; margin-top: 1px; }
+.sheet .list button.danger { color: var(--bad); }
+.sheet .list button:disabled { color: var(--faint); }
+.li-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sheet .list button.danger .li-icon { stroke: var(--bad); }
+.sheet .list button:disabled .li-icon { stroke: var(--faint); }
 .sheet .actions { display: flex; gap: 8px; margin-top: 12px; }
 .sheet .actions .btn { flex: 1; }
 .btn:disabled { opacity: .55; }

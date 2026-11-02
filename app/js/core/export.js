@@ -1,5 +1,5 @@
 // CSV · TXT 내보내기 (JSON 은 store.exportJSON).
-import { setReps, EFFORT_LABEL } from './schema.js';
+import { EFFORT_LABEL } from './schema.js';
 import { PART_LABEL } from './catalog.js';
 
 const LOAD_LABEL = { total: '총중량', per_side: '한쪽당', plates: '원판 합계', per_dumbbell: '덤벨 1개당', machine: '머신', bodyweight: '체중', assist: '보조' };
@@ -37,5 +37,3 @@ export function toTXT(state) {
   }
   return o;
 }
-
-export { setReps };

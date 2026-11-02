@@ -167,7 +167,7 @@ test('직접 새 운동을 만들면 카드 · 편측 입력 · 예상 시간이
   await startPart(page, 'Lower', 30);
   const before = (await st(page)).session.estimatedMinutes;
   await page.locator('[data-action="session-menu"]').click();
-  await sheet(page).getByRole('button', { name: '+ 운동 추가' }).click();
+  await sheet(page).getByRole('button', { name: '운동 추가' }).click();
   await sheet(page).getByRole('button', { name: /새로 만들기/ }).click();
   await sheet(page).locator('input[name=name]').fill('힙쓰러스트');
   await sheet(page).locator('select[name=uni]').selectOption('1');
@@ -389,6 +389,122 @@ test('설정: 앱 버전 표시와 업데이트 확인 버튼', async ({ page })
   await expect(page.getByTestId('app-version')).toContainText('버전');
   await page.getByRole('button', { name: '업데이트 확인' }).click();
   await expect(page.locator('#toast')).toBeVisible();
+});
+
+// 업데이트하면 글꼴 캐시와 그림 캐시가 앱 캐시보다 먼저 만들어진 순서가 된다. 그때도 앱 캐시 이름이 버전이다.
+test('설정 탭 버전은 글꼴이나 그림 캐시가 아니라 앱 캐시 이름', async ({ page }) => {
+  await page.evaluate(async () => { for (const k of ['wc-fonts', 'wc-img', 'wc-abc1234']) await caches.open(k); });
+  await page.reload();
+  await page.locator('#tabs').getByRole('button', { name: '설정' }).click();
+  await expect(page.getByTestId('app-version')).toHaveText('버전 wc-abc1234');
+});
+
+// 세션 메뉴의 '오늘 설정 바꾸기' 시트를 연다. 지금 세션의 값이 채워져 있다.
+async function openReplan(page) {
+  await page.locator('[data-action="session-menu"]').click();
+  await sheet(page).getByRole('button', { name: /오늘 설정 바꾸기/ }).click();
+  await expect(sheet(page).locator('.startform h3')).toHaveText('오늘 설정 바꾸기');
+}
+
+test('집에서 하던 세션의 부위를 바꿔도 집 운동으로 다시 짠다', async ({ page }) => {
+  await page.getByRole('button', { name: '부위 직접 선택' }).click();
+  await sheet(page).locator('input[name=home]').check();
+  await fillStart(page, { part: 'core' });
+  await openReplan(page);
+  await expect(sheet(page).locator('input[name=home]')).toBeChecked();
+  await sheet(page).locator('.pick[data-k="part"] .chip[data-v="push"]').click();
+  await sheet(page).getByTestId('start-go').click();
+  const s = (await st(page)).session;
+  expect(s.part).toBe('push');
+  expect(s.home).toBe(true);
+  expect(s.exercises.every((e) => e.equipment === 'none')).toBe(true);
+});
+
+// 2026-11-02 사용자 요청: 시간과 컨디션을 바꾸려고 세션을 버리고 다시 만들지 않게 한다.
+test('오늘 설정 바꾸기: 지금 값이 채워진 시트에서 시간만 바꾸면 그 자리에서 다시 짠다', async ({ page }) => {
+  await startPart(page, 'Push', 60);
+  const before = (await st(page)).session;
+  await openReplan(page);
+  const sh = sheet(page);
+  await expect(sh.locator('.pick[data-k="part"] .chip.on')).toHaveAttribute('data-v', 'push');
+  await expect(sh.locator('.pick[data-k="minutes"] .chip.on')).toHaveAttribute('data-v', '60');
+  await expect(sh.getByTestId('start-go')).toHaveText('Push 다시 짜기 · 60분 · 일반');
+  await sh.locator('.pick[data-k="minutes"] .chip[data-v="30"]').click();
+  await sh.getByTestId('start-go').click();
+  await expect(page.locator('#toast')).toContainText('다시 짰습니다');
+  const s = (await st(page)).session;
+  expect(s.minutes).toBe(30);
+  expect(s.part).toBe('push');
+  expect(s.date).toBe(before.date);
+  expect(s.estimatedMinutes).toBeLessThan(before.estimatedMinutes);
+  await expect(page.getByTestId('session-mode')).toContainText('30분');
+  await expect(page.getByTestId('preview')).toBeVisible();
+});
+
+test('오늘 설정 바꾸기: 기록한 세트가 있으면 먼저 묻고, 취소하면 아무것도 바뀌지 않는다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  await page.getByTestId('dock-begin').click();
+  await page.getByTestId('dock-next').click();
+  const before = (await st(page)).session;
+  await openReplan(page);
+  await sheet(page).locator('.pick[data-k="energy"] .chip[data-v="tired"]').click();
+  await sheet(page).getByTestId('start-go').click();
+  await expect(sheet(page)).toContainText('버리고 새 설정으로 다시 짤까요?');
+  await sheet(page).getByRole('button', { name: '취소' }).click();
+  const s = (await st(page)).session;
+  expect(s.id).toBe(before.id);
+  expect(s.exercises.flatMap((e) => e.sets).filter((z) => z.done)).toHaveLength(1);
+});
+
+test('⋯ 메뉴: 항목마다 아이콘, 다음에도 남는 설정과 삭제는 따로 묶이고 삭제는 빨간 글자', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const id = (await st(page)).session.exercises[0].exerciseId;
+  await card(page, id).locator('[data-action="ex-menu"]').click();
+  const groups = sheet(page).locator('.list-group');
+  await expect(groups).toHaveCount(3);
+  await expect(groups.nth(0).locator('button')).toHaveCount(3);
+  await expect(sheet(page).locator('.list button .li-icon')).toHaveCount(5);
+  const del = sheet(page).getByRole('button', { name: '오늘 세션에서 삭제' });
+  await expect(del).toHaveClass(/danger/);
+  const color = (name) => sheet(page).getByRole('button', { name }).evaluate((el) => getComputedStyle(el).color);
+  expect(await color('오늘 세션에서 삭제')).not.toBe(await color('운동 변경'));
+});
+
+test('홈 화면 컨디션 카드에서 고른 운동 날짜로 세션을 만든다', async ({ page }) => {
+  await page.locator('[data-action="toggle-cond"]').click();
+  await page.locator('input[data-action="new-date"]').fill('2026-09-28');
+  await page.getByRole('button', { name: '부위 직접 선택' }).click();
+  await expect(sheet(page).locator('input[name=date]')).toHaveValue('2026-09-28');
+  await fillStart(page, { part: 'pull' });
+  expect((await st(page)).session.date).toBe('2026-09-28');
+});
+
+// 브라우저는 화면을 벗어나면 Wake Lock 을 풀어 준다. 켜 둔 채 다른 앱에 다녀오면 다시 잡아야 한다.
+test('화면 유지: 다른 앱에 다녀와도 켜진 상태로 다시 잡는다', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__wl = { requests: 0, live: null };
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => {
+      window.__wl.requests++;
+      const t = new EventTarget();
+      t.release = async () => { t.dispatchEvent(new Event('release')); };
+      window.__wl.live = t;
+      return t;
+    } } });
+  });
+  await page.reload();
+  await startPart(page, 'Pull');
+  await page.getByTestId('wakelock').click();
+  await expect(page.getByTestId('wakelock')).toHaveText('화면 유지 중');
+  await page.evaluate(async () => {
+    const vis = (v) => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v }); document.dispatchEvent(new Event('visibilitychange')); };
+    vis('hidden');
+    await window.__wl.live.release();
+    vis('visible');
+  });
+  await expect.poll(() => page.evaluate(() => window.__wl.requests)).toBe(2);
+  await expect(page.getByTestId('wakelock')).toHaveText('화면 유지 중');
+  await page.getByTestId('wakelock').click();
+  await expect(page.getByTestId('wakelock')).toHaveText('화면 유지');
 });
 
 test('오늘 헬스장 못 가요 → 집에서 Core 추천, 헬스장 장비 운동 없음', async ({ page }) => {
@@ -718,7 +834,7 @@ test('운동 추가: 검색하고 여러 개를 골라 한 번에 추가한다',
   await startPart(page, 'Pull', 60);
   const n0 = (await st(page)).session.exercises.length;
   await page.locator('[data-action="session-menu"]').click();
-  await sheet(page).getByRole('button', { name: '+ 운동 추가' }).click();
+  await sheet(page).getByRole('button', { name: '운동 추가' }).click();
   const add = sheet(page).getByTestId('add-sheet');
   await expect(add.getByTestId('add-go')).toBeDisabled();
   await add.locator('.add-search').fill('컬');

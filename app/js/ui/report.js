@@ -6,7 +6,7 @@ import { MUSCLE_LABEL, MUSCLE_BUDGET } from '../core/catalog.js';
 import { muscleSets } from '../core/plan.js';
 import { estimate1RM, profileFor } from '../core/coach.js';
 import { setReps } from '../core/schema.js';
-import { parseDateLocal, localISODate } from '../core/util.js';
+import { parseDateLocal } from '../core/util.js';
 
 const DAY = 86400000;
 const mondayOf = (d) => { const m = new Date(d); m.setHours(0, 0, 0, 0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; };

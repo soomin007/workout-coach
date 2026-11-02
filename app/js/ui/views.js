@@ -1,9 +1,9 @@
-// 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (actions.js 가 위임 처리).
+// 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (main.js 의 actions 가 위임 처리).
 import { esc } from './dom.js';
 import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment, isStretch } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
-import { setReps, EFFORT_LABEL, EFFORTS } from '../core/schema.js';
+import { EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
 import { guideFor } from '../core/guide.js';
 import { gripById, gripArm } from '../core/grips.js';
@@ -97,7 +97,10 @@ function renderDoneToday(state, now) {
 }
 
 // 운동 시작 전 확인 시트. 부위 · 컨디션 · 가능 시간 · 강도는 오늘 고른 값이 없으면 비워 두고 반드시 고르게 한다.
-export function startSheetHtml(state, { part = null, rec = null, home = false, extra = false, now = new Date() } = {}) {
+// date: 홈 화면 컨디션 카드에서 고른 운동 날짜(다시 짜기면 세션 날짜). 오늘이 아니면 날짜 칸을 펼쳐 보여 준다.
+// replan: 진행 중 세션의 '오늘 설정 바꾸기'. 같은 시트로 고른 값만 바꿔 그 자리에서 다시 짠다. why: 지금 세션에 적어 둔 이유.
+export function startSheetHtml(state, { part = null, rec = null, home = false, extra = false, date = null, replan = false, why = '', now = new Date() } = {}) {
+  const day = date || localISODate(now);
   const c = effectiveCheck(state, now);
   const ok = checkConfirmed(state, now);
   const chips = (k, list, cur, { required = false } = {}) => `<div class="pick" data-k="${k}"${required ? ' data-required="1"' : ''}>${list.map(([v, l, hint]) => `<button type="button" class="chip${cur !== null && String(v) === String(cur) ? ' on' : ''}" data-v="${esc(v)}" aria-pressed="${cur !== null && String(v) === String(cur)}">${esc(l)}${hint ? `<small>${esc(hint)}</small>` : ''}</button>`).join('')}</div>`;
@@ -106,8 +109,8 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
   const parts = PART_OPTS.map((p) => [p, PART_LABEL[p], p === rec ? '추천' : doneParts.has(p) ? '오늘 함' : '']);
   const last = state.history.length && (!ok.includes('minutes') || !ok.includes('intensity')) ? `<div class="tiny" style="margin-top:4px">지난번: ${c.minutes}분 · ${INTENSITY[c.intensity]}</div>` : '';
   return `<div class="startform">
-    <h3>${extra ? '추가 운동 설정' : '오늘 운동 설정'}</h3>
-    <p class="small">오늘 상태로 운동 개수와 세트 수를 정합니다.</p>
+    <h3>${replan ? '오늘 설정 바꾸기' : extra ? '추가 운동 설정' : '오늘 운동 설정'}</h3>
+    <p class="small">${replan ? '바꾼 값으로 지금 계획을 그 자리에서 다시 짭니다.' : '오늘 상태로 운동 개수와 세트 수를 정합니다.'}</p>
     <div class="pick-label">부위</div>${chips('part', parts, part, { required: true })}
     <div class="pick-label">컨디션</div>${chips('energy', ENERGY, val('energy'), { required: true })}
     <div class="pick-label">가능 시간</div>${chips('minutes', MINUTES.map((m) => [m, `${m}분`]), val('minutes'), { required: true })}
@@ -118,11 +121,11 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
     <div class="pick-label">통증·불편</div>${chips('pain', Object.entries(PAIN), c.pain)}
     <div class="warnbox hidden" data-testid="start-warn"></div>
     <label class="setting"><span>집에서 (헬스장 없이)</span><input type="checkbox" name="home"${home ? ' checked' : ''}></label>
-    <details class="more"><summary>날짜 · 추천과 다르게 고른 이유</summary>
-      <label class="field" style="margin-top:6px">운동 날짜<input type="date" name="date" value="${esc(localISODate(now))}"></label>
-      <textarea name="why" autocomplete="off" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등" style="margin-top:6px"></textarea>
+    <details class="more"${day !== localISODate(now) ? ' open' : ''}><summary>날짜 · 추천과 다르게 고른 이유</summary>
+      <label class="field" style="margin-top:6px">운동 날짜<input type="date" name="date" value="${esc(day)}"></label>
+      <textarea name="why" autocomplete="off" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등" style="margin-top:6px">${esc(why)}</textarea>
     </details>
-    <div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok" data-testid="start-go" disabled>시작</button></div>
+    <div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok" data-testid="start-go" disabled>${replan ? '다시 짜기' : '시작'}</button></div>
   </div>`;
 }
 
@@ -277,7 +280,7 @@ function previewCard(state, s, now) {
     <ol class="pv-list">${items}</ol>
     ${keptLine(state, s, now)}
     <div class="pv-actions"><button class="btn" data-action="regen" data-testid="preview-regen">다시 추천</button><button class="btn primary" data-action="begin" data-testid="preview-go">시작</button></div>
-    <div class="tiny">운동을 바꾸거나 빼려면 아래 카드의 ⋯ 를 쓰세요. 첫 세트를 체크해도 바로 시작됩니다.</div>
+    <div class="tiny" data-testid="preview-help"><span class="nw">시간이나 컨디션은</span> <span class="nw">맨 위 ⋯ 의 '오늘 설정 바꾸기'로,</span> <span class="nw">운동은</span> <span class="nw">아래 카드의 ⋯ 로 바꿉니다.</span> <span class="nw">첫 세트를 체크해도</span> <span class="nw">바로 시작됩니다.</span></div>
   </section>`;
 }
 
@@ -392,7 +395,7 @@ export function renderRestbar(state, now = Date.now()) {
 // ---------- 기록 ----------
 
 export function renderRecords(state, ui, now = new Date()) {
-  const hs = state.history.map((h) => h).sort((a, b) => b.date.localeCompare(a.date)).slice(0, ui.historyLimit || 30);
+  const hs = [...state.history].sort((a, b) => b.date.localeCompare(a.date)).slice(0, ui.historyLimit || 30);
   const items = hs.map((h) => `<div class="hist-item"><div><b>${esc(h.date)} · ${esc(PART_LABEL[h.part])}</b>${h.source === 'pt' ? ' <span class="badge">PT</span>' : ''}${h.source === 'pt' && h.emphasis ? ` <span class="badge">${esc((EMPHASIS[h.part] || []).find((x) => x.id === h.emphasis)?.label || '')} 위주</span>` : ''}${h.light ? ' <span class="badge">가볍게</span>' : ''}
       <div class="tiny">${[h.volumeUnknown ? '' : `${Number(h.workSets) || 0}세트`, h.durationSec ? `${Math.round(h.durationSec / 60)}분` : '', h.note ? esc(h.note) : ''].filter(Boolean).join(' · ')}</div></div>
       <button class="btn sm ghost" data-action="hist-edit" data-id="${esc(h.id)}">수정</button></div>`).join('') || '<div class="small">기록 없음</div>';
@@ -478,4 +481,4 @@ export function evidenceHtml() {
     '<div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>';
 }
 
-export { setReps, PART_OPTS, MODE_LABEL };
+export { MODE_LABEL };

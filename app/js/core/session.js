@@ -1,7 +1,7 @@
 // 세션 상태 전이. 모든 함수는 전달받은 state(초안)를 직접 수정한다.
 // 호출 측(store)은 structuredClone 한 초안에 적용하고 성공하면 교체하므로, 예외가 나면 아무것도 바뀌지 않는다.
 // 사용자 확인(confirm)은 전이를 부르기 전에 UI 에서 끝낸다 (known-issues #5).
-import { CORE_SLOTS, EMPHASIS, catalogById, emphasisMuscles, isStretch } from './catalog.js';
+import { EMPHASIS, emphasisMuscles, isStretch } from './catalog.js';
 import { profileFor, prescribeForOrder, warmupPlan, heavyEligible, heavyPrescribe, backoffWeight, HEAVY, recoveryRx, RECOVERY, easyRx, bigJump, learnedWarmups } from './coach.js';
 import { buildPlan, autoEmphasis, adjustedSetCount, supportsSlot, replacementCandidates, missingCoreSlots, chooseForSlot, estimateMinutes, CHECK_DEFAULTS, CHECK_KEYS, checkConfirmed } from './plan.js';
 import { makeSet, setReps, EFFORT_RIR } from './schema.js';
@@ -158,8 +158,6 @@ export function setCheck(state, values, { now = new Date() } = {}) {
   c.confirmed = [...ok];
 }
 
-// ready: 시작 전 미리보기 상태 (Leap 의 루틴 상세). 타이머는 "시작"이나 첫 세트 완료 때 간다.
-// recovery: 가볍게 한 날로 시작 (근육통이 있는 부위, 정책 16절). 무거운 날은 적용하지 않고, 완료 기록은 가벼운 날로 남는다.
 // 강조했는데 그 근육 운동을 하나 이하밖에 못 넣었을 때의 안내 (정책 15절).
 function emphasisNote(part, id, names = []) {
   if (!id) return '';
@@ -168,6 +166,8 @@ function emphasisNote(part, id, names = []) {
   return names.length === 1 ? `${label} 운동은 ${names[0]} 하나뿐이라 세트를 늘렸습니다.` : '';
 }
 
+// ready: 시작 전 미리보기 상태 (Leap 의 루틴 상세). 타이머는 "시작"이나 첫 세트 완료 때 간다.
+// recovery: 가볍게 한 날로 시작 (근육통이 있는 부위, 정책 16절). 무거운 날은 적용하지 않고, 완료 기록은 가벼운 날로 남는다.
 export function createSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, now = new Date(), avoid = null, emphasis, recovery = false }) {
   const c = state.check;
   // emphasis 를 넘기지 않으면(undefined) 이번 주 같은 부위 기록으로 자동 선택, null 이면 강조 없음.
@@ -274,6 +274,20 @@ export function setEmphasis(state, id, { now = new Date() } = {}) {
   return state.session.emphasis;
 }
 
+// 오늘 설정 바꾸기 (2026-11-02 사용자 요청): 세션을 버리고 처음부터 다시 만들지 않고, 그 자리에서 고른 조건으로 다시 짠다.
+// 컨디션과 시간, 강도는 부르기 전에 setCheck 로 바꿔 둔다(createSession 이 그 값을 읽는다).
+// 같은 부위면 출처와 직접 고른 강조를 잇는다. 자동으로 고른 강조(emphasisWhy 가 있음)는 새로 고른다.
+// 기록한 세트는 사라지므로, 기록이 있으면 사용자 확인(discard)을 받은 뒤에만 다시 짠다 (known-issues 5).
+export function replanSession(state, { part, source = 'manual', date = null, overrideReason = '', home = false, recovery = false, discard = false, now = new Date() }) {
+  const s = sessionOf(state);
+  need(discard || !sessionHasUserData(state), 'has_data', '기록한 세트가 있어 다시 짜면 그 기록이 사라집니다.');
+  const same = part === s.part;
+  return createSession(state, {
+    part, source: same ? s.source : source, date: date || s.date, overrideReason, home, now, recovery,
+    emphasis: same && !s.emphasisWhy ? s.emphasis : undefined,
+  });
+}
+
 export function recalcEstimate(state) {
   const s = state.session;
   if (!s) return [];
@@ -344,6 +358,12 @@ export function markUnavailable(state, uid, { persistent = false, now = new Date
   return replaceExercise(state, uid, cand.id, { now });
 }
 
+// 세션 운동에서 바꾼 중량 방식과 증량, 눈금(설정의 운동별 기본값)을 카탈로그 프로필에 덮어 워밍업 계산에 쓴다.
+function entryProfile(state, entry) {
+  const p = profileFor(state, entry.exerciseId) || entry;
+  return { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment, ladder: entry.ladder || p.ladder };
+}
+
 function recomputeWarmups(entry, p) {
   const firstMain = entry.sets.find((z) => z.type === 'main');
   const untouched = entry.sets.filter((z) => z.type === 'warmup').every((z) => !z.done && !z.touched);
@@ -372,8 +392,7 @@ export function editSet(state, uid, setIndex, field, value) {
     // 톱세트 무게를 고치면 손대지 않은 백오프는 그 무게의 약 90%로. 반복은 따로 둔다.
     const bw = backoffWeight(v, entry);
     entry.sets.forEach((z) => { if (z.heavy === 'backoff' && !z.done && !z.touched) z.weight = bw; });
-    const p = profileFor(state, entry.exerciseId) || entry;
-    recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment, ladder: entry.ladder || p.ladder });
+    recomputeWarmups(entry, entryProfile(state, entry));
     return;
   }
   if (set.heavy === 'top') return;
@@ -382,10 +401,7 @@ export function editSet(state, uid, setIndex, field, value) {
       const z = entry.sets[j];
       if (z.type === 'main' && !z.done && !z.touched && (z.heavy || null) === (set.heavy || null)) z[field] = v;
     }
-    if (field === 'weight' && entry.sets.findIndex((z) => z.type === 'main') === setIndex) {
-      const p = profileFor(state, entry.exerciseId) || entry;
-      recomputeWarmups(entry, { ...p, compound: entry.compound, mode: entry.loadMode, inc: entry.increment, ladder: entry.ladder || p.ladder });
-    }
+    if (field === 'weight' && entry.sets.findIndex((z) => z.type === 'main') === setIndex) recomputeWarmups(entry, entryProfile(state, entry));
   }
 }
 
@@ -424,8 +440,8 @@ export function toggleSetDone(state, uid, setIndex, { now = new Date() } = {}) {
   // 일시정지를 잊어도 세트를 끝내면 운동 중이라는 뜻이니 상단 타이머를 다시 켠다.
   if (s.timer && !s.timer.running) { s.timer.running = true; s.timer.start = t; }
   if (z.type === 'main') coachAfterSet(entry, setIndex);
-  // 워밍업 뒤에는 짧게 (최대 60초)
-  s.restTimer = { uid, setIndex, startedAt: t, seconds: z.type === 'warmup' ? Math.min(entry.compound ? WARMUP_REST.compound : WARMUP_REST.other, effectiveRest(entry)) : effectiveRest(entry) };
+  // 워밍업 뒤에는 짧게 (WARMUP_REST: 복합 운동은 120초, 그 밖은 60초 이하)
+  s.restTimer ={ uid, setIndex, startedAt: t, seconds: z.type === 'warmup' ? Math.min(entry.compound ? WARMUP_REST.compound : WARMUP_REST.other, effectiveRest(entry)) : effectiveRest(entry) };
   return { done: true };
 }
 
@@ -868,5 +884,3 @@ export function setHistoryEmphasis(state, historyId, id) {
   need(h, 'no_history', '기록을 찾을 수 없습니다.');
   h.emphasis = validEmphasis(h.part, id);
 }
-
-export { CORE_SLOTS, catalogById };

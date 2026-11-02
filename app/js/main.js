@@ -5,17 +5,16 @@ import * as T from './core/session.js';
 import { applyQuickLine } from './core/quick.js';
 import { toCSV, toTXT } from './core/export.js';
 import { loadSyncConfig, saveSyncConfig, syncOnce, fetchRemote, validRepo, transferLink, parseTransfer } from './core/sync.js';
-import { replacementCandidates, partPool, isAvailable } from './core/plan.js';
+import { replacementCandidates, recommendPart, todaysHistory } from './core/plan.js';
 import { profileFor, lastPerformance, lighterThanUsual, recoverySuggested, RECOVERY } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, EMPHASIS, slotName } from './core/catalog.js';
-import { localISODate } from './core/util.js';
-import { esc, toast, sheet, confirmSheet, choiceSheet, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
+import { localISODate, fmtClock } from './core/util.js';
+import { esc, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
 import { bindSwipeDelete } from './ui/swipe.js';
 import { renderLibrary, exerciseDetailHtml, addExercisesHtml, bindAddSheet } from './ui/library.js';
-import { recommendPart } from './core/plan.js';
 
 // ---------- 저장소 어댑터 ----------
 const local = { getItem: (k) => localStorage.getItem(k), setItem: (k, v) => localStorage.setItem(k, v) };
@@ -93,10 +92,9 @@ function renderRest() {
 setInterval(() => {
   if (!store.state.session) return;
   const c = document.getElementById('sessionClock');
-  if (c) c.textContent = fmt(T.timerSeconds(store.state.session.timer));
+  if (c) c.textContent = fmtClock(T.timerSeconds(store.state.session.timer));
   renderRest();
 }, 500);
-function fmt(sec) { const s = Math.max(0, Math.floor(sec)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }
 
 // 전이 실행: 실패하면 상태 불변 + 안내.
 function run(fn, okMsg) {
@@ -133,12 +131,6 @@ const actions = {
   goal: (d) => run((s) => { s.settings.goal = d.v; }, '목표를 바꿨습니다. 다음 세션부터 반영됩니다.'),
   'lib-group': (d) => { ui.libGroup = d.g; render(); },
   'ex-detail': (d) => openExerciseDetail(d.id),
-  'change-part': async () => {
-    const p = await choiceSheet('어느 부위로 바꿀까요?', ['push', 'pull', 'lower', 'core'].filter((x) => x !== store.state.session.part).map((x) => ({ value: x, label: PART_LABEL[x] })));
-    if (!p) return;
-    if (T.sessionHasUserData(store.state) && !(await confirmSheet('지금까지 입력한 내용을 버리고 새 부위로 다시 만들까요?', { ok: '버리고 바꾸기', danger: true }))) return;
-    run((s) => { const date = s.session.date; T.createSession(s, { part: p, source: 'manual', date }); });
-  },
   discard: async () => {
     if (T.sessionHasUserData(store.state) && !(await confirmSheet('입력한 기록까지 모두 버릴까요? 되돌릴 수 없습니다.', { ok: '버리기', danger: true }))) return;
     run((s) => T.discardSession(s), '세션을 버렸습니다.');
@@ -187,7 +179,7 @@ const actions = {
       { value: 'warmup', label: '워밍업으로', hint: '볼륨에 넣지 않습니다', disabled: z.type === 'warmup' },
       { value: 'main', label: '본세트로', disabled: z.type === 'main' },
       { value: 'backoff', label: '백오프로', hint: '톱세트 뒤 가벼운 추가 세트', disabled: z.type === 'backoff' },
-      { value: 'rir', label: `이 세트 RIR 직접 입력${z.rir !== null ? ` (지금 ${z.rir})` : ''}`, hint: '선택 사항. 보통은 운동 끝에 느낌 버튼으로 충분합니다' },
+      { value: 'rir', group: 'rir', label: `이 세트 RIR 직접 입력${z.rir !== null ? ` (지금 ${z.rir})` : ''}`, hint: '선택 사항. 보통은 운동 끝에 느낌 버튼으로 충분합니다' },
     ]);
     if (!v) return;
     if (v === 'rir') { const n = await numberSheet('남은 반복 (RIR)', z.rir, { step: '1' }); if (n !== undefined) run((s) => T.editSet(s, d.uid, +d.i, 'rir', n)); return; }
@@ -273,19 +265,20 @@ function scrollToNext() {
 async function sessionMenu() {
   const s = store.state.session;
   if (!s) return;
+  // 오늘 설정 바꾸기는 예전 '부위 바꾸기' 자리를 넓힌 것이다. 시간과 컨디션도 바꿔 그 자리에서 다시 짠다(2026-11-02 사용자 요청).
   const v = await choiceSheet('세션', [
-    { value: 'add', label: '+ 운동 추가' },
-    { value: 'complete-all', label: '남은 세트 전부 계획대로 완료', hint: '운동이 끝난 뒤 몰아서 기록할 때. 다르게 한 세트만 고치면 됩니다' },
-    { value: 'date', label: '운동 날짜 바꾸기', hint: s.date },
-    { value: 'part', label: '부위 바꾸기', hint: '입력한 기록은 버려집니다' },
-    { value: 'discard', label: '세션 버리기' },
+    { value: 'add', icon: 'plus', label: '운동 추가' },
+    { value: 'complete-all', icon: 'checks', label: '남은 세트 전부 계획대로 완료', hint: '운동이 끝난 뒤 몰아서 기록할 때' },
+    { value: 'replan', group: 'setup', icon: 'replan', label: '오늘 설정 바꾸기', hint: '부위, 시간, 컨디션을 바꿔 계획을 다시 짭니다' },
+    { value: 'date', group: 'setup', icon: 'calendar', label: '운동 날짜 바꾸기', hint: s.date },
+    { value: 'discard', group: 'danger', icon: 'trash', label: '세션 버리기', danger: true },
   ]);
   if (v === 'add') return addExercise();
   if (v === 'complete-all') {
     if (await confirmSheet('아직 안 한 세트를 모두 지금 적힌 값대로 완료 처리할까요?', { ok: '완료 처리' })) run((st) => T.completeRemaining(st), (n) => `${n}세트를 완료 처리했습니다.`);
     return;
   }
-  if (v === 'part') return actions['change-part']();
+  if (v === 'replan') return startFlow({ replan: true });
   if (v === 'discard') return actions.discard();
   if (v === 'date') {
     const r = await sheet(`<h3>운동 날짜</h3><p class="small">실제로 운동한 날짜로 저장됩니다.</p><input type="date" name="date" value="${esc(s.date)}"><div class="actions"><button class="btn" data-sheet-value="__cancel">취소</button><button class="btn primary" data-sheet-value="ok">확인</button></div>`, { collect: (b) => b.querySelector('[name=date]').value });
@@ -304,8 +297,10 @@ async function checkUpdate() {
   } catch { toast('업데이트를 확인하지 못했습니다. 인터넷 연결을 확인하세요.'); }
 }
 
+// 버전과 무관하게 남는 캐시 (sw.js 의 FONT_CACHE, IMG_CACHE). 업데이트 뒤에는 이 둘이 앱 캐시보다 앞에 나열된다.
+const SHARED_CACHES = ['wc-fonts', 'wc-img'];
 async function readVersion() {
-  try { const ks = await caches.keys(); ui.version = ks.find((k) => k.startsWith('wc-') && k !== 'wc-fonts') || null; } catch { ui.version = null; }
+  try { const ks = await caches.keys(); ui.version = ks.find((k) => k.startsWith('wc-') && !SHARED_CACHES.includes(k)) || null; } catch { ui.version = null; }
 }
 
 // ---------- GitHub 동기화 ----------
@@ -347,7 +342,7 @@ async function runSync({ manual = false } = {}) {
 async function askSyncConflict() {
   if (sheetOpen()) return null;
   const v = await sheet(`<h3>기록이 양쪽에서 바뀌었어요</h3><p class="small">PC(GitHub 저장소)에서 고친 기록과, 이 폰에서 마지막 동기화 뒤 새로 쓴 기록이 둘 다 있습니다.</p><p class="small">PC 기록을 받으면 이 폰에서 새로 쓴 내용은 사라집니다. 이 폰 기록을 남겨도 PC에서 고친 내용은 저장소 이력에 남아 있습니다.</p>
-    <div class="list"><button data-sheet-value="push">이 폰 기록 남기기</button><button data-sheet-value="pull">PC에서 고친 기록 받기</button><button data-sheet-value="hold">나중에</button></div>`);
+    ${listHtml([{ value: 'push', label: '이 폰 기록 남기기' }, { value: 'pull', label: 'PC에서 고친 기록 받기' }, { value: 'hold', label: '나중에' }])}`);
   return v === 'push' || v === 'pull' ? v : null;
 }
 
@@ -418,10 +413,16 @@ document.addEventListener('visibilitychange', () => {
 // ---------- 흐름 ----------
 // 모든 시작은 이 확인 시트를 거친다: 지난번에 고른 시간·강도로 모르는 새 시작하지 않게
 // 부위 · 컨디션 · 가능 시간 · 강도를 오늘 값으로 고르게 한다 (2026-10-01 사용자 지적).
-async function startFlow({ part = null, home = false, extra = false } = {}) {
+// replan: 세션 메뉴의 '오늘 설정 바꾸기'. 같은 시트를 지금 세션의 부위와 날짜, 집 설정으로 채워 열고,
+// 고른 값으로 그 자리에서 다시 짠다. 세션을 버리고 처음부터 다시 만들던 번거로움을 없앤다(2026-11-02 사용자 요청).
+async function startFlow({ part = null, home = false, extra = false, replan = false } = {}) {
+  const cur = replan ? store.state.session : null;
+  if (replan && !cur) return;
+  if (cur) { part = cur.part; home = !!cur.home; extra = todaysHistory(store.state).length > 0; }
+  const verb = cur ? '다시 짜기' : '시작';
   const rec = recommendPart(store.state, new Date(), { extra });
   const recPart = ['push', 'pull', 'lower', 'core'].includes(rec.part) ? rec.part : null;
-  const promise = sheet(startSheetHtml(store.state, { part, rec: recPart, home, extra }), {
+  const promise = sheet(startSheetHtml(store.state, { part, rec: recPart, home, extra, replan: !!cur, date: cur ? cur.date : ui.newDate, why: cur?.overrideReason || '' }), {
     collect: (b) => {
       const v = (k) => b.querySelector(`.pick[data-k="${k}"] .chip.on`)?.dataset.v ?? null;
       return {
@@ -437,7 +438,9 @@ async function startFlow({ part = null, home = false, extra = false } = {}) {
       const missing = [...form.querySelectorAll('.pick[data-required]')].filter((g) => !g.querySelector('.chip.on')).length;
       const go = form.querySelector('[data-testid=start-go]');
       go.disabled = missing > 0;
-      go.textContent = missing ? `${missing}개 더 고르면 시작` : `${PART_LABEL[v('part')]} 시작 · ${v('minutes')}분 · ${INTENSITY[v('intensity')]}`;
+      // 좁은 폭에서는 '부위 시작 ·' 과 '시간 · 강도' 사이에서만 줄을 바꾼다 (360 폭에서 '· 일반'이 줄 첫머리로 갔다)
+      go.innerHTML = missing ? esc(`${missing}개 더 고르면 ${verb}`)
+        : `<span class="nw">${esc(PART_LABEL[v('part')])} ${verb} ·</span> <span class="nw">${esc(v('minutes'))}분 · ${esc(INTENSITY[v('intensity')])}</span>`;
       const p = v('part');
       const warn = [
         v('energy') === 'very_tired' ? '매우 피곤한 날은 쉬는 편이 낫습니다. 한다면 가볍게 고르세요.' : null,
@@ -463,7 +466,9 @@ async function startFlow({ part = null, home = false, extra = false } = {}) {
   const r = await promise;
   if (!r || r.value !== 'ok' || !r.data.part) return;
   const { data } = r;
-  if (store.state.session && T.sessionHasUserData(store.state) && !(await confirmSheet('진행 중인 세션 기록이 있습니다. 버리고 새로 시작할까요?', { ok: '버리고 시작', danger: true }))) return;
+  const hasData = !!store.state.session && T.sessionHasUserData(store.state);
+  const ask = cur ? ['기록한 세트가 있습니다. 버리고 새 설정으로 다시 짤까요?', '버리고 다시 짜기'] : ['진행 중인 세션 기록이 있습니다. 버리고 새로 시작할까요?', '버리고 시작'];
+  if (hasData && !(await confirmSheet(ask[0], { ok: ask[1], danger: true }))) return;
   const source = !extra && data.part === recPart && !data.why.trim() ? 'recommended' : 'manual';
   const date = data.date || ui.newDate || localISODate();
   // 오늘 할 부위 근육통이 '꽤 있음' 이상이면 가볍게 한 날을 제안한다 (정책 16절).
@@ -471,11 +476,16 @@ async function startFlow({ part = null, home = false, extra = false } = {}) {
   if (recoverySuggested(data.check, data.part)) {
     const where = data.part === 'lower' ? '하체' : '상체';
     const v = await sheet(`<h3>${where} 근육통이 있는 날이에요</h3><p class="small">가볍게 한 날로 하면 운동은 그대로 두고, 무게는 평소 처방의 약 ${Math.round(RECOVERY.pct * 100)}%, 운동마다 ${RECOVERY.sets}세트, ${RECOVERY.rir}회 이상 남기고 멈추도록 채워 둡니다. 이 날 기록은 다음 무게 처방에 쓰지 않습니다.</p>
-      <div class="list"><button data-sheet-value="recovery">가볍게 한 날로 시작</button><button data-sheet-value="normal">평소대로 시작</button></div>`);
+      ${listHtml([{ value: 'recovery', label: '가볍게 한 날로 시작' }, { value: 'normal', label: '평소대로 시작' }])}`);
     if (!v) return;
     recovery = v === 'recovery';
   }
-  run((s) => { T.setCheck(s, data.check); T.createSession(s, { part: data.part, source, date, overrideReason: data.why, home: data.home, recovery }); });
+  run((s) => {
+    T.setCheck(s, data.check);
+    const opts = { part: data.part, source, date, overrideReason: data.why, home: data.home, recovery };
+    if (cur && s.session) T.replanSession(s, { ...opts, discard: hasData });
+    else T.createSession(s, opts);
+  }, cur ? '고른 설정으로 계획을 다시 짰습니다.' : '');
   ui.newDate = null;
   window.scrollTo(0, 0);
 }
@@ -561,12 +571,13 @@ async function exerciseMenu(uid) {
   const e = entry(uid);
   if (!e) return;
   // 항목은 5개 안팎으로 둔다: 교체 사유 · 순서 이동은 다음 시트에서 고른다 (known-issues 23).
+  // 오늘 이 운동에 쓰는 것과 다음 세션에도 남는 설정, 삭제를 묶음으로 나눈다 (2026-11-02, 다 똑같이 생겨 알아보기 어렵다는 지적).
   const v = await choiceSheet(e.name, [
-    { value: 'swap', label: '운동 변경', hint: '대체 후보 · 기구 사용 불가 · 직접 입력' },
-    { value: 'move', label: '순서 바꾸기', disabled: store.state.session.exercises.length < 2 },
-    { value: 'memo', label: e.memo ? '메모 수정' : '메모 남기기' },
-    { value: 'pref', label: '이 운동 기본값 설정', hint: '중량 방식 · 증량 · 기본 휴식 · 반복 범위 (다음 세션에도 적용)' },
-    { value: 'remove', label: '오늘 세션에서 삭제' },
+    { value: 'swap', icon: 'swap', label: '운동 변경' },
+    { value: 'move', icon: 'move', label: '순서 바꾸기', disabled: store.state.session.exercises.length < 2 },
+    { value: 'memo', icon: 'memo', label: e.memo ? '메모 수정' : '메모 남기기' },
+    { value: 'pref', group: 'pref', icon: 'pref', label: '이 운동 기본값 설정', hint: '다음 세션에도 적용' },
+    { value: 'remove', group: 'danger', icon: 'trash', label: '오늘 세션에서 삭제', danger: true },
   ]);
   if (!v) return;
   if (v === 'swap') return swapExercise(uid);
@@ -627,9 +638,9 @@ async function swapExercise(uid) {
   const cands = replacementCandidates(store.state, e);
   const id = await choiceSheet(`${e.name} 대신`, [
     ...cands.map((x) => ({ value: x.id, label: x.name, hint: `${x.sameSlot ? '같은 동작' : '다른 역할'} · ${MODE_LABEL[x.mode]} · ${x.range[0]}~${x.range[1]}${x.measure === 'seconds' ? '초' : '회'}` })),
-    { value: '__unavail', label: '오늘 기구 사용 불가', hint: '같은 동작의 다른 운동으로 자동 교체' },
-    { value: '__unavail-perm', label: '이 헬스장에 없음 (항상 제외)' },
-    { value: '__custom', label: '실제로 한 운동 이름 입력', hint: '목록에 없는 운동으로 바꾸기' },
+    { value: '__unavail', group: 'why', label: '오늘 기구 사용 불가', hint: '같은 동작의 다른 운동으로 자동 교체' },
+    { value: '__unavail-perm', group: 'why', label: '이 헬스장에 없음 (항상 제외)' },
+    { value: '__custom', group: 'why', label: '실제로 한 운동 이름 입력', hint: '목록에 없는 운동으로 바꾸기' },
   ], { note: cands.length ? '' : '오늘 세션과 겹치지 않는 대체 후보가 없습니다.' });
   if (!id) return;
   if (id === '__custom') return customExercise(uid);
@@ -744,7 +755,7 @@ async function finishSession() {
   if (lt.suggest) {
     const rows = lt.lighter.map((x) => `<div class="small"><b>${esc(x.name)}</b> 평소 ${x.was}kg → 오늘 ${x.now}kg</div>`).join('');
     const v = await sheet(`<h3>오늘은 가볍게 한 날인가요?</h3>${rows}<p class="small">가볍게 저장하면 위 운동만 다음 무게를 평소 기록에서 이어 잡습니다. 나머지 운동은 오늘 기록으로 처방합니다. 기록과 주간 세트에는 모두 남습니다.</p>
-      <div class="list"><button data-sheet-value="light">위 운동만 가볍게 저장</button><button data-sheet-value="normal">평소 기록으로 저장 (다음 처방에 반영)</button></div>`);
+      ${listHtml([{ value: 'light', label: '위 운동만 가볍게 저장' }, { value: 'normal', label: '평소 기록으로 저장 (다음 처방에 반영)' }])}`);
     if (!v) return;
     if (v === 'light') lightExercises = lt.lighter.map((x) => x.exerciseId);
   }
@@ -813,15 +824,33 @@ async function onImportFile(ev) {
   }
 }
 
+// ui.wakeLock 은 사용자가 켜 둔 뜻, wakeLockHandle 은 지금 잡고 있는 잠금이다. 브라우저는 화면을 벗어나면 잠금을 풀어 주므로
+// 그때는 뜻을 남겨 두고 돌아올 때 다시 잡는다. 화면에 있는데 풀렸으면(절전 모드 등) 꺼진 것으로 보여 준다.
+async function acquireWakeLock() {
+  try {
+    const h = await navigator.wakeLock.request('screen');
+    h.addEventListener('release', () => {
+      if (wakeLockHandle !== h) return;
+      wakeLockHandle = null;
+      if (document.visibilityState === 'visible') { ui.wakeLock = false; render(); }
+    });
+    wakeLockHandle = h;
+    return true;
+  } catch { return false; }
+}
 async function toggleWakeLock() {
-  if (ui.wakeLock) { await wakeLockHandle?.release?.(); wakeLockHandle = null; ui.wakeLock = false; render(); return; }
-  try { wakeLockHandle = await navigator.wakeLock.request('screen'); ui.wakeLock = true; wakeLockHandle.addEventListener('release', () => { ui.wakeLock = false; render(); }); }
-  catch { toast('이 브라우저에서는 화면 켜짐 유지를 쓸 수 없습니다.'); }
+  if (ui.wakeLock) {
+    ui.wakeLock = false;
+    const h = wakeLockHandle;
+    wakeLockHandle = null;
+    await h?.release?.();
+  } else if (await acquireWakeLock()) ui.wakeLock = true;
+  else toast('이 브라우저에서는 화면 켜짐 유지를 쓸 수 없습니다.');
   render();
 }
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
-    if (ui.wakeLock && !wakeLockHandle) { try { wakeLockHandle = await navigator.wakeLock.request('screen'); } catch { ui.wakeLock = false; } }
+    if (ui.wakeLock && !wakeLockHandle && !(await acquireWakeLock())) ui.wakeLock = false;
     render();
     askStaleSession();
   }
@@ -837,7 +866,7 @@ async function askStaleSession() {
   const when = `${last.getMonth() + 1}/${last.getDate()} ${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
   const hours = info.idleMin >= 120 ? `${Math.floor(info.idleMin / 60)}시간` : `${info.idleMin}분`;
   const v = await sheet(`<h3>끝내지 않은 운동이 있어요</h3><p class="small">${esc(info.date)} ${esc(PART_LABEL[info.part])} · 완료 ${info.workSets}세트 · 마지막 기록 ${when} (${hours} 전)</p><p class="small">저장하면 운동 시간은 마지막 기록까지로 계산됩니다. 안 한 세트가 있으면 먼저 이어서 기록해도 됩니다.</p>
-    <div class="list"><button data-sheet-value="save">${info.workSets ? '저장하고 종료' : '기록 없음 · 저장하고 종료'}</button><button data-sheet-value="continue">이어서 기록하기</button><button data-sheet-value="discard">버리기</button></div>`);
+    ${listHtml([{ value: 'save', label: info.workSets ? '저장하고 종료' : '기록 없음 · 저장하고 종료' }, { value: 'continue', label: '이어서 기록하기' }, { value: 'discard', group: 'danger', label: '버리기', danger: true }])}`);
   staleAsking = false;
   if (v === 'save') return finishSession();
   if (v === 'discard') { if (await confirmSheet('이 세션의 기록을 모두 버릴까요?', { ok: '버리기', danger: true })) run((s) => T.discardSession(s), '세션을 버렸습니다.'); return; }

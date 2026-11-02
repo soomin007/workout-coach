@@ -35,12 +35,11 @@ export function parseQuickLine(text, { weighted = true } = {}) {
 }
 
 // 해석 결과를 본세트에 앞에서부터 채우고 완료 처리한다. 모자라면 세트를 추가하고, 남는 빈 세트는 그대로 둔다.
-export function applyQuickLine(state, uid, text) {
+export function applyQuickLine(state, uid, text, { now = new Date() } = {}) {
   const { entry } = findEntry(state, uid);
   const weighted = entry.loadMode !== 'bodyweight' || entry.sets.some((z) => z.type === 'main' && z.weight !== null);
   const { sets, effort } = parseQuickLine(text, { weighted });
-  const mains = () => entry.sets.filter((z) => z.type !== 'warmup');
-  const targets = mains().filter((z) => !z.done);
+  const targets = entry.sets.filter((z) => z.type !== 'warmup' && !z.done);
   while (targets.length < sets.length) {
     const z = makeSet('main', null, null);
     entry.sets.push(z);
@@ -53,6 +52,6 @@ export function applyQuickLine(state, uid, text) {
     z.done = true; z.doneAt = null; z.touched = true;
   });
   if (effort) entry.effort = effort;
-  state.session.lastActivityAt = Date.now();
+  state.session.lastActivityAt = now.getTime();
   return { count: sets.length, effort };
 }
