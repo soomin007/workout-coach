@@ -544,7 +544,10 @@ async function editMemo(uid) {
   const e = entry(uid);
   if (!e) return;
   const t = await textSheet(`${e.name} 메모`, e.memo, { placeholder: '자극, 통증, 자세, 좌우 차이, 추천이 이상했던 점', multiline: true });
-  if (t !== null) run((s) => T.setMemo(s, uid, t));
+  if (t === null) return;
+  // 끝난 운동을 펼쳐서 메모했으면 저장과 함께 다시 접는다. 느낌 버튼을 두 번 눌러 접던 우회로가 필요 없게 한다(2026-11-02).
+  ui.expanded.delete(uid);
+  run((s) => T.setMemo(s, uid, t));
 }
 
 function stepValue(d) {

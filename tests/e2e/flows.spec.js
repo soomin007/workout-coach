@@ -974,3 +974,41 @@ test('세트 줄을 왼쪽으로 밀면 지워지고, 되돌리기로 살아난�
   await expect(rows).toHaveCount(n);
   expect((await st(page)).session.exercises.find((x) => x.exerciseId === 'bench').sets.filter((z) => z.done)).toEqual([]);
 });
+
+// 2026-11-02 사용자 지적: 끝난 운동은 느낌을 고르면 접혀서, 메모하려면 펴고 적은 뒤 느낌 버튼을 두 번 눌러 다시 접어야 했다.
+test('끝난 운동은 접힌 줄에서 바로 메모하고, 펼쳐서 메모를 고쳐도 저장하면 다시 접힌다', async ({ page }) => {
+  await startPart(page, 'Pull');
+  const c = card(page, 'curl');
+  await c.getByRole('button', { name: '계획대로 완료' }).click();
+  await c.getByTestId('effort').getByRole('button', { name: '적당' }).click();
+  await expect(c.getByTestId('effort')).toHaveCount(0);
+  await expect(c.getByTestId('fold-memo-btn')).toHaveText('메모');
+  await c.getByTestId('fold-memo-btn').click();
+  await sheet(page).locator('textarea[name=t]').fill('왼쪽 어깨가 뻐근함');
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  await expect(c.getByTestId('fold-memo')).toHaveText('메모: 왼쪽 어깨가 뻐근함');
+  await expect(c.getByTestId('fold-memo-btn')).toHaveText('메모 수정');
+  await expect(c.getByTestId('effort')).toHaveCount(0);
+  await c.locator('[data-action="expand"]').click();
+  await expect(c.getByTestId('effort')).toBeVisible();
+  await c.getByRole('button', { name: '메모 수정' }).click();
+  await sheet(page).locator('textarea[name=t]').fill('왼쪽 어깨가 뻐근함\n다음에는 그립을 조금 넓게');
+  await sheet(page).getByRole('button', { name: '확인' }).click();
+  await expect(c.getByTestId('effort')).toHaveCount(0);
+  await expect(c.getByTestId('fold-memo')).toHaveText('메모: 왼쪽 어깨가 뻐근함');
+  const e = (await st(page)).session.exercises.find((x) => x.exerciseId === 'curl');
+  expect(e.effort).toBe('ok');
+  expect(e.memo).toBe('왼쪽 어깨가 뻐근함\n다음에는 그립을 조금 넓게');
+});
+
+// 2026-11-02 사용자 지적: 카드 한쪽의 굵은 색 줄은 전형적인 AI 디자인. 부위는 근육 지도로 보여 준다.
+test('홈 추천 카드와 세션 머리에 한쪽 색 줄이 없고, 추천 카드는 근육 지도로 부위를 보여 준다', async ({ page }) => {
+  const oneSided = (loc) => loc.evaluate((el) => { const s = getComputedStyle(el); return s.borderLeftWidth !== s.borderRightWidth || s.borderLeftColor !== s.borderRightColor; });
+  expect(await oneSided(page.locator('section.hero'))).toBe(false);
+  await expect(page.getByTestId('hero-map').locator('.m-prim').first()).toBeVisible();
+  for (const tile of await page.locator('.recent').all()) {
+    expect(await tile.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe('0px');
+  }
+  await startPart(page, 'Pull');
+  expect(await oneSided(page.getByTestId('session-head'))).toBe(false);
+});

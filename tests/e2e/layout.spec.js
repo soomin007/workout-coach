@@ -154,3 +154,39 @@ test('버티기 타이머 시트: 큰 숫자와 버튼이 넘치지 않는다', 
   expect(sh.scrollW).toBe(sh.clientW);
   if (info.project.name === 'm360') await page.locator('#sheet .sheet').screenshot({ path: test.info().outputPath('hold.png') });
 });
+
+// 2026-11-02: 세션 머리의 '화면 유지'가 390 폭에서 '화면 / 유지' 두 줄로 꺾였다. 다른 버튼과 같은 한 줄 높이여야 한다.
+test('세션 머리: 화면 유지 버튼이 한 줄이고, 켜도 넘치지 않는다', async ({ page }) => {
+  await page.goto('/');
+  await startPart(page, 'Pull', 60);
+  const heights = () => page.evaluate(() => ['wakelock', 'menu'].map((k) => Math.round(document.querySelector(k === 'menu' ? '[data-action="session-menu"]' : '[data-testid="wakelock"]').getBoundingClientRect().height)));
+  const [wl, menu] = await heights();
+  expect(wl).toBe(menu);
+  await page.evaluate(() => { Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => new EventTarget() } }); });
+  await page.getByTestId('wakelock').click();
+  await expect(page.getByTestId('wakelock')).toHaveText('화면 유지 중');
+  const [wl2, menu2] = await heights();
+  expect(wl2).toBe(menu2);
+  const m = await measure(page);
+  expect(m.scrollW).toBe(m.vw);
+  expect(m.overflow).toEqual([]);
+});
+
+test('홈 추천 카드와 접힌 운동 줄: 근육 지도와 메모 버튼이 화면 안에 들어온다', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('hero-map')).toBeVisible();
+  let m = await measure(page);
+  expect(m.scrollW).toBe(m.vw);
+  expect(m.overflow).toEqual([]);
+  await startPart(page, 'Pull', 60);
+  const c = page.locator('section.ex[data-exercise="curl"]');
+  await c.getByRole('button', { name: '계획대로 완료' }).click();
+  await c.getByTestId('effort').getByRole('button', { name: '적당' }).click();
+  await page.evaluate(() => window.__store.commit((s) => { s.session.exercises.find((e) => e.exerciseId === 'curl').memo = '왼쪽 어깨가 뻐근해서 다음에는 그립을 조금 넓게 잡아 보기로 함'; }));
+  await expect(c.getByTestId('fold-memo')).toBeVisible();
+  m = await measure(page);
+  expect(m.scrollW).toBe(m.vw);
+  expect(m.overflow).toEqual([]);
+  const tap = await c.getByTestId('fold-memo-btn').boundingBox();
+  expect(tap.height).toBeGreaterThanOrEqual(36);
+});

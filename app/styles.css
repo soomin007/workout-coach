@@ -72,15 +72,16 @@ select, input[type="date"], input[type="text"], input[type="number"], textarea {
 textarea { min-height: 64px; padding-top: 8px; padding-bottom: 8px; resize: vertical; }
 
 .hero .title { font-size: 24px; font-weight: 800; margin: 2px 0 6px; }
-.part-push { --part: #5b9dff; } .part-pull { --part: #3ecf8e; } .part-lower { --part: #f5a524; } .part-core { --part: #b69cff; }
-.hero[class*="part-"], .session-top { border-left: 4px solid var(--part, var(--line)); }
-.hero[class*="part-"] .title, .session-top h2 { color: var(--part); }
+/* 부위는 한쪽 색 줄 대신 근육 지도로 보여 준다(2026-11-02, 색 줄이 전형적인 AI 디자인이라는 지적). 미리보기의 .pv-map 과 같은 모양 */
+.hero-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.hero-map { flex: 0 0 84px; width: 84px; height: 84px; border-radius: 50%; background: var(--surface2); display: grid; place-content: center; }
+.hero-map .body-map { width: 72px; }
 .reasons { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--text); }
 .reasons li { margin: 3px 0; }
 .cond-summary { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; min-height: 40px;
   background: var(--surface2); border: 1px solid var(--line); border-radius: 10px; padding-left: 12px; padding-right: 12px; text-align: left; font-size: 13px; color: var(--muted); }
 .recent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.recent { display: grid; gap: 2px; padding: 8px; border-radius: 10px; background: var(--surface2); border-top: 3px solid var(--part); font-size: 12px; color: var(--muted); }
+.recent { display: grid; gap: 2px; padding: 8px; border-radius: 10px; background: var(--surface2); font-size: 12px; color: var(--muted); }
 .recent b { color: var(--text); font-size: 13px; }
 details.more { margin-top: 8px; font-size: 13px; color: var(--muted); }
 details.more summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
@@ -92,10 +93,13 @@ details.more summary { cursor: pointer; min-height: 32px; display: flex; align-i
 .bar > i { display: block; height: 100%; background: var(--accent); }
 
 /* 세션 */
-.session-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+/* 왼쪽(조건과 부위)이 먼저 줄어들며 조건 줄을 항목 사이에서 꺾고, 그래도 모자라면(320 폭) 넘치지 않고 시계와 버튼 묶음이 아랫줄로 내려간다 */
+.session-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.session-head > :first-child { flex: 1 1 0; }
 .session-head h2 { margin: 2px 0 2px; }
-.head-right { text-align: right; }
-.head-right .btn.sm { min-width: 40px; }
+.session-meta { margin-top: 6px; }
+.head-right { text-align: right; margin-left: auto; }
+.head-right .btn.sm { min-width: 40px; white-space: nowrap; }
 .btn.lit { color: var(--warn); border-color: var(--warn); }
 .clock { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .clock.paused { opacity: .45; }
@@ -111,6 +115,12 @@ details.more summary { cursor: pointer; min-height: 32px; display: flex; align-i
 .ex-fold { width: 100%; display: grid; gap: 2px; text-align: left; background: none; border: 0; padding: 12px 14px; min-height: 56px; }
 .ex-fold .ex-title { font-size: 15px; }
 .ex-fold .ok { color: var(--good); }
+/* 접힌 줄: 왼쪽은 펼치기, 오른쪽은 바로 메모. 메모 첫 줄은 한 줄로 줄여 보인다 */
+.fold-row { display: flex; align-items: center; gap: 4px; padding-right: 10px; }
+.fold-row .ex-fold { width: auto; flex: 1; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.fold-memo { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold-memo-btn { flex: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.fold-memo-btn .li-icon { width: 16px; height: 16px; }
 .effort-ask { margin-top: 12px; font-size: 14px; font-weight: 700; }
 .ex-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
 .ex-title { font-size: 17px; font-weight: 800; }

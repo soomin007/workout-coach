@@ -1,6 +1,6 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (main.js 의 actions 가 위임 처리).
-import { esc } from './dom.js';
-import { PART_LABEL, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment, isStretch } from '../core/catalog.js';
+import { esc, iconSvg } from './dom.js';
+import { PART_LABEL, PART_MUSCLES, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment, isStretch } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
 import { EFFORT_LABEL, EFFORTS } from '../core/schema.js';
@@ -47,7 +47,6 @@ export function renderToday(state, ui, now = new Date()) {
   ].filter(Boolean).join(' · ');
   const pick = (k, list) => `<option value=""${ok.includes(k) ? '' : ' selected'} disabled>고르기</option>${list.map(([v, l]) => `<option value="${esc(v)}"${ok.includes(k) && String(v) === String(c[k]) ? ' selected' : ''}>${esc(l)}</option>`).join('')}`;
   const reasons = explainRecommendation(state, r, now);
-  const partCls = PART_OPTS.includes(r.part) ? ` part-${r.part}` : '';
   return `
   <section class="card">
     <div class="kicker">오늘 컨디션</div>
@@ -62,9 +61,9 @@ export function renderToday(state, ui, now = new Date()) {
       <label class="field">운동 날짜<input type="date" data-action="new-date" value="${esc(date)}"></label>
     </div>` : ''}
   </section>
-  <section class="card hero${partCls}">
-    <div class="kicker">오늘 추천</div>
-    <div class="title" data-testid="rec-title">${esc(REC_LABEL[r.part])}</div>
+  <section class="card hero">
+    <div class="hero-top"><div><div class="kicker">오늘 추천</div>
+      <div class="title" data-testid="rec-title">${esc(REC_LABEL[r.part])}</div></div>${PART_OPTS.includes(r.part) ? heroMap([r.part]) : ''}</div>
     <ul class="reasons">${reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
     <div class="row" style="margin-top:12px">
       ${PART_OPTS.includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-home="${r.home ? 1 : 0}">${r.home ? '집에서 ' : ''}${esc(REC_LABEL[r.part])} 시작</button>` : ''}
@@ -76,6 +75,14 @@ export function renderToday(state, ui, now = new Date()) {
   ${renderDashboard(state, now)}`;
 }
 
+// 홈 카드 오른쪽 근육 지도: 부위를 한쪽 색 줄 대신 그 부위가 쓰는 근육으로 보여 준다(2026-11-02 사용자 지적).
+// 코어는 근육 예산 표(PART_MUSCLES)에 없어서 따로 둔다.
+function heroMap(parts) {
+  const ms = [...new Set(parts.flatMap((p) => (p === 'core' ? ['core'] : PART_MUSCLES[p] || [])))];
+  if (!ms.length) return '';
+  return `<div class="hero-map" data-testid="hero-map">${bodyMap({ primary: ms }, { label: `${parts.map((p) => PART_LABEL[p]).join(', ')} 근육` })}</div>`;
+}
+
 // 오늘 이미 운동을 마친 날: 추천 대신 오늘 한 것을 보여 주고, 추가 운동은 묻는다.
 function renderDoneToday(state, now) {
   const hs = todaysHistory(state, now);
@@ -84,9 +91,9 @@ function renderDoneToday(state, now) {
   const x = recommendPart(state, now, { extra: true });
   const extraBtn = PART_OPTS.includes(x.part)
     ? `<button class="btn" data-action="start" data-part="${x.part}" data-extra="1" data-home="${x.home ? 1 : 0}">추가로 ${esc(REC_LABEL[x.part])} 하기</button>` : '';
-  return `<section class="card hero done${parts.length === 1 ? ` part-${parts[0]}` : ''}" data-testid="done-today">
-    <div class="kicker">오늘 운동 완료</div>
-    <div class="title" data-testid="rec-title">${esc(parts.map((p) => PART_LABEL[p]).join(' · '))} 완료</div>
+  return `<section class="card hero done" data-testid="done-today">
+    <div class="hero-top"><div><div class="kicker">오늘 운동 완료</div>
+      <div class="title" data-testid="rec-title">${esc(parts.map((p) => PART_LABEL[p]).join(' · '))} 완료</div></div>${heroMap(parts)}</div>
     <ul class="reasons">${lines}</ul>
     <div class="small" style="margin-top:10px">오늘 할 운동은 끝났습니다. 이제는 회복이 다음 운동을 만듭니다.</div>
     <div class="sep"></div>
@@ -130,7 +137,7 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
 }
 
 function renderDashboard(state, now) {
-  const recent = PART_OPTS.map((p) => { const d = daysSince(state, p, now); return `<div class="recent part-${p}"><b>${PART_LABEL[p]}</b><span>${d >= 99 ? '기록 없음' : d === 0 ? '오늘' : `${d}일 전`}</span></div>`; }).join('');
+  const recent = PART_OPTS.map((p) => { const d = daysSince(state, p, now); return `<div class="recent"><b>${PART_LABEL[p]}</b><span>${d >= 99 ? '기록 없음' : d === 0 ? '오늘' : `${d}일 전`}</span></div>`; }).join('');
   const rows = Object.keys(MUSCLE_BUDGET).map((m) => ({ m, v: muscleSets(state, m, now), b: MUSCLE_BUDGET[m] }));
   const bar = ({ m, v, b }) => `<div class="bar-row"><span>${MUSCLE_LABEL[m]}</span><div class="bar"><i style="width:${Math.min(100, (v / b) * 100)}%"></i></div><span class="tiny">${v}/${b}</span></div>`;
   const lacking = rows.filter((x) => x.v < x.b * 0.5);
@@ -201,10 +208,13 @@ function renderExercise(state, e, idx, ui, next) {
   const allDone = mains.length > 0 && mains.every((z) => z.done);
   // 다 끝났고 느낌까지 받았으면 한 줄로 접는다 (눌러서 다시 펼침). 스트레칭은 느낌을 묻지 않아 끝나면 바로 접는다.
   const stretch = isStretch(e);
+  // 접힌 줄에서 바로 메모한다. 펴고, 적고, 느낌 버튼을 두 번 눌러 다시 접던 과정을 한 번 누르기로 줄인다(2026-11-02 사용자 지적).
   if (allDone && (e.effort || stretch) && !ui.expanded?.has(e.uid)) {
+    const memo = (e.memo || '').trim().split('\n')[0];
     return `<section class="card ex collapsed" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
-      <button class="ex-fold" data-action="expand" data-uid="${e.uid}"><span class="ex-title"><span class="ok">✓</span> ${idx + 1}. ${esc(e.name)}</span>
-      <span class="small" data-testid="ex-summary">${mains.map((z) => setSummary(e, z)).join(' · ')}${e.effort ? ` · ${EFFORT_LABEL[e.effort]}` : ''}</span></button></section>`;
+      <div class="fold-row"><button class="ex-fold" data-action="expand" data-uid="${e.uid}"><span class="ex-title"><span class="ok">✓</span> ${idx + 1}. ${esc(e.name)}</span>
+      <span class="small" data-testid="ex-summary">${mains.map((z) => setSummary(e, z)).join(' · ')}${e.effort ? ` · ${EFFORT_LABEL[e.effort]}` : ''}</span>${memo ? `<span class="fold-memo" data-testid="fold-memo">메모: ${esc(memo)}</span>` : ''}</button>
+      <button class="btn sm ghost fold-memo-btn" data-action="memo" data-uid="${e.uid}" data-testid="fold-memo-btn">${iconSvg('memo')}${memo ? '메모 수정' : '메모'}</button></div></section>`;
   }
   const badge = stretch ? '스트레칭' : e.unilateral ? '좌우' : e.compound ? '복합' : '보조';
   const restNow = e.restToday ?? e.rest;
@@ -335,6 +345,11 @@ function guideHtml(e) {
     <div class="tiny" style="margin-top:6px">${esc(slotLabel(e.slot))}${muscles ? ` · 주로 ${esc(muscles)}` : ''} · ${esc(e.why)}</div></details>`;
 }
 
+// '·'로 잇는 메타 줄: 항목 사이에서만 꺾고, 구분점은 앞 항목 끝에 붙여 줄 첫머리로 가지 않게 한다.
+const dotted = (xs) => xs.map((x, i) => `<span class="nw">${esc(x)}${i < xs.length - 1 ? ' ·' : ''}</span>`).join(' ');
+
+// 세션 머리: 왼쪽은 부위와 조건, 오른쪽은 시계와 버튼. 요약(예상 시간과 세트 수)은 카드 전체 폭 줄에 둔다.
+// 오른쪽 버튼이 한 줄로 넓어져도(화면 유지 중) 좁은 폭에서 요약이 세 줄로 꺾이지 않게 한다(2026-11-02 실측).
 export function renderSession(state, ui, now = new Date()) {
   const s = state.session;
   const total = s.exercises.reduce((a, e) => a + e.sets.filter((z) => z.type !== 'warmup').length, 0);
@@ -342,11 +357,12 @@ export function renderSession(state, ui, now = new Date()) {
   const missing = missingCoreSlots(state);
   const next = nextSet(s);
   const today = localISODate(now);
+  // 조건 줄은 항목 사이에서만 꺾는다(320과 360 폭에서 '근력 / 중심'으로 꺾였다)
+  const mode = ['진행 중', s.home ? '집' : null, `${s.minutes}분`, s.recovery ? '가볍게 한 날' : INTENSITY[s.intensity] || '일반', s.date !== today ? `${s.date} 기록` : null].filter(Boolean);
   return `
-  <section class="card session-top part-${s.part}" data-testid="session-head">
+  <section class="card session-top" data-testid="session-head">
     <div class="session-head">
-      <div><div class="kicker" data-testid="session-mode">진행 중${s.home ? ' · 집' : ''} · ${s.minutes}분 · ${s.recovery ? '가볍게 한 날' : esc(INTENSITY[s.intensity] || '일반')}${s.date !== today ? ` · ${esc(s.date)} 기록` : ''}</div><h2>${esc(PART_LABEL[s.part])}</h2>
-        <div class="small" data-testid="session-meta">예상 ${s.estimatedMinutes}분 · 운동 ${s.exercises.length}개 · 본세트 ${work}/${total}</div></div>
+      <div><div class="kicker" data-testid="session-mode">${dotted(mode)}</div><h2>${esc(PART_LABEL[s.part])}</h2></div>
       <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : s.ready ? '<div class="small paused-label">시작 전</div>' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨 · 세트를 끝내면 다시 갑니다</div>'}
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
           <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${s.timer.running ? '❚❚' : '▶'}</button>
@@ -354,6 +370,7 @@ export function renderSession(state, ui, now = new Date()) {
           <button class="btn sm ghost" data-action="session-menu" aria-label="세션 메뉴">⋯</button>
         </div></div>
     </div>
+    <div class="small session-meta" data-testid="session-meta">${dotted([`예상 ${s.estimatedMinutes}분`, `운동 ${s.exercises.length}개`, `본세트 ${work}/${total}`])}</div>
     <div class="progress"><i style="width:${total ? (work / total) * 100 : 0}%"></i></div>
     ${missing.length ? `<div class="warnbox">빠진 핵심 동작: ${missing.map(slotLabel).join(', ')} <button class="btn sm" data-action="repair" style="margin-left:6px">자동 보완</button></div>` : ''}
   </section>
