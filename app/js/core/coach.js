@@ -41,6 +41,7 @@ export function profileFor(state, exerciseId) {
     priority: base.priority || 50,
     risk: base.risk || null,
     kneeling: !!base.kneeling,
+    manualOnly: !!base.manualOnly,
     alternating: !!base.alternating,
     why: base.why || '사용자 추가 운동',
     cue: base.cue || '',

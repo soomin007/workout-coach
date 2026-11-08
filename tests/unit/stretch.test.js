@@ -54,12 +54,31 @@ test('다른 부위에는 스트레칭을 넣지 않는다', () => {
   for (const part of ['push', 'pull', 'lower']) assert.deepEqual(stretchIds(plan(90, part)), [], part);
 });
 
-test('무릎 통증을 고른 날은 무릎 꿇는 스트레칭을 뺀다', () => {
+test('무릎 꿇는 고관절 스트레칭은 계획에 넣지 않고, 옆으로 누운 허벅지 앞쪽 스트레칭이 그 자리를 맡는다 (11/8 메모)', () => {
+  for (const m of [60, 90]) assert.ok(!stretchIds(plan(m)).includes('hip_flexor_stretch'), `${m}분`);
+  assert.ok(stretchIds(plan(60)).includes('quad_stretch_side'));
+  assert.equal(stretchIds(plan(60)).length, 4, '60분은 지금처럼 네 가지');
+});
+
+test('무릎 꿇는 스트레칭은 교체로 고를 수 있고, 무릎 통증을 고른 날에는 후보에서도 빠진다', () => {
   const s = freshState();
+  T.setCheck(s, { minutes: 60 }, { now });
+  T.createSession(s, { part: 'core', now });
+  const st = s.session.exercises.find((e) => e.role === 'stretch');
+  assert.ok(replacementCandidates(s, st, now).some((x) => x.id === 'hip_flexor_stretch'), '평소에는 후보');
   T.setCheck(s, { pain: 'knee' }); // 오늘 확인한 값만 쓰이므로 실제 오늘 날짜로
-  const p = buildPlan(s, 'core', 90, now);
-  assert.ok(buildPlan(freshState(), 'core', 90, now).planned.some((x) => x.id === 'hip_flexor_stretch'), '평소에는 들어간다');
-  assert.ok(!stretchIds(p).includes('hip_flexor_stretch'));
+  assert.ok(!replacementCandidates(s, st, now).some((x) => x.id === 'hip_flexor_stretch'));
+});
+
+// 도구는 "있으면"으로 덧붙이거나 "두 손(또는 수건)"처럼 대신 쓸 것으로만 적는다. "수건(또는 밴드)을 걸고"는 둘 다 도구라 통과하지 않는다.
+const toolOptional =(line) => /있으면/.test(line) || [...line.matchAll(/수건|밴드/g)].every((m) => line.slice(0, m.index).endsWith('또는 '));
+
+test('장비 불필요 운동의 안내는 도구 없이 할 수 있다. 수건이나 밴드는 있으면 쓰는 것으로만 적는다 (11/8 메모)', () => {
+  for (const x of ALL_CATALOG.filter((p) => p.equipment === 'none')) {
+    for (const line of guideFor(x.id)?.how || []) {
+      if (/수건|밴드/.test(line)) assert.ok(toolOptional(line), `${x.id}: ${line}`);
+    }
+  }
 });
 
 test('처방: 처음 45초, 그다음은 지난번 시간을 범위(30~60초) 안에서 그대로. 늘려 가지 않는다', () => {

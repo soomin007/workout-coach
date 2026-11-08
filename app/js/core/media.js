@@ -5,7 +5,7 @@
 
 // hold: 시작 · 끝 두 장이 아니라 한 장(main)인 버티기 운동
 const HOLD = new Set(['plank', 'bird-dog-hold', 'side-plank', 'high-plank', 'hollow-body-hold',
-  'banded-hamstring-stretch', 'wall-hamstring-stretch', 'banded-figure-4-stretch', 'kneeling-hip-flexor-stretch']);
+  'banded-hamstring-stretch', 'wall-hamstring-stretch', 'banded-figure-4-stretch', 'kneeling-hip-flexor-stretch', 'lying-quad-stretch']);
 
 export const EX_MEDIA = {
   bench: 'bench-press', incline_db: 'incline-db-press', chest_press: 'chest-press-machine', smith_incline: 'smith-machine-incline-bench-press',
@@ -20,8 +20,9 @@ export const EX_MEDIA = {
   side_plank: 'side-plank', reverse_crunch: 'reverse-crunches', crunch: 'crunches', shoulder_tap: 'high-plank',
   cable_crunch: 'cable-crunch', leg_raise: 'lying-leg-raise', hanging_leg_raise: 'hanging-leg-raise', bicycle_crunch: 'bicycle-crunch',
   russian_twist: 'russian-twist', hollow_hold: 'hollow-body-hold',
-  // 스트레칭(11/1): 그림의 밴드는 수건이나 손으로 대신한다고 안내에 적었다.
+  // 스트레칭(11/1): 그림의 밴드는 손이나 수건으로 대신한다고 안내 첫 줄에 적었다(누워서 햄스트링은 11/8 메모로 고침).
   hamstring_stretch_lying: 'banded-hamstring-stretch', hamstring_stretch_wall: 'wall-hamstring-stretch', figure4_stretch: 'banded-figure-4-stretch', hip_flexor_stretch: 'kneeling-hip-flexor-stretch',
+  quad_stretch_side: 'lying-quad-stretch',
   db_oh_ext: 'seated-dumbbell-tricep-extension', skull_crusher: 'ez-bar-lying-tricep-extension', straight_arm_pd: 'straight-arm-pulldown', ez_curl: 'ez-bar-curl',
   rear_cable: 'cable-reverse-fly', db_bench: 'db-bench-press', db_shoulder_press: 'seated-db-press', incline_db_fly: 'incline-dumbbell-fly',
   incline_curl: 'incline-db-curl', db_squat: 'db-squat', smith_hip_thrust: 'smith-machine-hip-thrust', hanging_knee_raise: 'hanging-knee-raise',

@@ -204,10 +204,13 @@ export const DB = {
     // 2026-11-01 추가(정책 22절): 코어 날 남는 시간에 붙이는 맨몸 정적 스트레칭. PT 선생님이 햄스트링이 뻣뻣하다고 했다.
     // primary 를 비워 근육별 주간 세트에 들어가지 않게 하고, 늘리는 근육은 stretches 에 적는다(근육 지도 · 운동 목록 표시용).
     // 허리 이력이 있어 서서 상체를 숙이는 자세는 넣지 않았다. 누워서 하면 허리를 바닥에 둔 채 다리만 움직인다.
-    { id: 'hamstring_stretch_lying', name: '누워서 햄스트링 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['hamstring'], sets: 3, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '뒤 허벅지 스트레칭. 수건을 발에 걸어 누워서 하므로 허리를 숙이지 않는다' },
+    { id: 'hamstring_stretch_lying', name: '누워서 햄스트링 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['hamstring'], sets: 3, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '뒤 허벅지 스트레칭. 누워서 손으로 허벅지를 받치므로 도구가 없어도 되고 허리를 숙이지 않는다' },
     { id: 'hamstring_stretch_wall', name: '벽에 다리 올려 햄스트링 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['hamstring'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', unilateral: true, why: '손을 쓰지 않고 벽이나 문틀에 다리를 기대 오래 버티는 뒤 허벅지 스트레칭' },
     { id: 'figure4_stretch', name: '누워서 4자 엉덩이 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['glute'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 80, equipment: 'none', unilateral: true, why: '엉덩이 깊은 근육 스트레칭. 햄스트링과 함께 골반 뒤쪽을 푼다' },
-    { id: 'hip_flexor_stretch', name: '무릎 꿇고 고관절 앞쪽 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['quads'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 70, equipment: 'none', unilateral: true, kneeling: true, why: '골반 앞쪽(엉덩허리근)과 허벅지 앞쪽 스트레칭' },
+    // 11/8 메모(꿇은 무릎이 너무 아프고 당김은 별로): 무릎을 대지 않는 옆으로 누운 자세가 계획의 자리를 맡는다.
+    // 무릎 꿇는 자세는 지우지 않고 교체나 운동 추가로만 고른다(manualOnly). 버드독 때도 무릎 통증 보고가 있었다(10/4).
+    { id: 'quad_stretch_side', name: '옆으로 누워 허벅지 앞쪽 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['quads'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 70, equipment: 'none', unilateral: true, why: '허벅지 앞쪽과 골반 앞쪽 스트레칭. 무릎을 바닥에 대지 않고 옆으로 누워서 한다' },
+    { id: 'hip_flexor_stretch', name: '무릎 꿇고 고관절 앞쪽 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['quads'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 60, equipment: 'none', unilateral: true, kneeling: true, manualOnly: true, why: '골반 앞쪽(엉덩허리근)과 허벅지 앞쪽 스트레칭' },
   ],
 };
 

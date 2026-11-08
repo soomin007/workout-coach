@@ -375,8 +375,9 @@ export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   }
   // 남는 시간에 맨몸 스트레칭 (정책 22절). 순위대로 넣고, 다 안 들어가면 세트를 줄여 본다.
   // 운동 종목 상한(maxCount)과 따로 센다: 코어는 8종목을 채우면 시간을 늘려도 더 넣을 것이 없었다.
+  // 교체나 운동 추가로만 고르는 스트레칭(manualOnly)은 넣지 않는다.
   if (STRETCH_PARTS.includes(part)) {
-    const pool = partPool(state, part).filter((x) => isStretch(x) && isAvailable(state, x, where) && !used.has(x.id)).sort((a, b) => b.priority - a.priority);
+    const pool = partPool(state, part).filter((x) => isStretch(x) && !x.manualOnly && isAvailable(state, x, where) && !used.has(x.id)).sort((a, b) => b.priority - a.priority);
     for (const x of pool) {
       for (let sets = x.sets; sets >= 1; sets--) {
         const cost = estimateMinutes(x, sets);
