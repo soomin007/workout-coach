@@ -172,6 +172,22 @@ const isAssist = (mode) => mode === 'assist';
 const unitWord = (profile) => (profile.measure === 'seconds' ? '초' : '회');
 const STRETCH_FIRST = 45;
 
+// ---------- 세트 중간에 낮춘 무게 (코칭 정책 2절) ----------
+// 목표 하한을 채운 세트 다음에 무게를 낮췄으면(assist 는 보조를 늘렸으면) 앞 무게가 그날 맞지 않았다는 사용자의 판단이다.
+// 처방은 마지막으로 낮춘 세트부터 본다(11/9 어브덕션 메모: 85kg가 고관절에 아파 70kg로 낮췄는데 다음 처방이 다시 85kg였다).
+// 하한에 못 미친 세트 다음의 감량은 앱이 남은 세트를 자동으로 낮춘 것일 수 있어(정책 3절) 따지지 않는다.
+// sets: 완료한 본세트(반복이 적힌 것)만. 반환: { sets, from, to }, 낮추지 않았으면 from 과 to 가 null.
+export function afterLowering(profile, sets) {
+  const [lo] = profile.range;
+  const assist = isAssist(profile.mode);
+  for (let i = sets.length - 1; i > 0; i--) {
+    const a = sets[i - 1], b = sets[i];
+    if (typeof a.weight !== 'number' || typeof b.weight !== 'number' || setReps(a) < lo) continue;
+    if (assist ? b.weight > a.weight : b.weight < a.weight) return { sets: sets.slice(i), from: a.weight, to: b.weight };
+  }
+  return { sets, from: null, to: null };
+}
+
 // 다음 처방. 반환: { weight, reps, kind, note }
 export function prescribe(profile, last) {
   const [lo, hi] = profile.range;
@@ -186,6 +202,14 @@ export function prescribe(profile, last) {
   }
   if (!main.length) {
     return { weight: null, reps: even(hi > lo ? Math.round((lo + hi) / 2) : lo), kind: 'first', note: `첫 기록: 가볍다 싶은 무게부터 적고 해 보세요. 세트를 마치면 어땠는지 묻고, 가벼웠으면 그 세트는 워밍업으로 돌리고 올립니다. 찾는 무게는 목표 ${lo}~${hi}${u}에서 2~3${u} 여유가 남는 무게.` };
+  }
+  const low = afterLowering(profile, main);
+  if (low.from !== null) {
+    const rx = prescribe(profile, { ...last, sets: low.sets });
+    const why = isAssist(profile.mode)
+      ? `지난번에 보조를 ${low.from}kg에서 ${low.to}kg로 늘렸으니 늘린 보조부터 잇습니다.`
+      : `지난번에 ${low.from}kg에서 ${low.to}kg로 낮췄으니 낮춘 무게부터 잇습니다.`;
+    return { ...rx, note: `${why} ${rx.note}` };
   }
   const hard = last.effort === 'hard';
   const weighted = main.filter((s) => s.weight !== null);
@@ -354,7 +378,8 @@ function orderAdjusted(profile, rec, shift, pf) {
   const [lo, hi] = profile.range;
   const u = unitWord(profile);
   if (shift === 'fatigued>fresh') {
-    const first = (rec.sets || []).find((z) => z.done && z.type === 'main' && setReps(z) !== null);
+    // 첫 세트도 세트 중간에 낮춘 뒤의 세트에서 고른다. 아파서 내려놓은 무게로 되돌아가지 않게.
+    const first = afterLowering(profile, (rec.sets || []).filter((z) => z.done && z.type === 'main' && setReps(z) !== null)).sets[0];
     if (!first || rx.kind === 'increase' || rx.kind === 'bw_top') return { ...rx, shift };
     const r = clamp(setReps(first), lo, hi);
     const better = (first.weight ?? 0) > (rx.weight ?? 0) || ((first.weight ?? 0) === (rx.weight ?? 0) && r > rx.reps);

@@ -266,9 +266,10 @@ function optionNeedScore(state, profile, now, extra = null) {
   return deficit * 10 + (profile.priority || 0) / 20;
 }
 
+// 교체나 운동 추가로만 고르는 운동(manualOnly)은 계획에 넣지 않는다. 교체 후보(replacementCandidates)에는 남는다.
 export function chooseForSlot(state, part, slot, used, now = new Date(), opts = {}) {
   return partPool(state, part)
-    .filter((e) => supportsSlot(e, slot) && isAvailable(state, e, opts) && !used.has(e.id))
+    .filter((e) => supportsSlot(e, slot) && !e.manualOnly && isAvailable(state, e, opts) && !used.has(e.id))
     .sort((a, b) => (roleScore(b, slot, opts) - roleScore(a, slot, opts)) || (slotScore(state, b, now, opts) - slotScore(state, a, now, opts)) || (b.priority - a.priority))[0] || null;
 }
 
@@ -281,6 +282,10 @@ function slotScore(state, p, now, opts) {
   return optionNeedScore(state, p, now, opts.extra) - (opts.recent?.has(p.id) ? POLICY.accessoryRepeatPenalty : 0) - (opts.avoid?.has(p.id) ? 3 : 0);
 }
 
+// 좌우 운동의 양쪽 사이 휴식(초). 안내 문구는 "숨이 고를 때까지, 30초에서 1분"이다(11/9 불가리안 메모).
+// 11/9 불가리안 2세트가 준비부터 약 12분 걸렸다. 이 값으로 예상은 11분이다(전에는 8분).
+export const SIDE_REST = 45;
+
 export function estimateMinutes(profile, sets, withFullWarmup = false) {
   // 스트레칭: 버티는 시간(범위 중간)에 좌우 자세 바꾸기를 더한다. 준비 동작이 짧아 setup 을 따로 두지 않는다.
   if (isStretch(profile)) {
@@ -289,7 +294,11 @@ export function estimateMinutes(profile, sets, withFullWarmup = false) {
   }
   const setup = profile.compound ? 2.5 : 1.2;
   const warm = withFullWarmup && profile.compound ? 5 : profile.compound ? 1.5 : 0.5;
-  return setup + warm + 0.75 * sets + Math.max(0, sets - 1) * (profile.rest / 60);
+  // 좌우를 따로 하는 반복 운동은 한 세트에 양쪽을 다 한다(정책 23절).
+  // 하체 복합 운동(불가리안, 스플릿 스쿼트)은 숨이 차서 양쪽 사이에 쉰다. 한 팔 로우처럼 숨이 차지 않는 운동은 바로 바꾼다.
+  const sides = profile.unilateral && profile.measure !== 'seconds' && !profile.alternating ? 2 : 1;
+  const per = 0.75 * sides + (sides === 2 && profile.compound && profile.part === 'lower' ? SIDE_REST / 60 : 0);
+  return setup + warm + per * sets + Math.max(0, sets - 1) * (profile.rest / 60);
 }
 
 export function adjustedSetCount(state, profile, part, minutes, slot, now = new Date()) {

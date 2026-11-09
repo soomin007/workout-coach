@@ -293,7 +293,7 @@ export function recalcEstimate(state) {
   if (!s) return [];
   const changed = applyOrderContext(state);
   const f = firstCompoundUid(s);
-  s.estimatedMinutes = Math.round(s.exercises.reduce((a, e) => a + estimateMinutes({ compound: e.compound, rest: e.restToday ?? e.rest, role: e.role, range: e.range, unilateral: e.unilateral }, e.sets.filter((z) => z.type !== 'warmup').length, e.uid === f), 0));
+  s.estimatedMinutes = Math.round(s.exercises.reduce((a, e) => a + estimateMinutes({ compound: e.compound, rest: e.restToday ?? e.rest, role: e.role, range: e.range, unilateral: e.unilateral, measure: e.measure, part: s.part }, e.sets.filter((z) => z.type !== 'warmup').length, e.uid === f), 0));
   return changed;
 }
 

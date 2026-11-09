@@ -307,9 +307,10 @@ test('세트 번호를 누르면 유형 변경과 세트별 RIR 입력을 할 �
 });
 
 test('키패드 완료(Enter)로 숫자 입력이 바로 적용되고 시트가 닫힌다 · 0kg 은 빈 기구로 표시', async ({ page }) => {
-  // 하체 보조 자리에 원판 합계 운동(레그프레스)이 오도록 레그 익스텐션을 뺀다.
-  await page.evaluate(() => { window.__store.state.settings.unavailableExercises.push('leg_extension'); });
+  // 원판 합계 운동(싱글 레그프레스)은 계획에 들지 않아(11/9 허리 부담 메모) 레그 익스텐션을 교체해 넣는다.
   await startPart(page, 'Lower', 60);
+  await menu(page, 'leg_extension', '운동 변경');
+  await sheet(page).getByRole('button', { name: /싱글 레그프레스/ }).click(); // 입력이 없으면 확인 없이 바로 바뀐다
   const c = card(page, 'legpress');
   await c.getByTestId('weight-0').locator('.val').click();
   const input = sheet(page).locator('input[name=n]');
@@ -671,7 +672,7 @@ test('운동 설명: 하는 방법과 주의할 점, 화면 유지 버튼은 글
   await g.locator('summary').click();
   await expect(g).toContainText('하는 방법');
   await expect(g).toContainText('주의할 점');
-  await expect(g.locator('ol li')).toHaveCount(3);
+  await expect(g.locator('ol li')).toHaveCount(4); // 11/9: 회마다 숨 쉬는 단계를 더했다
   await expect(page.getByTestId('wakelock')).toHaveText(/화면 유지/);
 });
 
