@@ -9,7 +9,7 @@ import { replacementCandidates, recommendPart, todaysHistory } from './core/plan
 import { profileFor, lastPerformance, lighterThanUsual, recoverySuggested, RECOVERY } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, EMPHASIS, slotName } from './core/catalog.js';
 import { localISODate, fmtClock } from './core/util.js';
-import { esc, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
+import { esc, nw, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
@@ -412,7 +412,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- 흐름 ----------
 // 모든 시작은 이 확인 시트를 거친다: 지난번에 고른 시간·강도로 모르는 새 시작하지 않게
-// 부위 · 컨디션 · 가능 시간 · 강도를 오늘 값으로 고르게 한다 (2026-10-01 사용자 지적).
+// 부위, 컨디션, 가능 시간, 강도를 오늘 값으로 고르게 한다 (2026-10-01 사용자 지적).
 // replan: 세션 메뉴의 '오늘 설정 바꾸기'. 같은 시트를 지금 세션의 부위와 날짜, 집 설정으로 채워 열고,
 // 고른 값으로 그 자리에서 다시 짠다. 세션을 버리고 처음부터 다시 만들던 번거로움을 없앤다(2026-11-02 사용자 요청).
 async function startFlow({ part = null, home = false, extra = false, replan = false } = {}) {
@@ -438,9 +438,9 @@ async function startFlow({ part = null, home = false, extra = false, replan = fa
       const missing = [...form.querySelectorAll('.pick[data-required]')].filter((g) => !g.querySelector('.chip.on')).length;
       const go = form.querySelector('[data-testid=start-go]');
       go.disabled = missing > 0;
-      // 좁은 폭에서는 '부위 시작 ·' 과 '시간 · 강도' 사이에서만 줄을 바꾼다 (360 폭에서 '· 일반'이 줄 첫머리로 갔다)
+      // 좁은 폭에서는 '부위 시작'과 '(시간, 강도)' 사이에서만 줄을 바꾼다 (360 폭에서 강도만 줄 첫머리로 간 적이 있다)
       go.innerHTML = missing ? esc(`${missing}개 더 고르면 ${verb}`)
-        : `<span class="nw">${esc(PART_LABEL[v('part')])} ${verb} ·</span> <span class="nw">${esc(v('minutes'))}분 · ${esc(INTENSITY[v('intensity')])}</span>`;
+        : `${nw(`${esc(PART_LABEL[v('part')])} ${verb}`)} ${nw(`(${esc(v('minutes'))}분, ${esc(INTENSITY[v('intensity')])})`)}`;
       const p = v('part');
       const warn = [
         v('energy') === 'very_tired' ? '매우 피곤한 날은 쉬는 편이 낫습니다. 한다면 가볍게 고르세요.' : null,
@@ -497,7 +497,7 @@ async function quickLine(uid, text = '', error = '') {
   if (!e) return;
   const r = await sheet(`<h3>${esc(e.name)} 한 줄 기록</h3>
     ${error ? `<div class="warnbox" style="margin-top:0" data-testid="quick-error">${esc(error)}</div>` : ''}
-    <p class="small">세트의 무게와 횟수를 한 번에 적는 칸입니다. 중량 다음 세트별 반복, 끝에 느낌(여유 · 적당 · 한계). 키보드 마이크로 말해도 됩니다. 입력한 세트는 완료로 표시됩니다.</p>
+    <p class="small">세트의 무게와 횟수를 한 번에 적는 칸입니다. 중량 다음 세트별 반복, 끝에 느낌(여유, 적당, 한계). 키보드 마이크로 말해도 됩니다. 입력한 세트는 완료로 표시됩니다.</p>
     <input type="text" name="t" autocomplete="off" enterkeyhint="done" placeholder="${e.loadMode === 'bodyweight' ? '예: 10 10 8 한계' : '예: 50 10 10 8 한계'}" value="${esc(text)}">
     <div class="tiny" style="margin-top:6px">느낀 점이나 통증은 '메모'에 적으세요.</div>
     <div class="actions">${error ? '<button class="btn" data-sheet-value="memo">이 글을 메모로 저장</button>' : '<button class="btn" data-sheet-value="__cancel">취소</button>'}<button class="btn primary" data-sheet-value="ok">기록</button></div>`,
@@ -573,7 +573,7 @@ function stepValue(d) {
 async function exerciseMenu(uid) {
   const e = entry(uid);
   if (!e) return;
-  // 항목은 5개 안팎으로 둔다: 교체 사유 · 순서 이동은 다음 시트에서 고른다 (known-issues 23).
+  // 항목은 5개 안팎으로 둔다: 교체 사유와 순서 이동은 다음 시트에서 고른다 (known-issues 23).
   // 오늘 이 운동에 쓰는 것과 다음 세션에도 남는 설정, 삭제를 묶음으로 나눈다 (2026-11-02, 다 똑같이 생겨 알아보기 어렵다는 지적).
   const v = await choiceSheet(e.name, [
     { value: 'swap', icon: 'swap', label: '운동 변경' },
@@ -593,7 +593,7 @@ async function exerciseMenu(uid) {
   }
 }
 
-// 운동 상세 시트(설명 · 기록 탭). 탭 전환은 시트 안에서만 처리한다.
+// 운동 상세 시트(설명과 기록 탭). 탭 전환은 시트 안에서만 처리한다.
 function openExerciseDetail(id) {
   const p = sheet(exerciseDetailHtml(store.state, id));
   const root = document.querySelector('#sheet .ex-detail');
@@ -615,7 +615,7 @@ async function holdSet(uid) {
   const secs = z.reps ?? (z.split ? Math.max(z.leftReps ?? 0, z.rightReps ?? 0) || null : null) ?? e.prescription?.reps ?? e.range[0];
   const r = await runHold({ title: e.name, seconds: secs, unilateral: e.unilateral, leftFirst: store.state.settings.leftFirst !== false });
   if (!r) return;
-  run((s) => T.recordHold(s, uid, i, r), () => (r.secs !== undefined ? `${r.secs}초 기록` : `왼쪽 ${r.left ?? '-'}초 · 오른쪽 ${r.right ?? '-'}초 기록`));
+  run((s) => T.recordHold(s, uid, i, r), () => (r.secs !== undefined ? `${r.secs}초 기록` : `왼쪽 ${r.left ?? '-'}초, 오른쪽 ${r.right ?? '-'}초 기록`));
 }
 
 async function pickGrip(uid) {
@@ -635,12 +635,12 @@ async function confirmReplace(e) {
   return true;
 }
 
-// 대체 후보 목록 아래에 교체 사유(기구 사용 불가 · 헬스장에 없음 · 직접 입력)를 함께 둔다.
+// 대체 후보 목록 아래에 교체 사유(기구 사용 불가, 헬스장에 없음, 직접 입력)를 함께 둔다.
 async function swapExercise(uid) {
   const e = entry(uid);
   const cands = replacementCandidates(store.state, e);
   const id = await choiceSheet(`${e.name} 대신`, [
-    ...cands.map((x) => ({ value: x.id, label: x.name, hint: `${x.sameSlot ? '같은 동작' : '다른 역할'} · ${MODE_LABEL[x.mode]} · ${x.range[0]}~${x.range[1]}${x.measure === 'seconds' ? '초' : '회'}` })),
+    ...cands.map((x) => ({ value: x.id, label: x.name, hint: `${x.sameSlot ? '같은 동작' : '다른 역할'}, ${MODE_LABEL[x.mode]}, ${x.range[0]}~${x.range[1]}${x.measure === 'seconds' ? '초' : '회'}` })),
     { value: '__unavail', group: 'why', label: '오늘 기구 사용 불가', hint: '같은 동작의 다른 운동으로 자동 교체' },
     { value: '__unavail-perm', group: 'why', label: '이 헬스장에 없음 (항상 제외)' },
     { value: '__custom', group: 'why', label: '실제로 한 운동 이름 입력', hint: '목록에 없는 운동으로 바꾸기' },
@@ -656,7 +656,7 @@ async function swapExercise(uid) {
   run((s) => T.replaceExercise(s, uid, id), (ne) => `${ne.name}(으)로 바꿨습니다.`);
 }
 
-// 갈 자리를 한 번 누르면 바로 옮긴다(위로 · 아래로를 여러 번 누르지 않게).
+// 갈 자리를 한 번 누르면 바로 옮긴다(위로나 아래로를 여러 번 누르지 않게).
 async function moveExerciseTo(uid) {
   const xs = store.state.session.exercises;
   const idx = xs.findIndex((x) => x.uid === uid);
@@ -765,7 +765,7 @@ async function finishSession() {
   const sum = run((st) => T.finishSession(st, { lightExercises }));
   if (!sum) return;
   const lines = sum.exercises.map((x) => `<div class="small"><b>${esc(x.name)}</b> ${x.sets.map((z) => `${z.weight ?? ''}${z.weight !== null ? '×' : ''}${z.reps ?? '-'}`).join(' / ')}</div>`).join('');
-  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료 · ${sum.workSets}세트 · ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}${sum.light ? '<p class="small">가볍게 한 날로 저장했습니다. 가볍게 한 운동의 다음 무게는 평소 기록에서 이어 잡습니다. 기록 탭의 기록 수정에서 바꿀 수 있습니다.</p>' : ''}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
+  await sheet(`<h3>${esc(PART_LABEL[sum.part])} 완료, ${sum.workSets}세트, ${sum.durationSec ? `${Math.round(sum.durationSec / 60)}분` : '시간 모름'}</h3>${lines}${sum.light ? '<p class="small">가볍게 한 날로 저장했습니다. 가볍게 한 운동의 다음 무게는 평소 기록에서 이어 잡습니다. 기록 탭의 기록 수정에서 바꿀 수 있습니다.</p>' : ''}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
 }
 
 async function logPT() {
@@ -868,8 +868,8 @@ async function askStaleSession() {
   const last = new Date(info.lastAt);
   const when = `${last.getMonth() + 1}/${last.getDate()} ${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
   const hours = info.idleMin >= 120 ? `${Math.floor(info.idleMin / 60)}시간` : `${info.idleMin}분`;
-  const v = await sheet(`<h3>끝내지 않은 운동이 있어요</h3><p class="small">${esc(info.date)} ${esc(PART_LABEL[info.part])} · 완료 ${info.workSets}세트 · 마지막 기록 ${when} (${hours} 전)</p><p class="small">저장하면 운동 시간은 마지막 기록까지로 계산됩니다. 안 한 세트가 있으면 먼저 이어서 기록해도 됩니다.</p>
-    ${listHtml([{ value: 'save', label: info.workSets ? '저장하고 종료' : '기록 없음 · 저장하고 종료' }, { value: 'continue', label: '이어서 기록하기' }, { value: 'discard', group: 'danger', label: '버리기', danger: true }])}`);
+  const v = await sheet(`<h3>끝내지 않은 운동이 있어요</h3><p class="small">${nw(`${esc(info.date)} ${esc(PART_LABEL[info.part])},`)} ${nw(`완료 ${info.workSets}세트,`)} ${nw('마지막 기록')} ${nw(when)} ${nw(`(${hours} 전)`)}</p><p class="small">저장하면 운동 시간은 마지막 기록까지로 계산됩니다. 안 한 세트가 있으면 먼저 이어서 기록해도 됩니다.</p>
+    ${listHtml([{ value: 'save', label: info.workSets ? '저장하고 종료' : '기록 없이 저장하고 종료' }, { value: 'continue', label: '이어서 기록하기' }, { value: 'discard', group: 'danger', label: '버리기', danger: true }])}`);
   staleAsking = false;
   if (v === 'save') return finishSession();
   if (v === 'discard') { if (await confirmSheet('이 세션의 기록을 모두 버릴까요?', { ok: '버리기', danger: true })) run((s) => T.discardSession(s), '세션을 버렸습니다.'); return; }

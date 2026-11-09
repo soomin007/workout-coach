@@ -1,5 +1,5 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (main.js 의 actions 가 위임 처리).
-import { esc, iconSvg } from './dom.js';
+import { esc, iconSvg, nw, joinMeta } from './dom.js';
 import { PART_LABEL, PART_MUSCLES, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment, isStretch } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
@@ -38,20 +38,22 @@ export function renderToday(state, ui, now = new Date()) {
   const ok = checkConfirmed(state, now);
   const domsL = (v) => DOMS.find((x) => x[0] === +v)?.[1] || '없음';
   const date = ui.newDate || localISODate(now);
+  // 항목 사이에서만 꺾는다(320 폭에서 '어깨 / 불편', '근력 / 중심'으로 꺾였다). 긴 안내문은 두 덩어리로 나눠 둔다.
   const summary = [
-    c.upperDoms || c.lowerDoms ? `근육통 상체 ${domsL(c.upperDoms)} · 하체 ${domsL(c.lowerDoms)}` : '근육통 없음',
+    c.upperDoms || c.lowerDoms ? `근육통 상체 ${domsL(c.upperDoms)}` : '근육통 없음',
+    c.upperDoms || c.lowerDoms ? `하체 ${domsL(c.lowerDoms)}` : null,
     c.pain !== 'none' ? `${PAIN[c.pain]} 불편` : null,
     ok.includes('minutes') ? `${c.minutes}분` : null, ok.includes('intensity') ? INTENSITY[c.intensity] : null,
-    !ok.includes('minutes') || !ok.includes('intensity') ? '시간·강도는 시작할 때 고릅니다' : null,
+    !ok.includes('minutes') || !ok.includes('intensity') ? ['시간·강도는', '시작할 때 고릅니다'] : null,
     date !== localISODate(now) ? `${date} 기록` : null,
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean);
   const pick = (k, list) => `<option value=""${ok.includes(k) ? '' : ' selected'} disabled>고르기</option>${list.map(([v, l]) => `<option value="${esc(v)}"${ok.includes(k) && String(v) === String(c[k]) ? ' selected' : ''}>${esc(l)}</option>`).join('')}`;
   const reasons = explainRecommendation(state, r, now);
   return `
   <section class="card">
     <div class="kicker">오늘 컨디션</div>
     <div class="row" style="margin-top:6px">${ENERGY.map(([v, l]) => `<button class="chip${ok.includes('energy') && c.energy === v ? ' on' : ''}" data-action="energy" data-v="${v}">${l}</button>`).join('')}</div>
-    <button class="cond-summary" data-action="toggle-cond" aria-expanded="${ui.condOpen ? 'true' : 'false'}"><span>${esc(summary)}</span><span class="tiny">${ui.condOpen ? '접기' : '바꾸기'}</span></button>
+    <button class="cond-summary" data-action="toggle-cond" aria-expanded="${ui.condOpen ? 'true' : 'false'}"><span>${joinMeta(summary)}</span><span class="tiny nw">${ui.condOpen ? '접기' : '바꾸기'}</span></button>
     ${ui.condOpen ? `<div class="grid2" style="margin-top:8px">
       <label class="field">상체 근육통<select data-action="check" data-k="upperDoms">${DOMS.map(([v, l]) => opt(v, l, c.upperDoms)).join('')}</select></label>
       <label class="field">하체 근육통<select data-action="check" data-k="lowerDoms">${DOMS.map(([v, l]) => opt(v, l, c.lowerDoms)).join('')}</select></label>
@@ -87,13 +89,13 @@ function heroMap(parts) {
 function renderDoneToday(state, now) {
   const hs = todaysHistory(state, now);
   const parts = [...new Set(hs.map((h) => h.part))];
-  const lines = hs.map((h) => `<li>${esc(PART_LABEL[h.part])}${h.source === 'pt' ? ' (PT)' : ''}${h.volumeUnknown ? '' : ` · ${Number(h.workSets) || 0}세트`}${h.durationSec ? ` · ${Math.round(h.durationSec / 60)}분` : ''}</li>`).join('');
+  const lines = hs.map((h) => `<li>${esc(PART_LABEL[h.part])}${h.source === 'pt' ? ' (PT)' : ''}${h.volumeUnknown ? '' : `, ${Number(h.workSets) || 0}세트`}${h.durationSec ? `, ${Math.round(h.durationSec / 60)}분` : ''}</li>`).join('');
   const x = recommendPart(state, now, { extra: true });
   const extraBtn = PART_OPTS.includes(x.part)
     ? `<button class="btn" data-action="start" data-part="${x.part}" data-extra="1" data-home="${x.home ? 1 : 0}">추가로 ${esc(REC_LABEL[x.part])} 하기</button>` : '';
   return `<section class="card hero done" data-testid="done-today">
     <div class="hero-top"><div><div class="kicker">오늘 운동 완료</div>
-      <div class="title" data-testid="rec-title">${esc(parts.map((p) => PART_LABEL[p]).join(' · '))} 완료</div></div>${heroMap(parts)}</div>
+      <div class="title" data-testid="rec-title">${parts.map((p, i) => nw(`${esc(PART_LABEL[p])}${i < parts.length - 1 ? ',' : ' 완료'}`)).join(' ')}</div></div>${heroMap(parts)}</div>
     <ul class="reasons">${lines}</ul>
     <div class="small" style="margin-top:10px">오늘 할 운동은 끝났습니다. 이제는 회복이 다음 운동을 만듭니다.</div>
     <div class="sep"></div>
@@ -103,7 +105,7 @@ function renderDoneToday(state, now) {
   </section>`;
 }
 
-// 운동 시작 전 확인 시트. 부위 · 컨디션 · 가능 시간 · 강도는 오늘 고른 값이 없으면 비워 두고 반드시 고르게 한다.
+// 운동 시작 전 확인 시트. 부위, 컨디션, 가능 시간, 강도는 오늘 고른 값이 없으면 비워 두고 반드시 고르게 한다.
 // date: 홈 화면 컨디션 카드에서 고른 운동 날짜(다시 짜기면 세션 날짜). 오늘이 아니면 날짜 칸을 펼쳐 보여 준다.
 // replan: 진행 중 세션의 '오늘 설정 바꾸기'. 같은 시트로 고른 값만 바꿔 그 자리에서 다시 짠다. why: 지금 세션에 적어 둔 이유.
 export function startSheetHtml(state, { part = null, rec = null, home = false, extra = false, date = null, replan = false, why = '', now = new Date() } = {}) {
@@ -114,7 +116,7 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
   const val = (k) => (ok.includes(k) ? c[k] : null);
   const doneParts = extra ? new Set(todaysHistory(state, now).map((h) => h.part)) : new Set();
   const parts = PART_OPTS.map((p) => [p, PART_LABEL[p], p === rec ? '추천' : doneParts.has(p) ? '오늘 함' : '']);
-  const last = state.history.length && (!ok.includes('minutes') || !ok.includes('intensity')) ? `<div class="tiny" style="margin-top:4px">지난번: ${c.minutes}분 · ${INTENSITY[c.intensity]}</div>` : '';
+  const last = state.history.length && (!ok.includes('minutes') || !ok.includes('intensity')) ? `<div class="tiny" style="margin-top:4px">지난번: ${c.minutes}분, ${INTENSITY[c.intensity]}</div>` : '';
   return `<div class="startform">
     <h3>${replan ? '오늘 설정 바꾸기' : extra ? '추가 운동 설정' : '오늘 운동 설정'}</h3>
     <p class="small">${replan ? '바꾼 값으로 지금 계획을 그 자리에서 다시 짭니다.' : '오늘 상태로 운동 개수와 세트 수를 정합니다.'}</p>
@@ -128,7 +130,7 @@ export function startSheetHtml(state, { part = null, rec = null, home = false, e
     <div class="pick-label">통증·불편</div>${chips('pain', Object.entries(PAIN), c.pain)}
     <div class="warnbox hidden" data-testid="start-warn"></div>
     <label class="setting"><span>집에서 (헬스장 없이)</span><input type="checkbox" name="home"${home ? ' checked' : ''}></label>
-    <details class="more"${day !== localISODate(now) ? ' open' : ''}><summary>날짜 · 추천과 다르게 고른 이유</summary>
+    <details class="more"${day !== localISODate(now) ? ' open' : ''}><summary>날짜, 추천과 다르게 고른 이유</summary>
       <label class="field" style="margin-top:6px">운동 날짜<input type="date" name="date" value="${esc(day)}"></label>
       <textarea name="why" autocomplete="off" placeholder="추천과 다르게 고른 이유 (선택): PT 일정, 기구, 선호 등" style="margin-top:6px">${esc(why)}</textarea>
     </details>
@@ -144,7 +146,7 @@ function renderDashboard(state, now) {
   const rest = rows.filter((x) => x.v >= x.b * 0.5);
   return `<section class="card">
     <h3>최근 부위</h3><div class="recent-grid">${recent}</div>
-    <div class="sep"></div><h3>이번 주 부족한 근육 <span class="tiny">최근 7일 · 목표의 절반 미만</span></h3>
+    <div class="sep"></div><h3>이번 주 부족한 근육 <span class="tiny">${joinMeta(['최근 7일', '목표의 절반 미만'])}</span></h3>
     <div class="bars">${lacking.map(bar).join('') || '<div class="small">모든 근육이 목표의 절반 이상입니다.</div>'}</div>
     ${rest.length ? `<details class="more"><summary>나머지 ${rest.length}개 근육</summary><div class="bars" style="margin-top:6px">${rest.map(bar).join('')}</div></details>` : ''}
   </section>`;
@@ -213,11 +215,17 @@ function renderExercise(state, e, idx, ui, next) {
     const memo = (e.memo || '').trim().split('\n')[0];
     return `<section class="card ex collapsed" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
       <div class="fold-row"><button class="ex-fold" data-action="expand" data-uid="${e.uid}"><span class="ex-title"><span class="ok">✓</span> ${idx + 1}. ${esc(e.name)}</span>
-      <span class="small" data-testid="ex-summary">${mains.map((z) => setSummary(e, z)).join(' · ')}${e.effort ? ` · ${EFFORT_LABEL[e.effort]}` : ''}</span>${memo ? `<span class="fold-memo" data-testid="fold-memo">메모: ${esc(memo)}</span>` : ''}</button>
+      <span class="small" data-testid="ex-summary">${joinMeta([...mains.map((z) => setSummary(e, z)), ...(e.effort ? [EFFORT_LABEL[e.effort]] : [])])}</span>${memo ? `<span class="fold-memo" data-testid="fold-memo">메모: ${esc(memo)}</span>` : ''}</button>
       <button class="btn sm ghost fold-memo-btn" data-action="memo" data-uid="${e.uid}" data-testid="fold-memo-btn">${iconSvg('memo')}${memo ? '메모 수정' : '메모'}</button></div></section>`;
   }
   const badge = stretch ? '스트레칭' : e.unilateral ? '좌우' : e.compound ? '복합' : '보조';
   const restNow = e.restToday ?? e.rest;
+  // 항목 안이 아니라 항목 사이에서만 꺾는다(320 폭에서 '휴식 / 90초', '덤벨 / 1개당'으로 꺾였다). 쉼표는 앞 덩어리 끝에 붙인다.
+  const restTodayOn = e.restToday !== null && e.restToday !== e.rest;
+  const metaGoal = e.heavy
+    ? `${nw('<b class="heavy-tag">무거운 날</b>')} ${nw(`톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 →`)} ${nw(`백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회,`)}`
+    : nw(`목표 ${e.range[0]}~${e.range[1]}${unitOf(e)},`);
+  const exMeta = `${metaGoal} ${nw(`휴식 ${restNow}초${restTodayOn ? '' : ','}`)}${restTodayOn ? ` ${nw('(오늘),')}` : ''} ${nw(esc(MODE_LABEL[e.loadMode] || e.loadMode))}`;
   let mainNo = 0;
   const rows = e.sets.map((z, i) => renderSetRow(e, z, i, z.type === 'warmup' ? 0 : ++mainNo, !!next && next.e.uid === e.uid && next.i === i)).join('');
   const effort = allDone && !stretch
@@ -236,7 +244,7 @@ function renderExercise(state, e, idx, ui, next) {
       <button class="ex-thumb" data-action="ex-detail" data-id="${esc(e.exerciseId)}" aria-label="${esc(e.name)} 설명 보기">${thumbHtml(e.exerciseId, e.grip, e)}</button>
       <div class="ex-head-txt"><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
       <div class="ex-progress" data-testid="ex-progress">${mains.filter((z) => z.done).length}/${mains.length} 완료</div>
-      <div class="ex-meta">${e.heavy ? `<b class="heavy-tag">무거운 날</b> 톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 → 백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회` : `목표 ${e.range[0]}~${e.range[1]}${unitOf(e)}`} · 휴식 ${restNow}초${e.restToday !== null && e.restToday !== e.rest ? ' (오늘)' : ''} · ${esc(MODE_LABEL[e.loadMode] || e.loadMode)}</div></div>
+      <div class="ex-meta">${exMeta}</div></div>
       <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
     </div>
     ${gripChip(e)}
@@ -257,7 +265,7 @@ function holdButton(e, allDone) {
   if (e.measure !== 'seconds' || allDone) return '';
   const z = e.sets.find((x) => x.type !== 'warmup' && !x.done);
   const secs = z?.reps ?? e.prescription?.reps ?? e.range[0];
-  return `<button class="btn hold-btn" data-action="hold" data-uid="${e.uid}" data-testid="hold-start">타이머로 하기 · ${secs}초${e.unilateral ? ' × 좌우' : ''}</button>`;
+  return `<button class="btn hold-btn" data-action="hold" data-uid="${e.uid}" data-testid="hold-start">타이머로 하기 (${secs}초${e.unilateral ? ' × 좌우' : ''})</button>`;
 }
 
 function emphasisRow(s) {
@@ -273,19 +281,19 @@ function keptLine(state, s, now) {
   return `<div class="tiny" data-testid="kept-mains">${esc(josa(head, '은', '는'))} 지난번과 같게 둡니다. 메인 운동은 같은 운동을 이어 가야 무게와 횟수를 올려 갈 수 있습니다.</div>`;
 }
 
-// 시작 전 미리보기 (Leap 의 루틴 상세): 근육 지도 · 운동 목록과 처방 · 시작 · 다시 추천.
+// 시작 전 미리보기 (Leap 의 루틴 상세): 근육 지도, 운동 목록과 처방, 시작, 다시 추천.
 function previewCard(state, s, now) {
   const prim = [...new Set(s.exercises.flatMap((e) => e.primary))];
   const sec = [...new Set(s.exercises.flatMap((e) => e.secondary))].filter((m) => !prim.includes(m));
   const items = s.exercises.map((e) => {
     const mains = e.sets.filter((z) => z.type !== 'warmup');
     const z = mains[0];
-    const w = z?.weight !== null && z?.weight !== undefined ? ` · ${z.weight}kg` : '';
-    return `<li><span class="pv-thumb">${thumbHtml(e.exerciseId, e.grip, e)}</span><span class="pv-txt"><b>${esc(e.name)}</b><span class="small">${mains.length}세트 × ${z?.reps ?? e.range[0]}${unitOf(e)}${w}${e.heavy ? ' · 무거운 날' : ''}</span></span></li>`;
+    const meta = [`${mains.length}세트 × ${z?.reps ?? e.range[0]}${unitOf(e)}`, z?.weight !== null && z?.weight !== undefined ? `${z.weight}kg` : null, e.heavy ? '무거운 날' : null].filter(Boolean);
+    return `<li><span class="pv-thumb">${thumbHtml(e.exerciseId, e.grip, e)}</span><span class="pv-txt"><b>${esc(e.name)}</b><span class="small">${joinMeta(meta)}</span></span></li>`;
   }).join('');
   const total = s.exercises.reduce((a, e) => a + e.sets.filter((z) => z.type !== 'warmup').length, 0);
   return `<section class="card preview" data-testid="preview">
-    <div class="pv-top"><div><div class="kicker">시작 전 확인</div><h2>운동 ${s.exercises.length}개</h2><div class="small">예상 ${s.estimatedMinutes}분 · 본세트 ${total}개</div></div><div class="pv-map">${bodyMap({ primary: prim, secondary: sec })}</div></div>
+    <div class="pv-top"><div><div class="kicker">시작 전 확인</div><h2>운동 ${s.exercises.length}개</h2><div class="small">${joinMeta([`예상 ${s.estimatedMinutes}분`, `본세트 ${total}개`])}</div></div><div class="pv-map">${bodyMap({ primary: prim, secondary: sec })}</div></div>
     ${emphasisRow(s)}
     <ol class="pv-list">${items}</ol>
     ${keptLine(state, s, now)}
@@ -302,12 +310,12 @@ export function thumbHtml(exerciseId, grip, muscles) {
 
 const muscleNames = (xs) => xs.map((m) => MUSCLE_LABEL[m] || m).join(', ');
 
-// 그립을 고를 수 있는 운동: 작은 그림 + 지금 그립 이름. 누르면 그립 시트(그림 · 자극 부위 · 잡는 법).
+// 그립을 고를 수 있는 운동: 작은 그림 + 지금 그립 이름. 누르면 그립 시트(그림, 자극 부위, 잡는 법).
 function gripChip(e) {
   const g = e.grip ? gripById(e.exerciseId, e.grip) : null;
   if (!g) return '';
   return `<button class="grip-chip" data-action="grip" data-uid="${e.uid}" data-testid="grip-chip"><span class="grip-thumb" aria-hidden="true">${gripArt(g, { arm: gripArm(e.exerciseId) })}</span>
-    <span class="grip-txt"><b>그립 · ${esc(g.name)}</b><span class="tiny">주로 ${esc(muscleNames(e.primary))} · 눌러서 그림 보기 · 바꾸기</span></span></button>`;
+    <span class="grip-txt"><b>그립: ${esc(g.name)}</b><span class="tiny">주로 ${esc(muscleNames(e.primary))}. ${nw('눌러서 그림 보기와 바꾸기')}</span></span></button>`;
 }
 
 // 그립 시트 본문. done: 이미 완료한 세트가 있으면 보기만 한다.
@@ -332,21 +340,18 @@ export function gripSheetHtml(e, grips, done) {
     <div class="actions"><button class="btn" data-sheet-value="__cancel">닫기</button></div>`;
 }
 
-// 운동 설명: 하는 방법 · 주의할 점이 먼저, 근육 정보와 개인 체크 포인트는 뒤에.
+// 운동 설명: 하는 방법과 주의할 점이 먼저, 근육 정보와 개인 체크 포인트는 뒤에.
 function guideHtml(e) {
   const g = guideFor(e.exerciseId);
   const muscles = [...e.primary.map((m) => MUSCLE_LABEL[m] || m)].join('·');
   const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}>`;
   const gr = e.grip ? gripById(e.exerciseId, e.grip) : null;
-  return `<details class="cue" data-testid="guide"><summary>운동 방법 · 주의할 점</summary>
+  return `<details class="cue" data-testid="guide"><summary>운동 방법과 주의할 점</summary>
     ${gr ? `<div class="guide-h">지금 그립: ${esc(gr.name)} (${esc(gr.hold)})</div>${list(gr.how, 'ul')}` : ''}
     ${g ? `<div class="guide-h">하는 방법</div>${list(g.how, 'ol')}<div class="guide-h">주의할 점</div>${list(g.caution, 'ul')}` : '<div class="small">직접 만든 운동이라 설명이 없습니다. 메모에 자세 포인트를 적어 두세요.</div>'}
     ${e.cue ? `<div class="guide-h">내 체크 포인트</div><div>${esc(e.cue)}</div>` : ''}
-    <div class="tiny" style="margin-top:6px">${esc(slotLabel(e.slot))}${muscles ? ` · 주로 ${esc(muscles)}` : ''} · ${esc(e.why)}</div></details>`;
+    <div class="tiny" style="margin-top:6px">${[slotLabel(e.slot), muscles ? `주로 ${muscles}` : '', e.why].filter(Boolean).map(esc).join(', ')}</div></details>`;
 }
-
-// '·'로 잇는 메타 줄: 항목 사이에서만 꺾고, 구분점은 앞 항목 끝에 붙여 줄 첫머리로 가지 않게 한다.
-const dotted = (xs) => xs.map((x, i) => `<span class="nw">${esc(x)}${i < xs.length - 1 ? ' ·' : ''}</span>`).join(' ');
 
 // 세션 머리: 왼쪽은 부위와 조건, 오른쪽은 시계와 버튼. 요약(예상 시간과 세트 수)은 카드 전체 폭 줄에 둔다.
 // 오른쪽 버튼이 한 줄로 넓어져도(화면 유지 중) 좁은 폭에서 요약이 세 줄로 꺾이지 않게 한다(2026-11-02 실측).
@@ -362,15 +367,15 @@ export function renderSession(state, ui, now = new Date()) {
   return `
   <section class="card session-top" data-testid="session-head">
     <div class="session-head">
-      <div><div class="kicker" data-testid="session-mode">${dotted(mode)}</div><h2>${esc(PART_LABEL[s.part])}</h2></div>
-      <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : s.ready ? '<div class="small paused-label">시작 전</div>' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨 · 세트를 끝내면 다시 갑니다</div>'}
+      <div><div class="kicker" data-testid="session-mode">${joinMeta(mode)}</div><h2>${esc(PART_LABEL[s.part])}</h2></div>
+      <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : s.ready ? '<div class="small paused-label">시작 전</div>' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨, 세트를 끝내면 다시 갑니다</div>'}
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
           <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${s.timer.running ? '❚❚' : '▶'}</button>
           <button class="btn sm ghost${ui.wakeLock ? ' lit' : ''}" data-action="wakelock" data-testid="wakelock" aria-pressed="${ui.wakeLock ? 'true' : 'false'}">${ui.wakeLock ? '화면 유지 중' : '화면 유지'}</button>
           <button class="btn sm ghost" data-action="session-menu" aria-label="세션 메뉴">⋯</button>
         </div></div>
     </div>
-    <div class="small session-meta" data-testid="session-meta">${dotted([`예상 ${s.estimatedMinutes}분`, `운동 ${s.exercises.length}개`, `본세트 ${work}/${total}`])}</div>
+    <div class="small session-meta" data-testid="session-meta">${joinMeta([`예상 ${s.estimatedMinutes}분`, `운동 ${s.exercises.length}개`, `본세트 ${work}/${total}`])}</div>
     <div class="progress"><i style="width:${total ? (work / total) * 100 : 0}%"></i></div>
     ${missing.length ? `<div class="warnbox">빠진 핵심 동작: ${missing.map(slotLabel).join(', ')} <button class="btn sm" data-action="repair" style="margin-left:6px">자동 보완</button></div>` : ''}
   </section>
@@ -395,16 +400,16 @@ export function renderRestbar(state, now = Date.now()) {
   if (rt) {
     const left = Math.ceil((rt.startedAt + rt.seconds * 1000 - now) / 1000);
     over = left < 0;
-    const nx = n ? `다음 · ${esc(n.e.name)} ${esc(setSummary(n.e, n.z))}` : '마지막 세트까지 끝났어요';
+    const nx = n ? `다음: ${esc(n.e.name)} ${nw(esc(setSummary(n.e, n.z)))}` : '마지막 세트까지 끝났어요';
     rest = `<div class="rest-row"><div class="rest-info"><span class="lbl" data-testid="rest-next">${nx}</span><span class="t" data-testid="rest-time">${left >= 0 ? fmtClock(left) : '+' + fmtClock(-left)}</span></div><button class="btn sm" data-action="rest-adj" data-d="-15">−15</button><button class="btn sm" data-action="rest-adj" data-d="30">+30</button><button class="btn sm" data-action="rest-stop">건너뛰기</button></div>`;
   }
   let main;
-  if (s.ready) main = `<button class="btn primary dock-btn" data-action="begin" data-testid="dock-begin"><b>시작</b><span>운동 ${s.exercises.length}개 · 예상 ${s.estimatedMinutes}분</span></button>`;
+  if (s.ready) main = `<button class="btn primary dock-btn" data-action="begin" data-testid="dock-begin"><b>시작</b><span>운동 ${s.exercises.length}개, 예상 ${s.estimatedMinutes}분</span></button>`;
   else if (!n) main = `<button class="btn good dock-btn" data-action="finish" data-testid="dock-finish">저장하고 종료 (${countWorkSets(s)}세트)</button>`;
   else {
     const no = n.z.type === 'warmup' ? '워밍업' : `${n.e.sets.filter((z) => z.type !== 'warmup').indexOf(n.z) + 1}세트`;
     const timed = n.e.measure === 'seconds' && n.z.type !== 'warmup';
-    main = `<button class="btn primary dock-btn" data-action="${timed ? 'hold' : 'next-set'}" data-uid="${n.e.uid}" data-i="${n.i}" data-testid="dock-next"><b>${timed ? '타이머로 다음 세트' : '다음 세트 기록'}</b><span>${esc(n.e.name)} ${no} · ${esc(setSummary(n.e, n.z))}</span></button>`;
+    main = `<button class="btn primary dock-btn" data-action="${timed ? 'hold' : 'next-set'}" data-uid="${n.e.uid}" data-i="${n.i}" data-testid="dock-next"><b>${timed ? '타이머로 다음 세트' : '다음 세트 기록'}</b><span>${esc(n.e.name)} ${nw(`${no},`)} ${nw(esc(setSummary(n.e, n.z)))}</span></button>`;
   }
   return { over, html: `${rest}${main}` };
 }
@@ -413,8 +418,8 @@ export function renderRestbar(state, now = Date.now()) {
 
 export function renderRecords(state, ui, now = new Date()) {
   const hs = [...state.history].sort((a, b) => b.date.localeCompare(a.date)).slice(0, ui.historyLimit || 30);
-  const items = hs.map((h) => `<div class="hist-item"><div><b>${esc(h.date)} · ${esc(PART_LABEL[h.part])}</b>${h.source === 'pt' ? ' <span class="badge">PT</span>' : ''}${h.source === 'pt' && h.emphasis ? ` <span class="badge">${esc((EMPHASIS[h.part] || []).find((x) => x.id === h.emphasis)?.label || '')} 위주</span>` : ''}${h.light ? ' <span class="badge">가볍게</span>' : ''}
-      <div class="tiny">${[h.volumeUnknown ? '' : `${Number(h.workSets) || 0}세트`, h.durationSec ? `${Math.round(h.durationSec / 60)}분` : '', h.note ? esc(h.note) : ''].filter(Boolean).join(' · ')}</div></div>
+  const items = hs.map((h) => `<div class="hist-item"><div><b>${esc(h.date)}, ${esc(PART_LABEL[h.part])}</b>${h.source === 'pt' ? ' <span class="badge">PT</span>' : ''}${h.source === 'pt' && h.emphasis ? ` <span class="badge">${esc((EMPHASIS[h.part] || []).find((x) => x.id === h.emphasis)?.label || '')} 위주</span>` : ''}${h.light ? ' <span class="badge">가볍게</span>' : ''}
+      <div class="tiny">${[h.volumeUnknown ? '' : `${Number(h.workSets) || 0}세트`, h.durationSec ? `${Math.round(h.durationSec / 60)}분` : '', h.note ? esc(h.note) : ''].filter(Boolean).join(', ')}</div></div>
       <button class="btn sm ghost" data-action="hist-edit" data-id="${esc(h.id)}">수정</button></div>`).join('') || '<div class="small">기록 없음</div>';
   const weeks = {};
   const cutoff = now.getTime() - 28 * 86400000;
@@ -426,13 +431,13 @@ export function renderRecords(state, ui, now = new Date()) {
     weeks[k] ??= { push: 0, pull: 0, lower: 0, core: 0, sessions: 0 };
     weeks[k][h.part] += Number(h.workSets) || 0; weeks[k].sessions++;
   }
-  const weekHtml = Object.keys(weeks).sort().reverse().map((k) => { const w = weeks[k]; return `<div class="source"><b>${k} 주</b><div class="small">세션 ${w.sessions}회 · Push ${w.push} · Pull ${w.pull} · Lower ${w.lower} · Core ${w.core}세트</div></div>`; }).join('') || '<div class="small">최근 4주 기록 없음</div>';
+  const weekHtml = Object.keys(weeks).sort().reverse().map((k) => { const w = weeks[k]; return `<div class="source"><b>${k} 주</b><div class="small">${joinMeta([`세션 ${w.sessions}회`, `Push ${w.push}`, `Pull ${w.pull}`, `Lower ${w.lower}`, `Core ${w.core}세트`])}</div></div>`; }).join('') || '<div class="small">최근 4주 기록 없음</div>';
   const backupDays = state.lastBackup ? Math.floor((now.getTime() - new Date(state.lastBackup).getTime()) / 86400000) : null;
   return `${renderReport(state, ui, now)}
   <section class="card"><h3>최근 세션</h3>${items}
     ${state.history.length > hs.length ? '<button class="btn sm" data-action="more-history" style="margin-top:8px">더 보기</button>' : ''}</section>
   <section class="card"><h3>주간 요약</h3>${weekHtml}</section>
-  <section class="card"><h3>백업 · 내보내기</h3>
+  <section class="card"><h3>백업과 내보내기</h3>
     <div class="small">${backupDays === null ? '아직 파일 백업이 없습니다.' : `마지막 백업 ${backupDays}일 전.`} 폰을 바꾸거나 주소를 옮길 때 JSON 백업으로 옮깁니다.</div>
     <div class="row" style="margin-top:10px"><button class="btn" data-action="export-json">JSON</button><button class="btn" data-action="export-csv">CSV</button><button class="btn" data-action="export-txt">TXT</button><button class="btn" data-action="print">인쇄/PDF</button><button class="btn primary" data-action="import">복원</button></div>
     <input type="file" id="importFile" accept=".json,application/json" class="hidden">
@@ -453,10 +458,11 @@ export function renderSettings(state, ui) {
   const unav = (st.unavailableExercises || []).map((id) => `<div class="setting"><span>${esc(catalogById(id)?.name || state.customExercises.find((c) => c.id === id)?.name || id)}</span><button class="btn sm" data-action="unavail-remove" data-id="${esc(id)}">다시 사용</button></div>`).join('') || '<div class="small">없음</div>';
   const all = [...ALL_CATALOG, ...state.customExercises];
   const prefIds = Object.keys(state.prefs || {});
-  const prefs = prefIds.map((id) => { const x = all.find((y) => y.id === id); const p = state.prefs[id]; return `<div class="setting"><span>${esc(x?.name || id)}<span class="tiny" style="display:block">${[p.loadMode && MODE_LABEL[p.loadMode], p.increment !== undefined && `증량 ${p.increment}`, p.rest && `휴식 ${p.rest}초`, p.range && `${p.range[0]}~${p.range[1]}회`, p.since && `${p.since}부터 다시 잼`].filter(Boolean).join(' · ')}</span></span><button class="btn sm" data-action="pref-edit" data-id="${esc(id)}">수정</button></div>`; }).join('') || '<div class="small">기본값 그대로 사용 중</div>';
+  const prefs = prefIds.map((id) => { const x = all.find((y) => y.id === id); const p = state.prefs[id]; return `<div class="setting"><span>${esc(x?.name || id)}<span class="tiny" style="display:block">${joinMeta([p.loadMode && MODE_LABEL[p.loadMode], p.increment !== undefined && `증량 ${p.increment}`, p.rest && `휴식 ${p.rest}초`, p.range && `${p.range[0]}~${p.range[1]}회`, p.since && `${p.since}부터 다시 잼`].filter(Boolean))}</span></span><button class="btn sm nw" data-action="pref-edit" data-id="${esc(id)}">수정</button></div>`; }).join('') || '<div class="small">기본값 그대로 사용 중</div>';
   const storage = ui.storage || {};
+  const bad = '<b style="color:var(--bad)">오류</b>';
   return `${goalCard}
-  <section class="card"><h3>일정 · 개인 정책</h3>
+  <section class="card"><h3>일정과 개인 정책</h3>
     <div class="grid2">
       <label class="field">일요일 헬스장 휴무<select data-action="setting" data-k="gymClosedSunday">${opt('true', '예', String(st.gymClosedSunday))}${opt('false', '아니오', String(st.gymClosedSunday))}</select></label>
       <label class="field">PT 요일 (보통)<select data-action="setting" data-k="ptDay">${days.map(([v, l]) => opt(v, l, st.ptDay ?? 'none')).join('')}</select></label>
@@ -465,13 +471,13 @@ export function renderSettings(state, ui) {
     <label class="setting"><span>편측 하체: 왼쪽 먼저, 오른쪽은 왼쪽 반복 초과 금지 안내</span><input type="checkbox" data-action="setting-bool" data-k="leftFirst"${st.leftFirst !== false ? ' checked' : ''}></label>
   </section>
   <section class="card"><h3>헬스장에 없는 운동</h3>${unav}</section>
-  <section class="card"><h3>운동별 설정</h3><div class="small">중량 방식 · 증량 단위 · 기본 휴식 · 반복 범위를 바꾼 운동만 보입니다.</div>${prefs}
+  <section class="card"><h3>운동별 설정</h3><div class="small">중량 방식, 증량 단위, 기본 휴식, 반복 범위를 바꾼 운동만 보입니다.</div>${prefs}
     <button class="btn sm" data-action="pref-pick" style="margin-top:8px">운동 골라서 설정</button></section>
-  <section class="card"><h3>집에 있는 장비</h3><div class="small">헬스장 휴무일 · 일요일 홈 운동에서 쓸 수 있는 장비입니다. 없으면 맨몸 운동만 추천합니다.</div>${['dumbbell', 'dumbbell_bench', 'pullup'].map((k) => `<label class="setting"><span>${esc(EQUIPMENT[k])}</span><input type="checkbox" data-action="home-equip" data-k="${k}"${(st.homeEquipment || []).includes(k) ? ' checked' : ''}></label>`).join('')}</section>
+  <section class="card"><h3>집에 있는 장비</h3><div class="small">헬스장 휴무일과 일요일 홈 운동에서 쓸 수 있는 장비입니다. 없으면 맨몸 운동만 추천합니다.</div>${['dumbbell', 'dumbbell_bench', 'pullup'].map((k) => `<label class="setting"><span>${esc(EQUIPMENT[k])}</span><input type="checkbox" data-action="home-equip" data-k="${k}"${(st.homeEquipment || []).includes(k) ? ' checked' : ''}></label>`).join('')}</section>
   <section class="card"><h3>헬스장 장비</h3>${equip}</section>
   <section class="card"><h3>저장 상태</h3>
-    <div class="small" data-testid="storage-status">기기 저장: ${storage.local === 'error' ? '<b style="color:var(--bad)">오류</b>' : '정상'} · 백업 저장소: ${storage.idb === 'error' ? '<b style="color:var(--bad)">오류</b>' : storage.idb === 'ok' ? '정상' : '확인 중'} · 영구 저장: ${storage.persisted === true ? '허용됨' : storage.persisted === false ? '미허용 (홈 화면에 설치하면 허용되기 쉽습니다)' : '확인 중'}</div>
-    <div class="tiny" style="margin-top:4px">저장 번호 ${state.revision} · ${state.savedAt ? new Date(state.savedAt).toLocaleString('ko-KR') : '-'}</div>
+    <div class="small" data-testid="storage-status">${nw(`기기 저장: ${storage.local === 'error' ? bad : '정상'},`)} ${nw(`백업 저장소: ${storage.idb === 'error' ? bad : storage.idb === 'ok' ? '정상' : '확인 중'},`)} ${nw(`영구 저장: ${storage.persisted === true ? '허용됨' : storage.persisted === false ? '미허용' : '확인 중'}`)}${storage.persisted === false ? ' (홈 화면에 설치하면 허용되기 쉽습니다)' : ''}</div>
+    <div class="tiny" style="margin-top:4px">저장 번호 ${state.revision}, ${state.savedAt ? new Date(state.savedAt).toLocaleString('ko-KR') : '-'}</div>
   </section>
   ${syncCard(ui.sync)}
   <section class="card"><h3>추천 근거</h3><button class="btn" data-action="evidence">근거와 앱 정책 보기</button></section>
@@ -487,7 +493,7 @@ function syncCard(sy) {
   }
   const at = sy.at ? new Date(sy.at).toLocaleString('ko-KR') : '아직 없음';
   return `<section class="card"><h3>기록 동기화</h3>
-    <div class="small" data-testid="sync-status">${esc(sy.repo)} · ${sy.busy ? '동기화 중...' : `마지막 동기화 ${esc(at)}`}</div>
+    <div class="small" data-testid="sync-status">${esc(sy.repo)}, ${sy.busy ? '동기화 중...' : sy.at ? `마지막 동기화 ${esc(at)}` : nw('마지막 동기화 아직 없음')}</div>
     ${sy.error ? `<div class="warnbox">${esc(sy.error)}</div>` : ''}
     <div class="row" style="margin-top:8px"><button class="btn sm" data-action="sync-now">지금 동기화</button><button class="btn sm" data-action="sync-transfer">다른 기기 연결 (QR)</button><button class="btn sm" data-action="sync-connect">다시 연결</button><button class="btn sm" data-action="sync-disconnect">연결 끊기</button></div></section>`;
 }

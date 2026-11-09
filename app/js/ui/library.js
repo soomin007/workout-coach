@@ -1,6 +1,6 @@
-// 운동 탭(라이브러리)과 운동 상세 시트. 운동 중이 아닐 때도 설명 · 근육 · 그립 · 지난 기록을 본다 (2026-10-03 사용자 요청).
-// 화면 구성은 Leap 앱의 운동 탭 · 운동 상세(설명 · 기록)를 따른다 (docs/LEAP_UI_PLAN.md).
-import { esc } from './dom.js';
+// 운동 탭(라이브러리)과 운동 상세 시트. 운동 중이 아닐 때도 설명, 근육, 그립, 지난 기록을 본다 (2026-10-03 사용자 요청).
+// 화면 구성은 Leap 앱의 운동 탭과 운동 상세(설명과 기록)를 따른다 (docs/LEAP_UI_PLAN.md).
+import { esc, nw } from './dom.js';
 import { ALL_CATALOG, EQUIPMENT, MUSCLE_LABEL, LOAD_MODES } from '../core/catalog.js';
 import { profileFor, prescribeForOrder } from '../core/coach.js';
 import { isAvailable } from '../core/plan.js';
@@ -20,6 +20,8 @@ const GROUP_OF = { chest: 'chest', back: 'back', upper_back: 'back', front_delt:
 const names = (xs) => xs.map((m) => MUSCLE_X[m] || m).join(', ');
 // 'gym': 이름을 모르는 헬스장 기구 (직접 추가 운동)
 const equipLabel = (p) => EQUIPMENT[p.equipment] || (p.equipment === 'gym' ? '헬스장 기구' : '맨몸');
+// 목록 줄의 '(장비)': 짧은 이름만 한 덩어리로 묶는다(320 폭의 한 줄 길이 안). 더 긴 이름은 묶으면 칸 밖으로 넘친다.
+const equipHtml = (p) => { const t = `(${esc(equipLabel(p))})`; return equipLabel(p).length <= 9 ? nw(t) : t; };
 
 function allExercises(state) {
   const custom = (state.customExercises || []).map((x) => x.id);
@@ -40,12 +42,12 @@ export function renderLibrary(state, ui) {
     const text = searchText(p);
     return `<button class="lib-item${q && !text.includes(q) ? ' hidden' : ''}" data-action="ex-detail" data-id="${esc(p.id)}" data-search="${esc(text)}">
       <span class="lib-thumb" aria-hidden="true">${exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy" decoding="async">` : bodyMap(p)}</span>
-      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))} · ${esc(equipLabel(p))}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
+      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))} ${equipHtml(p)}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
     </button>`;
   }).join('');
   return `<section class="lib-head">
       <h2>운동</h2>
-      <input type="search" class="lib-search" autocomplete="off" data-action="lib-q" placeholder="운동 · 근육 · 장비 검색" value="${esc(ui.libQuery || '')}" aria-label="운동 검색">
+      <input type="search" class="lib-search" autocomplete="off" data-action="lib-q" placeholder="운동, 근육, 장비 검색" value="${esc(ui.libQuery || '')}" aria-label="운동 검색">
       <div class="row lib-groups">${LIB_GROUPS.map(([k, l]) => `<button class="chip${group === k ? ' on' : ''}" data-action="lib-group" data-g="${k}">${l}</button>`).join('')}</div>
     </section>
     <div class="lib-list" data-testid="lib-list">${list || '<div class="small">이 부위 운동이 없습니다.</div>'}</div>`;
@@ -59,7 +61,7 @@ function recSummary(p) {
   }).join(', ');
 }
 
-// 운동 상세 시트: 설명 탭(근육 지도 · 방법 · 주의 · 그립) · 기록 탭(다음 처방 · 지난 기록)
+// 운동 상세 시트: 설명 탭(근육 지도, 방법, 주의, 그립)과 기록 탭(다음 처방, 지난 기록)
 export function exerciseDetailHtml(state, id) {
   const p = profileFor(state, id);
   if (!p) return '<h3>운동을 찾을 수 없습니다.</h3>';
@@ -70,7 +72,7 @@ export function exerciseDetailHtml(state, id) {
   const u = p.measure === 'seconds' ? '초' : '회';
   const facts = [
     ...(p.stretches ? [['늘리는 곳', names(p.stretches)]] : [['집중 영역', names(p.primary)], ['보조', p.secondary.length ? names(p.secondary) : '-']]),
-    ['장비', equipLabel(p)], ['목표', `${p.range[0]}~${p.range[1]}${u} · 휴식 ${p.rest}초`],
+    ['장비', equipLabel(p)], ['목표', `${p.range[0]}~${p.range[1]}${u}, 휴식 ${p.rest}초`],
     ['무게 적는 법', MODE_LABEL[p.mode] || p.mode],
   ].map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
   const gripHtml = grips ? `<div class="guide-h">그립</div><div class="grip-list compact">${grips.map((x) => `<div class="grip-opt${x.id === gNow ? ' on' : ''}">${gripArt(x, { arm: gripArm(id) })}<div class="grip-name">${esc(x.name)}${x.id === gNow ? ' <span class="tag">지난번</span>' : ''}</div><p class="small">${esc(x.emphasis)}</p></div>`).join('')}</div>` : '';
@@ -84,7 +86,7 @@ export function exerciseDetailHtml(state, id) {
   const recs = (state.performance || []).filter((x) => x.exerciseId === id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
   const rx = prescribeForOrder(p, state, null, gNow);
   const hist = `<div class="rx-next"><div class="guide-h">다음에 하면</div><p>${esc(rx.note)}</p></div>
-    ${recs.length ? `<div class="guide-h">지난 기록</div><div class="rec-list">${recs.map((r) => `<div class="rec-row"><span class="small">${esc(r.date)}${r.heavy ? ' · 무거운 날' : ''}${gripsFor(id) ? ` · ${esc(gripById(id, gripOf(r))?.short || '')}` : ''}</span><b>${esc(recSummary(r))}</b>${r.effort ? `<span class="tiny">${EFFORT_LABEL[r.effort]}</span>` : ''}</div>`).join('')}</div>` : '<p class="small">아직 기록이 없습니다.</p>'}`;
+    ${recs.length ? `<div class="guide-h">지난 기록</div><div class="rec-list">${recs.map((r) => `<div class="rec-row"><span class="small">${esc(r.date)}${r.heavy ? ', 무거운 날' : ''}${gripsFor(id) ? `, ${esc(gripById(id, gripOf(r))?.short || '')}` : ''}</span><b>${esc(recSummary(r))}</b>${r.effort ? `<span class="tiny">${EFFORT_LABEL[r.effort]}</span>` : ''}</div>`).join('')}</div>` : '<p class="small">아직 기록이 없습니다.</p>'}`;
   return `<div class="ex-detail" data-testid="ex-detail">
     <div class="seg" role="tablist"><button class="on" data-pane="desc" role="tab">설명</button><button data-pane="hist" role="tab">기록</button></div>
     <h3>${esc(p.name)}</h3>
@@ -94,7 +96,7 @@ export function exerciseDetailHtml(state, id) {
   </div>`;
 }
 
-// 운동 추가 시트 (Leap: 검색 · 최근 · 다중 선택 · 선택한 썸네일 줄 · "운동 N개 추가").
+// 운동 추가 시트 (Leap: 검색, 최근, 다중 선택, 선택한 썸네일 줄, "운동 N개 추가").
 // 오늘 부위 운동이 먼저, 그다음 나머지. 이미 세션에 있거나 쓸 수 없는 운동은 뺀다.
 export function addExercisesHtml(state, session) {
   const used = new Set(session.exercises.map((e) => e.exerciseId));
@@ -103,10 +105,10 @@ export function addExercisesHtml(state, session) {
   const thumb = (p) => (exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy">` : bodyMap(p));
   const items = pool.map((p) => `<button type="button" class="add-item" data-id="${esc(p.id)}" data-search="${esc(searchText(p))}" aria-pressed="false">
       <span class="add-check" aria-hidden="true"></span><span class="lib-thumb" aria-hidden="true">${thumb(p)}</span>
-      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))}${p.part !== session.part ? ` · ${esc(p.part.toUpperCase())}` : ''}</span></span></button>`).join('');
+      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))}${p.part !== session.part ? ` ${nw(`(${esc(p.part.toUpperCase())})`)}` : ''}</span></span></button>`).join('');
   return `<div class="add-sheet" data-testid="add-sheet">
     <h3>운동 추가</h3>
-    <input type="search" class="lib-search add-search" autocomplete="off" placeholder="운동 · 근육 · 장비 검색" aria-label="운동 검색">
+    <input type="search" class="lib-search add-search" autocomplete="off" placeholder="운동, 근육, 장비 검색" aria-label="운동 검색">
     <div class="add-list">${items || '<div class="small">더 추가할 수 있는 운동이 없습니다.</div>'}</div>
     <div class="add-tray" aria-live="polite"></div>
     <div class="actions"><button class="btn" data-sheet-value="__new">+ 목록에 없는 운동 새로 만들기</button></div>
@@ -114,7 +116,7 @@ export function addExercisesHtml(state, session) {
   </div>`;
 }
 
-// 시트 안의 선택 · 검색 동작. 반환: 선택한 id 를 읽는 함수.
+// 시트 안의 선택과 검색 동작. 반환: 선택한 id 를 읽는 함수.
 export function bindAddSheet(root) {
   const go = root.querySelector('[data-testid=add-go]');
   const tray = root.querySelector('.add-tray');

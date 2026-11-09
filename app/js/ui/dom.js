@@ -4,6 +4,19 @@ export function esc(x) {
   return String(x ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
+// 끊기면 뜻이 흐려지는 짧은 묶음을 .nw 로 감싼다(s 는 이미 이스케이프한 HTML).
+// 묶음은 가장 좁은 폭(320)에서 한 줄에 들어가는 길이만 잡는다. 더 길면 nowrap 이 칸 밖으로 넘친다.
+export const nw = (s) => `<span class="nw">${s}</span>`;
+
+// 쉼표로 잇는 메타 줄: 항목 사이에서만 꺾고, 쉼표는 앞 항목 끝에 붙여 줄 첫머리로 가지 않게 한다.
+// 항목 하나가 한 줄보다 길면 ['앞 덩어리', '뒤 덩어리']처럼 배열로 미리 나눠 넘긴다.
+export function joinMeta(xs) {
+  return xs.map((x, i) => {
+    const parts = Array.isArray(x) ? x : [x];
+    return parts.map((p, k) => nw(`${esc(p)}${i < xs.length - 1 && k === parts.length - 1 ? ',' : ''}`)).join(' ');
+  }).join(' ');
+}
+
 let toastTimer = null;
 // action: { label, run } 이면 글 옆에 버튼을 붙인다(세트 삭제의 되돌리기). 누르면 바로 닫힌다.
 export function toast(msg, ms = 2200, action = null) {

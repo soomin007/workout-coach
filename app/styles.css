@@ -257,7 +257,7 @@ details.cue summary { cursor: pointer; color: var(--accent); font-weight: 700; m
 .startform .actions { position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom)); background: var(--surface);
   padding-top: 10px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); margin-bottom: calc(-16px - env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .hero.done .kicker:first-child { color: var(--good); }
-.toast { position: fixed; left: 50%; bottom: calc(130px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; max-width: calc(100% - 32px);
+.toast { position: fixed; left: 50%; bottom: calc(130px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; width: max-content; max-width: calc(100% - 32px);
   background: var(--text); color: var(--bg); border-radius: 10px; padding: 10px 14px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .toast.show { opacity: 1; }
 .toast { word-break: keep-all; }
