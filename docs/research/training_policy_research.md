@@ -16,7 +16,7 @@
 사용자 로그에 적용하면: 벤치프레스 마지막 세트 60x5 RIR0은 목표 반복 범위를 밑돌고 RIR도 목표(1~2)보다
 낮으므로 다음 세션 해당 톱셋은 증량하지 말고 유지, 랫풀다운은 57x5·65x5 모두 RIR0으로 목표 범위(8~12)를
 크게 밑도니 다음 세션 무게를 10~15% 낮춰 범위 안에서 RIR 1~2로 재조정할 것을 제안해야 한다.
-**(나)** Stronger By Science, [How to Choose the Right Load Progression Strategy](https://www.strongerbyscience.com/weekly-load-progression/) · NSCA *Essentials of Strength Training and Conditioning* (2-for-2 규칙, 실무 표준).
+**(나)** Stronger By Science, [How to Choose the Right Load Progression Strategy](https://www.strongerbyscience.com/weekly-load-progression/), NSCA *Essentials of Strength Training and Conditioning* (2-for-2 규칙, 실무 표준).
 **(다)** 중간 근거(더블 프로그레션 구조 자체는 코칭 컨벤션에 가깝고, RIR 자동조절의 이득은 관찰적 근거 수준).
 **(라)** 초보자는 6개월~2년은 더블 프로그레션만으로 충분하며, RIR 세분화 조절은 그 이후 도입 권장.
 
@@ -29,7 +29,7 @@
 (rep drop-off)으로 근사 RIR을 역산한다(예: 직전 세트 대비 반복수가 크게 떨어지면 실패 근접으로 간주).
 단, 이는 세트 내 실시간 RIR 예측이 아니라 세션 전체의 대략적 피로 신호이므로 보수적으로만 사용하고,
 저반복(≤12)·목표 강도 부하일 때만 신뢰도를 높게 취급한다.
-**(나)** Halperin et al., *Accuracy in Predicting Repetitions to Task Failure in Resistance Exercise: A Scoping Review and Exploratory Meta-analysis*, Sports Medicine 2022 ([PubMed 34542869](https://pubmed.ncbi.nlm.nih.gov/34542869/), [관련 리뷰](https://journals.sagepub.com/doi/10.1177/00315125241241785)) · Zourdos et al. 2016 RPE 스케일 원 논문.
+**(나)** Halperin et al., *Accuracy in Predicting Repetitions to Task Failure in Resistance Exercise: A Scoping Review and Exploratory Meta-analysis*, Sports Medicine 2022 ([PubMed 34542869](https://pubmed.ncbi.nlm.nih.gov/34542869/), [관련 리뷰](https://journals.sagepub.com/doi/10.1177/00315125241241785)), Zourdos et al. 2016 RPE 스케일 원 논문.
 **(다)** 강한 근거(메타분석 기반 수치).
 **(라)** 초보자라고 RIR 정확도가 떨어진다고 가정하고 무시하면 안 됨. 다만 "실패 근접 세트로 감각을 보정"하는
 연습(저위험 종목에서 가끔 실패까지)은 권장할 만하다.
@@ -41,7 +41,7 @@
 무게를 5~10% 낮추거나(로드 드롭), 무게를 유지하고 반복수를 줄이거나(렙 드롭), 휴식을 늘려 같은 반복수를
 재시도한다. 실패가 이르게 반복되면 그날 세션은 무게를 낮추는 쪽이 기술 손상과 과피로를 막는다는 것이
 코치들의 공통 관행이다.
-**(나)** [RTS: Fatigue Percents Revisited](https://store.reactivetrainingsystems.com/blogs/advanced-concepts/fatigue-percents-revisited) · [PowerliftingToWin: All About Autoregulation](https://www.powerliftingtowin.com/autoregulation/).
+**(나)** [RTS: Fatigue Percents Revisited](https://store.reactivetrainingsystems.com/blogs/advanced-concepts/fatigue-percents-revisited), [PowerliftingToWin: All About Autoregulation](https://www.powerliftingtowin.com/autoregulation/).
 **(다)** 코칭 컨벤션(구체적 %는 RCT로 검증된 임계값이 아니라 실무 경험칙).
 **(라)** 초보자는 급격한 반복 저하가 컨디션 문제인지 단순 추정 오류인지 구분이 어려우므로, 앱은 급격한 하락
 1회로 과잉 반응하지 말고 같은 세션 내 2세트 연속 패턴을 확인 후 조정 제안.
@@ -55,7 +55,7 @@ Schoenfeld 2016 RCT는 180초가 60초보다 근비대에 유리했음을 보였
 긴 휴식이 소폭 유리함을 재확인했다. 세션 중 피로로 휴식을 늘렸다면 **그날만 적용하고 다음 세션의 기본값으로
 승격하지 않는다**: 오토레귤레이션 프레임워크들(RTS, RP)은 일관되게 "그날의 조정은 프로그램 구조 자체를
 바꾸지 않는다"는 원칙을 강조한다.
-**(나)** Schoenfeld et al. 2016 (J Strength Cond Res) · [Grgic et al. 2018 리뷰](https://www.semanticscholar.org/paper/953a5adf43cc59b5793958ea6a1c26d0031d1587) · [Singer et al. 2024, Frontiers](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1429789/full) · 지속 여부는 [PowerliftingToWin 오토레귤레이션](https://www.powerliftingtowin.com/autoregulation/) 컨벤션.
+**(나)** Schoenfeld et al. 2016 (J Strength Cond Res), [Grgic et al. 2018 리뷰](https://www.semanticscholar.org/paper/953a5adf43cc59b5793958ea6a1c26d0031d1587), [Singer et al. 2024, Frontiers](https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1429789/full), 지속 여부는 [PowerliftingToWin 오토레귤레이션](https://www.powerliftingtowin.com/autoregulation/) 컨벤션.
 **(다)** 중간~강한 근거(휴식시간 자체는 RCT+메타분석), 지속 여부 불가는 코칭 컨벤션.
 **(라)** 초보자는 절대 시간보다 "다음 세트 목표 반복수를 채울 수 있는가"를 기준으로 휴식을 유동적으로 써도 무방.
 
@@ -67,7 +67,7 @@ Schoenfeld 2016 RCT는 180초가 60초보다 근비대에 유리했음을 보였
 작용, 예: 벤치프레스가 삼두에 주는 자극)를 "0.5세트"로 가중합산하는 **fractional counting**이 통계적으로
 가장 근거 설명력이 높았다(총 세트 대비 Bayes Factor 9.48). 앱은 직접 세트는 1.0, 명백한 간접 세트는 0.5로
 카운트해 주간 합계를 계산해야 한다.
-**(나)** Pelland et al., *The Resistance Training Dose Response: Meta-Regressions...*, Sports Medicine (2024/2025, [PubMed](https://pubmed.ncbi.nlm.nih.gov/41343037/), [해설](https://biolayne.com/reps/issue-31/the-king-of-volume-metas/)) · Schoenfeld et al. 2017 볼륨 메타분석(10세트 이상 근비대 유리) · Israetel/Helms RP 볼륨 랜드마크(초보자 구간 관행).
+**(나)** Pelland et al., *The Resistance Training Dose Response: Meta-Regressions...*, Sports Medicine (2024/2025, [PubMed](https://pubmed.ncbi.nlm.nih.gov/41343037/), [해설](https://biolayne.com/reps/issue-31/the-king-of-volume-metas/)), Schoenfeld et al. 2017 볼륨 메타분석(10세트 이상 근비대 유리), Israetel/Helms RP 볼륨 랜드마크(초보자 구간 관행).
 **(다)** 중간 근거(총량-반응 방향성은 메타분석 근거 강함, 정확한 개인별 임계값은 관행적 추정).
 **(라)** 초보자는 신경적응 비중이 커 볼륨보다 빈도·자세 학습이 우선이며, 처음엔 범위 하단(6~10세트)에서
 시작해 2~4주 단위로만 소폭 늘릴 것.
@@ -82,7 +82,7 @@ Schoenfeld 2016 RCT는 180초가 60초보다 근비대에 유리했음을 보였
 해석해야 한다. 앱은 반복수가 증가하는 무게를 따라 계속 줄어드는 세트들을 웜업으로, 마지막 최고 중량(또는
 목표 반복 범위 안의 중량) 세트를 진행 추적용 작업 세트로 태깅하고, 그 이후 가벼운 무게의 백오프 세트는
 별도 볼륨(펌프/보조 자극)로 분리 집계한다.
-**(나)** [RP 웜업 가이드](https://hypertrophy.zendesk.com/hc/en-us/articles/13515458614679-How-to-warmup-and-choose-your-starting-weight) · [BarBend Ramp-Up Sets](https://barbend.com/ramp-up-sets/).
+**(나)** [RP 웜업 가이드](https://hypertrophy.zendesk.com/hc/en-us/articles/13515458614679-How-to-warmup-and-choose-your-starting-weight), [BarBend Ramp-Up Sets](https://barbend.com/ramp-up-sets/).
 **(다)** 코칭 컨벤션(웜업 절차 자체를 RCT로 최적화한 연구는 없음).
 **(라)** 초보자는 종목이 바뀔 때마다(같은 근육군이라도) 최소 1세트는 다시 가볍게 확인하는 것이 안전.
 
@@ -95,7 +95,7 @@ Schoenfeld 2016 RCT는 180초가 60초보다 근비대에 유리했음을 보였
 모두 RIR0)처럼 **모든 작업 세트를 RIR0으로 반복**하는 것은 근비대 추가 이득은 작으면서 회복 부담만 키우므로,
 마지막 세트만 RIR0으로 두고 앞선 세트는 1~2 RIR로 조정할 것을 권고. 다만 머신 종목의 RIR0은 바벨 복합
 종목의 RIR0보다 기술 붕괴·부상 리스크가 낮아 상대적으로 허용도가 높다.
-**(나)** Refalo et al. 2023, Sports Medicine ([PubMed](https://pubmed.ncbi.nlm.nih.gov/36334240/)) · Robinson et al. 2024, Sports Medicine ([PubMed](https://pubmed.ncbi.nlm.nih.gov/38970765/)).
+**(나)** Refalo et al. 2023, Sports Medicine ([PubMed](https://pubmed.ncbi.nlm.nih.gov/36334240/)), Robinson et al. 2024, Sports Medicine ([PubMed](https://pubmed.ncbi.nlm.nih.gov/38970765/)).
 **(다)** 강한 근거(둘 다 메타분석/메타회귀).
 **(라)** 초보자는 실패 근접 훈련 시 자세 붕괴 위험이 더 크므로, 특히 바벨 복합종목은 보수적으로(RIR 2~3) 유지.
 
@@ -117,7 +117,7 @@ Schoenfeld 2016 RCT는 180초가 60초보다 근비대에 유리했음을 보였
 근육통, 수면의 질 저하, 관절 통증 지속. **근육통(DOMS) 자체는 손상·성장의 신뢰할 만한 지표가 아니므로**,
 단순 근육통만으로 세션을 통째로 건너뛰기보다 해당 부위 볼륨/강도를 낮추고 다른 부위는 정상 진행하는 식으로
 세션 구성을 조정하는 것이 낫다.
-**(나)** [Deload Week Guide](https://www.hypro.app/blog/deload-week-guide) · [Iridium Blog: Deload Week Guide](https://iridium.fit/blog/deload-week-guide) (트리거 목록은 관행 정리, 개별 RCT 아님).
+**(나)** [Deload Week Guide](https://www.hypro.app/blog/deload-week-guide), [Iridium Blog: Deload Week Guide](https://iridium.fit/blog/deload-week-guide) (트리거 목록은 관행 정리, 개별 RCT 아님).
 **(다)** 코칭 컨벤션.
 **(라)** 목요일 PT 세션 다음 날 근육통이 있어도 자가 세션 전체를 취소하기보다 해당 부위만 조정.
 
@@ -148,7 +148,7 @@ Push/Pull을 주 내 2회 배치(예: 월 Push, 화 Pull, 목 PT, 금 Lower, 토
 (bilateral deficit) 연구에서 나온 논리를 코치들이 실무 규칙으로 정리한 것이며, 좌우 편차가 5% 미만이면
 양측 종목 위주, 10% 이상이면 편측 종목 비중을 높이라는 식의 구체적 컷오프도 존재하나 이는 개별 RCT로
 검증된 보편 임계값이라기보다 실무 경험칙이다.
-**(나)** [Frontiers, 편측/양측 훈련 메타분석 2023](https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2023.1128250/full) · [StrengthCoach.com: Unilateral Training and the Bilateral Deficit](https://strengthcoach.inspire360.com/strengthcoach/Unilateral-Training-and-the-Bilateral-Deficit).
+**(나)** [Frontiers, 편측/양측 훈련 메타분석 2023](https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2023.1128250/full), [StrengthCoach.com: Unilateral Training and the Bilateral Deficit](https://strengthcoach.inspire360.com/strengthcoach/Unilateral-Training-and-the-Bilateral-Deficit).
 **(다)** 코칭 컨벤션(근거는 양측성 결손 메커니즘 연구, 규칙 자체는 관행).
 **(라)** 이 사용자는 좌우 다리 불균형 + 요통 이력이 겹치므로, 약한 쪽 기준으로 반복수를 맞추되 척추 축부하가
 큰 편측 종목(예: 불가리안 스플릿 스쿼트의 과도한 전경사)보다 런지/스플릿스쿼트처럼 척추 중립 유지가 쉬운
