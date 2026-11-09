@@ -72,7 +72,7 @@ test('교체: 편측 → 양측이면 좌우 입력 흔적이 새 운동에 남�
   assert.ok(ne.sets.every((z) => !z.split && z.leftReps === null && z.rightReps === null && !z.touched));
 });
 
-test('교체 취소 · 실패는 상태를 조금도 바꾸지 않는다 (store 원자성)', () => {
+test('교체 취소와 실패는 상태를 조금도 바꾸지 않는다 (store 원자성)', () => {
   const store = createStore({ local: memoryLocal() });
   store.commit((s) => sessionWith(s, 'pull', ['iso_row', 'curl']));
   const e = entryOf(store.state, 'curl');
@@ -243,7 +243,7 @@ test('PT 혼합 기록은 부위별로 나눠 저장하고 잘못된 값은 거�
   assert.throws(() => T.logPT(s, { date: '2026-09-24', parts: ['push'], sets: -1 }));
 });
 
-test('이력 날짜 · 부위 수정과 삭제가 연결된 운동 기록에 반영된다', () => {
+test('이력 날짜와 부위 수정, 삭제가 연결된 운동 기록에 반영된다', () => {
   const s = sessionWith(freshState(), 'pull', ['curl']);
   T.toggleSetDone(s, entryOf(s, 'curl').uid, 0, { now });
   T.finishSession(s, { now });
@@ -345,7 +345,7 @@ test('타이머: 일시정지한 채 세트를 끝내면 자동으로 다시 간
   assert.equal(T.timerSeconds(s.session.timer, t2.getTime() + 10000), 60 + 10);
 });
 
-test('버티기 타이머: 좌우 단계와 자세 바꾸는 시간, 결과는 같으면 한 값 · 다르면 좌우로', async () => {
+test('버티기 타이머: 좌우 단계와 자세 바꾸는 시간, 결과는 같으면 한 값, 다르면 좌우로', async () => {
   const { holdPhases } = await import('../../app/js/core/hold.js');
   assert.deepEqual(holdPhases(30, { unilateral: true }).map((p) => `${p.kind}:${p.side}:${p.secs}`), ['prep:left:5', 'hold:left:30', 'switch:right:10', 'hold:right:30']);
   assert.deepEqual(holdPhases(40).map((p) => p.kind), ['prep', 'hold']);
@@ -359,7 +359,7 @@ test('버티기 타이머: 좌우 단계와 자세 바꾸는 시간, 결과는 �
   assert.ok(s.session.restTimer, '완료 처리로 휴식 타이머가 시작된다');
 });
 
-test('시작 전 미리보기: 타이머는 멈춰 있고, 시작 · 첫 세트 완료로 간다. 다시 추천은 다른 구성으로', () => {
+test('시작 전 미리보기: 타이머는 멈춰 있고, 시작이나 첫 세트 완료로 간다. 다시 추천은 다른 구성으로', () => {
   const s = freshState();
   T.createSession(s, { part: 'pull', now });
   assert.equal(s.session.ready, true);

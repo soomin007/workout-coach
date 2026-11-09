@@ -1,6 +1,6 @@
-// 리포트 (Leap 의 리포트 탭): 이번 주 요약 · 최근 8주 본세트 · 근육별 주간 세트 · 운동별 추이.
-// 차트 규칙(dataviz): 한 계열은 강조색 하나, 막대 위쪽 4px 둥글게, 선 2px · 점 8px + 바탕색 테두리,
-// 값 표시는 선택적으로(마지막 값만), 축 · 격자는 흐리게, 표로 보기를 같이 둔다. 글자는 데이터 색을 쓰지 않는다.
+// 리포트 (Leap 의 리포트 탭): 이번 주 요약, 최근 8주 본세트, 근육별 주간 세트, 운동별 추이.
+// 차트 규칙(dataviz): 한 계열은 강조색 하나, 막대 위쪽 4px 둥글게, 선 2px, 점 8px + 바탕색 테두리,
+// 값 표시는 선택적으로(마지막 값만), 축과 격자는 흐리게, 표로 보기를 같이 둔다. 글자는 데이터 색을 쓰지 않는다.
 import { esc } from './dom.js';
 import { MUSCLE_LABEL, MUSCLE_BUDGET } from '../core/catalog.js';
 import { muscleSets } from '../core/plan.js';
@@ -12,7 +12,7 @@ const DAY = 86400000;
 const mondayOf = (d) => { const m = new Date(d); m.setHours(0, 0, 0, 0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; };
 const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
 
-// 깔끔한 눈금: 0 과 최댓값을 덮는 1 · 2 · 5 × 10^n 간격
+// 깔끔한 눈금: 0 과 최댓값을 덮는 (1, 2, 5) × 10^n 간격
 function niceMax(v) {
   if (v <= 0) return 4;
   const p = 10 ** Math.floor(Math.log10(v));
@@ -47,7 +47,7 @@ function weeklyChart(ws) {
     const x = L + slot * i + (slot - bw) / 2, top = y(w.sets), h = B - top, r = Math.min(4, h);
     const path = h > 0 ? `M${x},${B} V${top + r} Q${x},${top} ${x + r},${top} H${x + bw - r} Q${x + bw},${top} ${x + bw},${top + r} V${B} Z` : '';
     const last = i === ws.length - 1;
-    return `<g class="bar-g"><title>${md(w.from)} 주: 본세트 ${w.sets} · 운동 ${w.sessions}회 · ${w.minutes}분</title>
+    return `<g class="bar-g"><title>${md(w.from)} 주: 본세트 ${w.sets}, 운동 ${w.sessions}회, ${w.minutes}분</title>
       <rect class="hit" x="${L + slot * i}" y="${T}" width="${slot}" height="${B - T}"/>${path ? `<path class="bar" d="${path}"/>` : ''}
       ${last && w.sets ? `<text class="val" x="${x + bw / 2}" y="${top - 4}" text-anchor="middle">${w.sets}</text>` : ''}
       <text class="tick" x="${x + bw / 2}" y="${B + 16}" text-anchor="middle">${md(w.from)}</text></g>`;
@@ -125,5 +125,5 @@ export function renderReport(state, ui, now = new Date()) {
       <h3 style="margin-top:14px">최근 8주 본세트</h3>${weeklyChart(ws)}${weekTable}
     </section>
     <section class="card report"><h3>운동별 추이</h3>${trend}</section>
-    <section class="card report"><h3>근육별 이번 주 세트</h3><div class="small" style="margin-bottom:6px">최근 7일 · 목표 대비 (보조로 쓴 세트는 절반으로 셈)</div>${meters}</section>`;
+    <section class="card report"><h3>근육별 이번 주 세트</h3><div class="small" style="margin-bottom:6px">최근 7일, 목표 대비 <span class="nw">(보조로 쓴 세트는 절반으로 셈)</span></div>${meters}</section>`;
 }

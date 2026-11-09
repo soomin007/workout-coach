@@ -16,7 +16,7 @@ function withRow(state) {
   return state.session.exercises[0];
 }
 
-test('그립 데이터: 기본 그립은 목록 안에 있고, 모든 그립에 그림 · 잡는 법이 있다', () => {
+test('그립 데이터: 기본 그립은 목록 안에 있고, 모든 그립에 그림과 잡는 법이 있다', () => {
   for (const id of ['lat', 'row', 'chest_row', 'iso_row', 'pullup', 'pushdown']) {
     const gs = gripsFor(id);
     assert.ok(gs.some((g) => g.id === defaultGripId(id)), id);

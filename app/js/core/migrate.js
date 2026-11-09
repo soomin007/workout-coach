@@ -1,4 +1,4 @@
-// 가져오기와 마이그레이션. v7 · v8 · v9 (GPT 시절 형식) → v10.
+// 가져오기와 마이그레이션. v7, v8, v9 (GPT 시절 형식) → v10.
 // 반환 { state, notes }. notes 는 사용자에게 보여 줄 보정 내역.
 import { catalogById, catalogByName, migrateRole, PARTS } from './catalog.js';
 import { freshState, normalizeState, looksLikeV10, makeSet, SCHEMA_VERSION } from './schema.js';
@@ -64,7 +64,7 @@ export function migrateLegacy(raw) {
   st.lastBackup = raw.lastBackup || null;
   st.customExercises = Array.isArray(raw.customExercises) ? raw.customExercises.map((c) => ({ ...c, role: migrateRole(c.role, c.id) })) : [];
 
-  // 선호: 중량 방식 · 증량 단위 · 범위만 옮긴다. 휴식은 v9 코치 자동 조정이 섞였을 수 있어 버린다.
+  // 선호: 중량 방식, 증량 단위, 범위만 옮긴다. 휴식은 v9 코치 자동 조정이 섞였을 수 있어 버린다.
   let droppedRest = 0;
   for (const [id, p] of Object.entries(raw.exercisePrefs || {})) {
     if (!p || typeof p !== 'object') continue;

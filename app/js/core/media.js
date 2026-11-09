@@ -1,9 +1,9 @@
 // 운동 동작 그림: RepDB 무료 등급(github.com/sergei-argutin/exercise-dataset, 2026-10-04 받음).
-// 조건: 앱 안 사용, "Exercise data by RepDB (repdb.co)" 표기(설정 탭 · README), 데이터셋으로 재배포 금지.
+// 조건: 앱 안 사용, "Exercise data by RepDB (repdb.co)" 표기(설정 탭과 README), 데이터셋으로 재배포 금지.
 // 우리 운동에 맞는 것만 골라 320px 로 줄여 app/img/ex/ 에 넣었다. 키는 RepDB id, 파일은 <id>-start|peak|main.webp.
 // 맞는 그림이 없는 운동(한발 힙 쓰러스트: RepDB 에는 바닥 브릿지만 있다)은 근육 지도만 쓴다.
 
-// hold: 시작 · 끝 두 장이 아니라 한 장(main)인 버티기 운동
+// hold: 시작과 끝 두 장이 아니라 한 장(main)인 버티기 운동
 const HOLD = new Set(['plank', 'bird-dog-hold', 'side-plank', 'high-plank', 'hollow-body-hold',
   'banded-hamstring-stretch', 'wall-hamstring-stretch', 'banded-figure-4-stretch', 'kneeling-hip-flexor-stretch', 'lying-quad-stretch']);
 
@@ -36,7 +36,7 @@ export const GRIP_MEDIA = {
   pushdown: { v_bar: 'v-bar-tricep-pushdown' },
 };
 
-// 반환: 그림 경로 배열(시작 · 끝, 또는 한 장). 없으면 [].
+// 반환: 그림 경로 배열(시작과 끝, 또는 한 장). 없으면 [].
 export function exerciseImages(exerciseId, grip = null) {
   const id = (grip && GRIP_MEDIA[exerciseId]?.[grip]) || EX_MEDIA[exerciseId];
   if (!id) return [];

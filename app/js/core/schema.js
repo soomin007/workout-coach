@@ -87,7 +87,7 @@ export function normalizeState(src) {
   return n;
 }
 
-// 사용자가 직접 만든 운동과 같은 이름의 운동이 카탈로그에 생기면(10/23 레그 익스텐션), 기록 · 선호 · 진행 중 세션을
+// 사용자가 직접 만든 운동과 같은 이름의 운동이 카탈로그에 생기면(10/23 레그 익스텐션), 기록, 선호, 진행 중 세션을
 // 카탈로그 id 로 옮기고 사용자 운동은 지운다. 처방이 지난 기록에서 그대로 이어진다. 카탈로그에서 뺀 id(RETIRED_IDS)도 같이 옮긴다.
 function adoptCatalog(n) {
   const moved = new Map(Object.entries(RETIRED_IDS));
@@ -106,7 +106,7 @@ function adoptCatalog(n) {
   n.settings.unavailableExercises = [...new Set(n.settings.unavailableExercises.map((id) => moved.get(id) || id))];
 }
 
-// 순서 기록(order · prefatigue)이 없는 옛 기록에, 세트 완료 시각이 남아 있으면 소급해서 채운다.
+// 순서 기록(order, prefatigue)이 없는 옛 기록에, 세트 완료 시각이 남아 있으면 소급해서 채운다.
 // 시각이 없는 세션(이관 기록 등)은 비워 둔다: 조건을 모르는 기록으로 남는다.
 function backfillOrder(perf) {
   const groups = new Map();

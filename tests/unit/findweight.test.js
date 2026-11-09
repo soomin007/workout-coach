@@ -20,7 +20,7 @@ test('기록 없는 무게 운동은 찾기 모드, 워밍업 줄 없이 시작'
   assert.equal(e.sets.filter((z) => z.type === 'warmup').length, 0);
 });
 
-test('가벼움: 그 세트는 워밍업(완료)으로, 본세트 수 유지, 남은 본세트는 20% 이상 · 한 단계 이상 올림, 다시 묻는다', () => {
+test('가벼움: 그 세트는 워밍업(완료)으로, 본세트 수 유지, 남은 본세트는 20% 이상, 한 단계 이상 올림, 다시 묻는다', () => {
   const { s, e } = pullWithoutHistory();
   const n = mains(e).length;
   const i = e.sets.findIndex((z) => z.type === 'main');

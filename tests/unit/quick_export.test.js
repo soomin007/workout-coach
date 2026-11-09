@@ -36,7 +36,7 @@ test('한 줄 입력 적용: 본세트를 앞에서부터 채우고 완료, 모�
   assert.deepEqual(s.session.exercises[1].sets.filter((z) => z.done).map((z) => [z.weight, z.reps]), [[null, 10], [null, 9], [null, 8]]);
 });
 
-test('CSV · TXT 에 일반 기록과 편측 좌우 기록이 모두 들어간다', () => {
+test('CSV와 TXT 에 일반 기록과 편측 좌우 기록이 모두 들어간다', () => {
   const st = importAny(JSON.parse(readFileSync(new URL('../fixtures/v9_synthetic.json', import.meta.url), 'utf8'))).state;
   const csv = toCSV(st);
   assert.ok(csv.startsWith('﻿'));

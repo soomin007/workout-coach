@@ -1,4 +1,4 @@
-// 브라우저에서만 도는 파일(main.js · ui/*)도 문법 오류가 있으면 앱 전체가 뜨지 않는다. E2E 전에 여기서 잡는다.
+// 브라우저에서만 도는 파일(main.js 와 ui/*)도 문법 오류가 있으면 앱 전체가 뜨지 않는다. E2E 전에 여기서 잡는다.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';

@@ -66,7 +66,7 @@ export function setFindFeel(state, uid, setIndex, feel) {
     entry.coach = rest.length ? `남은 세트를 ${w}kg로 낮췄습니다. 방금 세트는 본세트로 남깁니다.` : '본세트로 남깁니다. 다음에는 조금 가볍게 시작합니다.';
     return entry;
   }
-  // light: 워밍업으로 돌리고(볼륨 · 처방에서 빠짐) 본세트 수를 그대로 유지한다.
+  // light: 워밍업으로 돌리고(볼륨과 처방에서 빠짐) 본세트 수를 그대로 유지한다.
   const w = Math.max(snapW(z.weight * FIND.up, entry, 'ceil'), stepW(z.weight, 1, entry));
   z.type = 'warmup'; z.found = true;
   rest.forEach((x) => { x.weight = w; });
@@ -111,7 +111,7 @@ export function makeEntry(state, exerciseId, { slot = null, setCount = null, war
   return entry;
 }
 
-// 무거운 날로 바꾸기: 톱세트 1개(3~5회 · RIR 2) + 백오프(약 10% 가볍게, 5~6회). 세트 수는 늘리지 않는다.
+// 무거운 날로 바꾸기: 톱세트 1개(3~5회, RIR 2) + 백오프(약 10% 가볍게, 5~6회). 세트 수는 늘리지 않는다.
 // 세트 타입은 'main' 그대로 두어 주간 볼륨 계산은 같고, heavy 표시('top' | 'backoff')로 처방만 분리한다.
 export function makeHeavy(state, entry) {
   const p = profileFor(state, entry.exerciseId);
@@ -215,7 +215,7 @@ export function applyOrderContext(state) {
   return changed;
 }
 
-// 처방을 다시 계산해 아직 손대지 않은 본세트와 워밍업에 채운다 (순서 · 그립이 바뀔 때).
+// 처방을 다시 계산해 아직 손대지 않은 본세트와 워밍업에 채운다 (순서나 그립이 바뀔 때).
 function represcribe(state, e) {
   const p = profileFor(state, e.exerciseId);
   if (!p) return null;
@@ -727,7 +727,7 @@ function performanceScore(session) {
 // 세션 종료. 완료 세트만 기록에 넣는다. 0세트 확인은 호출 전에 UI 에서 받는다.
 // 운동 시간: 타이머 대신 실제 활동 흔적으로 계산한다 (종료를 잊어도 70시간이 찍히지 않게).
 // 완료 시각이 있으면 첫 ✓ 앞 준비 시간(최대 5분) + 첫 ✓ ~ 마지막 ✓ + 마지막 세트 1분.
-// 시각이 없으면(한 줄 입력 · 계획대로 완료) 타이머 값을 쓰되 예상 시간의 2배를 넘으면 모름(null).
+// 시각이 없으면(한 줄 입력이나 계획대로 완료) 타이머 값을 쓰되 예상 시간의 2배를 넘으면 모름(null).
 export function activeDurationSec(s, now = new Date()) {
   const ts = s.exercises.flatMap((e) => e.sets.filter((z) => z.done && z.doneAt).map((z) => z.doneAt));
   if (ts.length) {

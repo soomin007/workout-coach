@@ -51,7 +51,7 @@ async function syncNow(page) {
   await page.getByRole('button', { name: '지금 동기화' }).click();
 }
 
-test('연결 · 올리기 · PC 수정 받기 · 충돌 선택', async ({ page }) => {
+test('연결, 올리기, PC 수정 받기, 충돌 선택', async ({ page }) => {
   const gh = await fakeGitHub(page);
   await page.goto('/');
   await logPT(page, '벤치');

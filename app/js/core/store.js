@@ -1,4 +1,4 @@
-// 상태 보관 · 원자적 커밋 · 저장/복원. 저장소 어댑터를 주입받아 테스트 가능하게 한다.
+// 상태 보관, 원자적 커밋, 저장/복원. 저장소 어댑터를 주입받아 테스트 가능하게 한다.
 // commit(fn): 복제한 초안에 fn 을 적용하고, 예외 없이 끝났을 때만 교체한다 → 실패·취소 시 상태 불변.
 import { freshState, normalizeState, looksLikeV10 } from './schema.js';
 import { importAny } from './migrate.js';

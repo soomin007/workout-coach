@@ -1,6 +1,6 @@
 // GitHub 비공개 저장소의 파일 하나(data.json)로 기록을 동기화한다. 기록을 쓰는 기기는 폰 하나라고 가정한다.
 // 마지막으로 맞춘 원격 sha 와 저장 번호(revision)를 기억해 두고 비교한다:
-//   원격 그대로 + 로컬 바뀜 → 올리기 · 원격 바뀜(PC 에서 수정) + 로컬 그대로 → 받기 · 둘 다 바뀜 → 사용자에게 묻기.
+//   원격 그대로 + 로컬 바뀜 → 올리기. 원격 바뀜(PC 에서 수정) + 로컬 그대로 → 받기. 둘 다 바뀜 → 사용자에게 묻기.
 // 설정(토큰 포함)은 상태 밖의 별도 키에 둔다. JSON 백업이나 원격 파일에 토큰이 섞여 나가지 않게.
 export const SYNC_KEY = 'workoutCoach.sync';
 export const DEFAULT_PATH = 'data.json';
@@ -138,7 +138,7 @@ export async function syncOnce({ cfg, store, fetchImpl = fetch, resolve = async 
   if (action === 'push') {
     // 올리는 동안 세트를 체크하면 revision 이 오른다. 올린 내용의 번호를 미리 잡아 두어야 그 변경이 다음 동기화에 올라간다.
     const revision = store.state.revision;
-    next.sha = await putRemote(next, store.exportJSON(), remote?.sha ?? null, `기록 동기화 · 저장 번호 ${revision}`, fetchImpl);
+    next.sha = await putRemote(next, store.exportJSON(), remote?.sha ?? null, `기록 동기화 (저장 번호 ${revision})`, fetchImpl);
     next.revision = revision;
   } else if (action === 'pull') {
     store.importJSON(remote.text);

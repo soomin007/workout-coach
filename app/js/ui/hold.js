@@ -1,5 +1,5 @@
 // 버티기 타이머 시트. 준비 → (왼쪽) 버티기 → 자세 바꾸기 → (오른쪽) 버티기. 단계는 core/hold.js.
-// 끝나면 { secs } 또는 { left, right } 로 돌려준다. 취소 · 뒤로가기면 null.
+// 끝나면 { secs } 또는 { left, right } 로 돌려준다. 취소나 뒤로가기면 null.
 // 시간은 시각 차이로 계산해서, 화면이 꺼졌다 켜져도 맞는 단계로 따라잡는다.
 import { sheet, closeSheet, esc } from './dom.js';
 import { holdPhases, SIDE_LABEL } from '../core/hold.js';
@@ -20,8 +20,8 @@ function beep(freq = 880, ms = 140) {
 
 function phaseLabel(ph) {
   const side = ph.side ? SIDE_LABEL[ph.side] : '';
-  if (ph.kind === 'prep') return side ? `준비 · ${side}부터` : '준비';
-  if (ph.kind === 'switch') return `자세 바꾸기 · 다음은 ${side}`;
+  if (ph.kind === 'prep') return side ? `준비, ${side}부터` : '준비';
+  if (ph.kind === 'switch') return `자세 바꾸기, 다음은 ${side}`;
   return side ? `${side} 버티기` : '버티기';
 }
 
@@ -67,8 +67,8 @@ export function runHold({ title, seconds, unilateral = false, leftFirst = true }
     $('hold-num').textContent = `${sec}`;
     $('hold-num').className = `hold-num ${ph.kind}`;
     const next = phases[i + 1];
-    $('hold-sub').textContent = ph.kind === 'hold' ? `목표 ${ph.secs}초${next ? ` · 끝나면 자세 바꾸기 ${next.secs}초` : ''}` : `이어서 ${phaseLabel(next)} ${next.secs}초`;
-    $('hold-next').textContent = ph.kind === 'hold' ? (next ? '여기까지 · 다음 쪽' : '여기까지 · 기록') : '바로 시작';
+    $('hold-sub').textContent = ph.kind === 'hold' ? `목표 ${ph.secs}초${next ? `, 끝나면 자세 바꾸기 ${next.secs}초` : ''}` : `이어서 ${phaseLabel(next)} ${next.secs}초`;
+    $('hold-next').textContent = ph.kind === 'hold' ? (next ? '여기까지, 다음 쪽' : '여기까지, 기록') : '바로 시작';
     $('hold-plus').hidden = ph.kind === 'hold';
     $('hold-pause').textContent = pausedAt === null ? '일시정지' : '계속';
     document.querySelectorAll('#hold .hold-steps i').forEach((el) => el.classList.toggle('on', +el.dataset.k <= i));

@@ -5,8 +5,8 @@ import { roundTo, clamp, snapW, stepW } from './util.js';
 import { ORDER, fatigueClass } from './order.js';
 import { gripOf, gripById } from './grips.js';
 
-// 목표(설정)에 따른 기본 반복 범위 · 휴식 (정책 14절). 사용자가 운동별로 정한 범위가 있으면 그것이 우선.
-// 근력: 복합 운동만 낮은 반복 · 긴 휴식. 근육량: 카탈로그 그대로. 근지구력: 12~20회 · 짧은 휴식.
+// 목표(설정)에 따른 기본 반복 범위와 휴식 (정책 14절). 사용자가 운동별로 정한 범위가 있으면 그것이 우선.
+// 근력: 복합 운동만 낮은 반복과 긴 휴식. 근육량: 카탈로그 그대로. 근지구력: 12~20회와 짧은 휴식.
 export const GOALS = { hypertrophy: '근육량 늘리기', strength: '더 강해지기', endurance: '근지구력' };
 export function goalRange(goal, base) {
   const [lo, hi] = base.range || [8, 12];
@@ -103,8 +103,8 @@ export function lastPerformance(state, exerciseId, { heavy } = {}) {
 }
 
 // ---------- 가볍게 한 날 (코칭 정책 16절) ----------
-// 일부러 낮춘 날(회복 · 근육통)의 기록은 실력이 아니라 선택이다. 처방은 그 날을 건너뛰고 직전 평소 기록에서 잇는다.
-// 기록 · 주간 볼륨 · 리포트 세트 수에는 그대로 남는다. 가벼운 기록밖에 없으면 그것이라도 쓴다.
+// 일부러 낮춘 날(회복이나 근육통)의 기록은 실력이 아니라 선택이다. 처방은 그 날을 건너뛰고 직전 평소 기록에서 잇는다.
+// 기록, 주간 볼륨, 리포트 세트 수에는 그대로 남는다. 가벼운 기록밖에 없으면 그것이라도 쓴다.
 export const LIGHT = { ratio: 0.85, share: 0.5 };
 // 시작할 때 고른 가벼운 날(회복) 처방: 평소 처방 무게의 65%, 운동마다 2세트, 목표 반복은 범위 하한(4회 이상 남김).
 export const RECOVERY = { pct: 0.65, sets: 2, rir: 4 };
@@ -134,7 +134,7 @@ export function easyRx(profile, rx) {
   if (rx.weight === null || rx.weight === undefined || isAssist(profile.mode) || profile.mode === 'bodyweight' || !(profile.inc > 0)) return rx;
   const w = Math.max(profile.start || 0, Math.min(snapW(rx.weight * EASY.pct, profile), stepW(rx.weight, -1, profile)));
   if (w >= rx.weight) return rx;
-  // 평소 처방 문구("30kg 유지. 반복을 13회로")를 덧붙이면 낮춘 무게와 엇갈린다(10/23 레그컬 메모). 평소 처방은 무게 · 반복으로만 적는다.
+  // 평소 처방 문구("30kg 유지. 반복을 13회로")를 덧붙이면 낮춘 무게와 엇갈린다(10/23 레그컬 메모). 평소 처방은 무게와 반복으로만 적는다.
   const u = unitWord(profile);
   return { ...rx, weight: w, usual: rx.weight, kind: 'easy', note: `강도 가볍게: 평소대로라면 ${rx.weight}kg × ${rx.reps}${u}인데, 오늘은 한 단계 낮춘 ${w}kg로 ${rx.reps}${u}. 반복 목표는 그대로라 여유가 더 남습니다.` };
 }
@@ -149,7 +149,7 @@ const topWeight = (sets) => {
   return ws.length ? Math.max(...ws) : null;
 };
 
-// 진행 중 세션이 평소보다 확실히 가벼운지. 비교할 수 있는 운동(무게를 단 운동 · 이전 평소 기록 있음) 중
+// 진행 중 세션이 평소보다 확실히 가벼운지. 비교할 수 있는 운동(무게를 단 운동이고 이전 평소 기록이 있음) 중
 // 절반 이상이 직전 평소 기록 최고 무게의 85% 미만이면 suggest. 실패 뒤 감량 처방(약 90%)은 걸리지 않는 선이다.
 // 반환: { suggest, lighter: [{ exerciseId, name, was, now }], compared }
 export function lighterThanUsual(state, session = state.session) {
@@ -268,7 +268,7 @@ export function warmupPlan(profile, weight, level, pattern = null) {
 }
 
 // 사용자가 워밍업을 고치거나 더했으면 다음에도 같은 모양으로 (10/21 메모: 워밍업은 늘 비슷하게 한다).
-// 가장 최근 평소 · 가벼운 날 기록(무거운 날 제외)에서 손댄 워밍업이 하나라도 있으면, 그 기록의 워밍업 전부를
+// 가장 최근 평소나 가벼운 날 기록(무거운 날 제외)에서 손댄 워밍업이 하나라도 있으면, 그 기록의 워밍업 전부를
 // 첫 본세트 무게에 대한 비율과 반복으로 돌려준다. 무게 찾기에서 워밍업으로 돌린 세트(found)는 시험 무게라 뺀다.
 // 가장 가벼운 워밍업은 비율 대신 그 무게(abs) 그대로 둔다: 빈 봉(20kg)이나 가장 가벼운 칸으로 시작하는 습관이라
 // 본세트가 줄었다고 봉보다 가벼워지면 안 된다.
@@ -303,7 +303,7 @@ function lastMainOf(rec) { return [...(rec.sets || [])].reverse().find((x) => x.
 
 // 톱세트 처방. perfs: 이 운동의 기록 전체.
 // 지난 무거운 날이 있으면 그 톱세트로 진행(쉬웠으면 한 단계 올림, 아니면 유지),
-// 없으면 최근 평소 기록 3개에서 추정 1RM 을 구해 4회 · RIR 2 무게를 잡는다.
+// 없으면 최근 평소 기록 3개에서 추정 1RM 을 구해 4회, RIR 2 무게를 잡는다.
 export function heavyPrescribe(profile, state) {
   const all = preferNormal(recordsNewestFirst(state, profile.id));
   const lastHeavy = all.find((p) => p.heavy);
@@ -333,7 +333,7 @@ export function heavyPrescribe(profile, state) {
     note: `최근 ${best.z.weight}kg × ${setReps(best.z)}회 기준 추정. ${w}kg로 ${HEAVY.top[0]}~${HEAVY.top[1]}회, 2회 남기고 멈추세요. 깊이·자세는 평소와 같게.` };
 }
 
-// g: 운동 프로필이나 세션 운동(눈금 inc · start · ladder).
+// g: 운동 프로필이나 세션 운동(눈금 inc, start, ladder).
 export function backoffWeight(topWeight, g, pct = HEAVY.backoffPct) {
   if (topWeight === null || topWeight === undefined) return null;
   return snapW(topWeight * pct, g, 'round', 2.5);

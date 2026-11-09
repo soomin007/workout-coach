@@ -1,4 +1,4 @@
-// 가볍게 한 날 (정책 16절): 처방에서 건너뛰고, 기록 · 볼륨에는 남는다. 10/9 실기록과 같은 모양.
+// 가볍게 한 날 (정책 16절): 처방에서 건너뛰고, 기록과 볼륨에는 남는다. 10/9 실기록과 같은 모양.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { freshState } from '../../app/js/core/schema.js';
@@ -61,7 +61,7 @@ test('감지: 실패 뒤 감량 처방(약 90%)은 가벼운 날로 묻지 않�
   assert.equal(lighterThanUsual(s, ses).suggest, false);
 });
 
-test('완료 시 light 로 저장하면 history · performance 에 표시, 기록 수정으로 풀 수 있다', () => {
+test('완료 시 light 로 저장하면 history 와 performance 에 표시, 기록 수정으로 풀 수 있다', () => {
   const s = freshState();
   T.setCheck(s, { energy: 'normal', minutes: 45, intensity: 'normal' }, { now: new Date(2026, 9, 9, 18) });
   T.createSession(s, { part: 'pull', source: 'manual', now: new Date(2026, 9, 9, 18) });
@@ -84,7 +84,7 @@ test('시작 제안: 오늘 할 부위 근육통이 꽤 있음(2) 이상일 때�
   assert.equal(recoverySuggested({ upperDoms: 3, lowerDoms: 3 }, 'core'), false);
 });
 
-test('가볍게 한 날로 시작: 평소 처방의 65% · 2세트 · 하한 반복 · 워밍업 없음 · 무거운 날 없음, 완료하면 light', () => {
+test('가볍게 한 날로 시작: 평소 처방의 65%, 2세트, 하한 반복, 워밍업 없음, 무거운 날 없음, 완료하면 light', () => {
   const s = withHistory({ light: true });
   const now = new Date(2026, 9, 10, 18);
   T.setCheck(s, { energy: 'normal', minutes: 60, intensity: 'strength', upperDoms: 2 }, { now });
@@ -94,7 +94,7 @@ test('가볍게 한 날로 시작: 평소 처방의 65% · 2세트 · 하한 반
   const lat = s.session.exercises.find((e) => e.exerciseId === 'lat');
   assert.ok(lat, "랫풀다운이 계획에 있다"); {
     const m = lat.sets.find((z) => z.type === 'main');
-    assert.equal(m.weight, 27.5, '평소 처방 50kg 의 65% = 32.5 → 스택 눈금(5 · 12.5 · 20 · 27.5 …)으로 내림 27.5');
+    assert.equal(m.weight, 27.5, '평소 처방 50kg 의 65% = 32.5 → 스택 눈금(5, 12.5, 20, 27.5 …)으로 내림 27.5');
     assert.equal(m.reps, lat.range[0]);
     assert.equal(lat.prescription.kind, 'recovery');
   }

@@ -20,14 +20,14 @@ export function endOfDay(d = new Date()) {
   return x.getTime();
 }
 
-// '' · null · undefined · 숫자 아님 → null. 0 은 0 (빈 RIR 과 RIR 0 을 구분한다).
+// '', null, undefined, 숫자 아님 → null. 0 은 0 (빈 RIR 과 RIR 0 을 구분한다).
 export function toNum(x) {
   if (x === null || x === undefined || String(x).trim() === '') return null;
   const n = Number(x);
   return Number.isFinite(n) ? n : null;
 }
 
-// 부동소수 오차 없이 step 단위로 반올림. origin: 눈금의 시작(랫풀다운 스택 5 · 12.5 · 20 … 이면 5).
+// 부동소수 오차 없이 step 단위로 반올림. origin: 눈금의 시작(랫풀다운 스택 5, 12.5, 20 … 이면 5).
 export function roundTo(x, step, mode = 'round', origin = 0) {
   if (!Number.isFinite(x)) return null;
   const s = step > 0 ? step : 0.5;
@@ -37,8 +37,8 @@ export function roundTo(x, step, mode = 'round', origin = 0) {
 }
 
 // 기구 무게 눈금. g: { inc, start, ladder } (세션 운동은 inc 대신 increment).
-// ladder 가 있으면 그 목록에 있는 무게만 쓴다(헬스장 덤벨 20 뒤 26 · 30, 어브덕션 스택 25 뒤 32 · 40).
-// 없으면 start 에서 inc 간격(랫풀다운 5 · 12.5 · 20 …). fallback 은 inc 가 0 일 때 쓸 간격.
+// ladder 가 있으면 그 목록에 있는 무게만 쓴다(헬스장 덤벨 20 뒤 26과 30, 어브덕션 스택 25 뒤 32와 40).
+// 없으면 start 에서 inc 간격(랫풀다운 5, 12.5, 20 …). fallback 은 inc 가 0 일 때 쓸 간격.
 export function snapW(x, g, mode = 'round', fallback = 0.5) {
   if (!Number.isFinite(x)) return null;
   const L = g?.ladder;

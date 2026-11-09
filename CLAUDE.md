@@ -6,7 +6,7 @@
 ## 세션 시작 루틴
 
 1. `known-issues.md` 확인 (코드 수정 전 필수)
-2. `git status` · `git log --oneline -10`
+2. `git status` 와 `git log --oneline -10`
    세션 시작 훅이 처리 장부(docs/memo-ledger.json)에 없는 운동 메모를 알려 준다. 나오면 먼저 처리하고 장부에 적는다(known-issues 26).
 3. 작업 영역 문서만 필요한 절 단위로 읽기:
    - 요구사항 계약: `docs/REQUIREMENTS_AND_INVARIANTS.md`

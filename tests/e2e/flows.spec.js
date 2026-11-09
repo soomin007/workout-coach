@@ -24,7 +24,7 @@ const st = (page) => page.evaluate(() => window.__store.state);
 const sheet = (page) => page.locator('#sheet');
 const card = (page, id) => page.locator(`section.ex[data-exercise="${id}"]`);
 
-// 시작 전 확인 시트: 부위 · 컨디션 · 시간 · 강도를 고르고 시작한다.
+// 시작 전 확인 시트: 부위, 컨디션, 시간, 강도를 고르고 시작한다.
 async function fillStart(page, { part = null, energy = 'normal', minutes = 60, intensity = 'normal' } = {}) {
   const sh = page.locator('#sheet');
   if (part) await sh.locator(`.pick[data-k="part"] .chip[data-v="${part}"]`).click();
@@ -51,7 +51,7 @@ async function typeNumber(page, locator, value) {
   await sheet(page).getByRole('button', { name: '확인' }).click();
 }
 
-test('운동 변경: 머신 → 덤벨이면 중량 방식 · 증량 · 범위 · 입력 안내가 즉시 바뀌고 새로고침 후에도 유지', async ({ page }) => {
+test('운동 변경: 머신 → 덤벨이면 중량 방식, 증량, 범위, 입력 안내가 즉시 바뀌고 새로고침 후에도 유지', async ({ page }) => {
   await startPart(page, 'Pull');
   const before = (await st(page)).session.estimatedMinutes;
   await menu(page, 'rear_cable', '운동 변경');
@@ -163,7 +163,7 @@ test('진행 중 날짜를 바꾸면 기록과 운동 기록이 그 날짜로 �
   expect(s.performance.every((p) => p.date === '2026-09-20')).toBe(true);
 });
 
-test('직접 새 운동을 만들면 카드 · 편측 입력 · 예상 시간이 즉시 반영되고 새로고침 후에도 유지', async ({ page }) => {
+test('직접 새 운동을 만들면 카드, 편측 입력, 예상 시간이 즉시 반영되고 새로고침 후에도 유지', async ({ page }) => {
   await startPart(page, 'Lower', 30);
   const before = (await st(page)).session.estimatedMinutes;
   await page.locator('[data-action="session-menu"]').click();
@@ -193,7 +193,7 @@ test('한 줄 입력으로 세트를 몰아서 기록하고 느낌까지 반영'
   await expect(c.getByTestId('effort').locator('button.on')).toHaveText('한계');
 });
 
-test('세트 완료 · 느낌 버튼: ✓ 한 번으로 계획대로 기록되고 운동이 끝나면 느낌을 묻는다', async ({ page }) => {
+test('세트 완료와 느낌 버튼: ✓ 한 번으로 계획대로 기록되고 운동이 끝나면 느낌을 묻는다', async ({ page }) => {
   await startPart(page, 'Pull');
   const c = card(page, 'curl');
   await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 8);
@@ -306,7 +306,7 @@ test('세트 번호를 누르면 유형 변경과 세트별 RIR 입력을 할 �
   await expect(c.locator('[data-action="set-menu"]').nth(1)).toHaveText('B');
 });
 
-test('키패드 완료(Enter)로 숫자 입력이 바로 적용되고 시트가 닫힌다 · 0kg 은 빈 기구로 표시', async ({ page }) => {
+test('키패드 완료(Enter)로 숫자 입력이 바로 적용되고 시트가 닫히고 0kg 은 빈 기구로 표시', async ({ page }) => {
   // 원판 합계 운동(싱글 레그프레스)은 계획에 들지 않아(11/9 허리 부담 메모) 레그 익스텐션을 교체해 넣는다.
   await startPart(page, 'Lower', 60);
   await menu(page, 'leg_extension', '운동 변경');
@@ -368,7 +368,7 @@ test('홈: 컨디션이 추천보다 위, 추천 이유는 문장으로, 부족�
   await expect(page.locator('select[data-k="minutes"]')).toBeVisible();
 });
 
-test('다음 세트 강조 · 휴식 바에 다음 할 것 · 느낌까지 입력하면 운동이 접힌다', async ({ page }) => {
+test('다음 세트 강조, 휴식 바에 다음 할 것, 느낌까지 입력하면 운동이 접힌다', async ({ page }) => {
   await startPart(page, 'Pull');
   const c = card(page, 'curl');
   await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 8);
@@ -703,7 +703,7 @@ test('레그프레스: 기본값이 원판 합계, 공중량 칸은 없다', asy
   expect((await st(page)).prefs.legpress.loadMode).toBe('plates');
 });
 
-test('그립: 카드의 그림 칩을 누르면 그립별 그림 · 자극 부위 · 잡는 법이 나오고, 고른 그립이 자극 부위와 함께 유지된다', async ({ page }) => {
+test('그립: 카드의 그림 칩을 누르면 그립별 그림, 자극 부위, 잡는 법이 나오고, 고른 그립이 자극 부위와 함께 유지된다', async ({ page }) => {
   await startPart(page, 'Pull', 60);
   const row = card(page, 'row');
   await expect(row.getByTestId('grip-chip')).toContainText('V핸들');
@@ -743,20 +743,20 @@ test('버티기 타이머: 준비 → 왼쪽 → 자세 바꾸기 → 오른쪽�
   const secs = Number((await c.getByTestId('hold-start').textContent()).match(/(\d+)초/)[1]);
   await c.getByTestId('hold-start').click();
   await expect(sheet(page).getByTestId('hold')).toBeVisible();
-  await expect(sheet(page).locator('#hold-label')).toHaveText('준비 · 왼쪽부터');
+  await expect(sheet(page).locator('#hold-label')).toHaveText('준비, 왼쪽부터');
   await page.clock.runFor(6000);
   await expect(sheet(page).locator('#hold-label')).toHaveText('왼쪽 버티기');
   await page.clock.runFor(secs * 1000 + 500);
-  await expect(sheet(page).locator('#hold-label')).toHaveText('자세 바꾸기 · 다음은 오른쪽');
+  await expect(sheet(page).locator('#hold-label')).toHaveText('자세 바꾸기, 다음은 오른쪽');
   await sheet(page).getByRole('button', { name: '바로 시작' }).click();
   await page.clock.runFor(4000);
-  await sheet(page).getByRole('button', { name: '여기까지 · 기록' }).click();
+  await sheet(page).getByRole('button', { name: '여기까지, 기록' }).click();
   await expect(page.locator('#sheet')).toBeHidden();
   const z = (await st(page)).session.exercises.find((e) => e.exerciseId === 'side_plank').sets.find((x) => x.done);
   expect(z).toMatchObject({ split: true, leftReps: secs, rightReps: 4 });
 });
 
-test('운동 탭: 운동 중이 아니어도 검색 · 부위 칩으로 찾고, 상세에서 근육 지도 · 방법 · 그립 · 기록을 본다', async ({ page }) => {
+test('운동 탭: 운동 중이 아니어도 검색과 부위 칩으로 찾고, 상세에서 근육 지도, 방법, 그립, 기록을 본다', async ({ page }) => {
   await page.locator('#tabs').getByRole('button', { name: '운동' }).click();
   const list = page.getByTestId('lib-list');
   await expect(list.locator('.lib-item').first()).toBeVisible();
@@ -851,7 +851,7 @@ test('운동 추가: 검색하고 여러 개를 골라 한 번에 추가한다',
   expect((await st(page)).session.exercises.length).toBe(n0 + 2);
 });
 
-test('리포트: 이번 주 요약 · 8주 막대 · 운동별 추이(운동 고르기) · 근육별 세트가 기록 탭 위에 나온다', async ({ page }) => {
+test('리포트: 이번 주 요약, 8주 막대, 운동별 추이(운동 고르기), 근육별 세트가 기록 탭 위에 나온다', async ({ page }) => {
   await startPart(page, 'Pull', 60);
   const c = card(page, 'curl');
   await typeNumber(page, c.getByTestId('weight-0').locator('.val'), 8);
@@ -866,7 +866,7 @@ test('리포트: 이번 주 요약 · 8주 막대 · 운동별 추이(운동 고
   await expect(page.locator('.report svg.chart .dot')).toHaveCount(1);
 });
 
-test('가볍게 한 날: 평소보다 확실히 가벼우면 완료 때 묻고, 표시하면 기록에 배지 · 기록 수정에서 풀 수 있다 (정책 16절)', async ({ page }) => {
+test('가볍게 한 날: 평소보다 확실히 가벼우면 완료 때 묻고, 표시하면 기록에 배지가 붙고 기록 수정에서 풀 수 있다 (정책 16절)', async ({ page }) => {
   // 지난 Pull 에서 컬 12kg. 오늘은 4kg 으로 한다.
   await page.evaluate(() => window.__store.commit((s) => {
     s.history.push({ id: 'old', date: '2026-09-25', part: 'pull', source: 'manual', workSets: 2 });
@@ -893,7 +893,7 @@ test('가볍게 한 날: 평소보다 확실히 가벼우면 완료 때 묻고, 
   expect((await st(page)).history.at(-1).light).toBeUndefined();
 });
 
-test('상체 근육통이 꽤 있는 날 Pull 시작: 가볍게 한 날을 제안하고, 고르면 2세트 · 낮춘 무게로 채우고 완료 때 묻지 않고 가벼운 날로 저장', async ({ page }) => {
+test('상체 근육통이 꽤 있는 날 Pull 시작: 가볍게 한 날을 제안하고, 고르면 2세트와 낮춘 무게로 채우고 완료 때 묻지 않고 가벼운 날로 저장', async ({ page }) => {
   await page.getByRole('button', { name: /부위 직접 선택|다른 부위 고르기/ }).click();
   await sheet(page).locator('.pick[data-k="upperDoms"] .chip[data-v="2"]').click();
   await fillStart(page, { part: 'pull' });

@@ -55,7 +55,7 @@ test('처방: 기록 없음 → 중량 비움, 보정 안내', () => {
   assert.equal(r.weight, null);
 });
 
-test('워밍업: 첫 복합 60kg → 30 · 40 · 50, 체중·고립 운동은 없음', () => {
+test('워밍업: 첫 복합 60kg → 30, 40, 50 (체중·고립 운동은 없음)', () => {
   const s = freshState();
   assert.deepEqual(warmupPlan(profileFor(s, 'bench'), 60, 'full').map((x) => x.weight), [30, 40, 50]);
   assert.deepEqual(warmupPlan(profileFor(s, 'pullup'), 60, 'full'), []);
@@ -75,13 +75,13 @@ for (const part of ['push', 'pull', 'lower']) {
   }
 }
 
-test('계획: Core 는 항신전 · 항회전 · 항측굴 3종 이상', () => {
+test('계획: Core 는 항신전, 항회전, 항측굴 3종 이상', () => {
   const p = buildPlan(freshState(), 'core', 30);
   assert.ok(p.planned.length >= 3);
   for (const slot of CORE_SLOTS.core) assert.ok(p.planned.some((x) => x.slot === slot), slot);
 });
 
-test('계획: 장비 끔 · 영구 사용 불가 운동은 제외', () => {
+test('계획: 장비 끔이나 영구 사용 불가 운동은 제외', () => {
   const s = freshState();
   s.settings.equipment.bench_rack = false;
   s.settings.unavailableExercises = ['row'];
@@ -133,7 +133,7 @@ test('컨디션: 어제 고른 피로·근육통은 오늘 추천에 쓰지 않�
   assert.throws(() => setCheck(s, { minutes: 33 }, { now: d2 }));
 });
 
-test('추천 설명: 쉰 기간 · 부족한 근육 · 채운 근육을 문장으로', async () => {
+test('추천 설명: 쉰 기간, 부족한 근육, 채운 근육을 문장으로', async () => {
   const { explainRecommendation } = await import('../../app/js/core/plan.js');
   const s = v7();
   const now = new Date(2026, 8, 25, 10);
@@ -198,7 +198,7 @@ test('추가 운동: 일요일(헬스장 휴무)에 Core 를 마쳤으면 Core �
   assert.equal(recommendPart(s, wed, { extra: true }).part, 'rest');
 });
 
-test('코어: 30분이면 굽히기(윗배 · 아랫배)가 먼저, 버티기가 뒤인 4~8종목', () => {
+test('코어: 30분이면 굽히기(윗배와 아랫배)가 먼저, 버티기가 뒤인 4~8종목', () => {
   const p = buildPlan(freshState(), 'core', 30, new Date(2026, 9, 11, 18, 0), { home: true }).planned;
   assert.ok(p.length >= 4 && p.length <= 8, String(p.length));
   assert.deepEqual(p.slice(0, 2).map((x) => x.slot), ['core_flexion', 'core_flexion_lower']);
@@ -233,7 +233,7 @@ test('미리보기 안내: 지난 같은 부위 세션과 같은 메인 운동�
   assert.deepEqual(keptMains(s, session, new Date(2026, 9, 12, 18, 0)), ['바벨 오버헤드프레스'], '보조 종목(플라이)은 빼고 메인만');
 });
 
-test('목표: 근력이면 복합 운동만 낮은 반복 · 긴 휴식, 근지구력이면 12~20회, 운동별 직접 설정이 우선', () => {
+test('목표: 근력이면 복합 운동만 낮은 반복과 긴 휴식, 근지구력이면 12~20회, 운동별 직접 설정이 우선', () => {
   const s = freshState();
   assert.deepEqual(profileFor(s, 'lat').range, [8, 12]);
   s.settings.goal = 'strength';
@@ -283,14 +283,14 @@ test('장비: 발목 스트랩은 설정에서 켜기 전까지 없는 것으로
   assert.equal(isAvailable(s, profileFor(s, 'db_hip_thrust')), true);
 });
 
-test('바벨 운동은 양쪽 합으로 5kg 단위 (가장 작은 원판 2.5kg, 10/12 · 10/19 메모)', () => {
+test('바벨 운동은 양쪽 합으로 5kg 단위 (가장 작은 원판 2.5kg, 10/12와 10/19 메모)', () => {
   const s = freshState();
   for (const id of ['bench', 'ohp', 'squat']) assert.equal(profileFor(s, id).inc, 5, id);
   s.performance.push(perf('bench', [[60, 5], [60, 4], [50, 10], [50, 10]]));
   assert.equal(rx(s, 'bench').weight % 5, 0);
 });
 
-test('랫풀다운은 스택 눈금(5 · 12.5 · 20 … 7.5 간격)으로, 케이블은 5kg 아래로 내리지 않는다 (10/3 메모)', () => {
+test('랫풀다운은 스택 눈금(5, 12.5, 20 … 7.5 간격)으로, 케이블은 5kg 아래로 내리지 않는다 (10/3 메모)', () => {
   const s = freshState();
   assert.deepEqual([profileFor(s, 'lat').start, profileFor(s, 'lat').inc], [5, 7.5]);
   s.performance.push(perf('lat', [[50, 12], [50, 12]]));

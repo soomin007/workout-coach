@@ -21,7 +21,7 @@ test('추정 1RM: 100kg × 3회 RIR 2 → 약 116.7kg', () => {
   assert.equal(estimate1RM(100, 15, 0), null, '12회 넘으면 추정하지 않음');
 });
 
-test('근력 중심: 첫 메인 운동만 톱세트 1 + 백오프, 10/1 기록 기준 95kg · 85kg(바벨 5kg 단위), 휴식 240초', () => {
+test('근력 중심: 첫 메인 운동만 톱세트 1 + 백오프, 10/1 기록 기준 95kg과 85kg(바벨 5kg 단위), 휴식 240초', () => {
   const s = freshState();
   s.performance.push(squat101);
   const ex = strengthSession(s);

@@ -37,7 +37,7 @@ const cfg0 = { repo: 'me/log', token: 'tok', path: 'data.json', sha: null, revis
 function logPush(store) { store.commit((s) => T.logPT(s, { date: '2026-09-28', parts: ['push'], note: '벤치' })); }
 
 test('base64 는 한글을 그대로 왕복한다', () => {
-  const t = '{"note":"벤치 60x12 · 보조 받음"}';
+  const t = '{"note":"벤치 60x12, 보조 받음"}';
   assert.equal(b64decode(b64encode(t)), t);
 });
 
@@ -183,7 +183,7 @@ test('decide: 원격이 없으면 항상 올린다', () => {
   assert.equal(decide(cfg0, { revision: 0, history: [], performance: [], session: null }, null), 'push');
 });
 
-test('오류: 잘못된 토큰 · 없는 저장소 · 오프라인', async () => {
+test('오류: 잘못된 토큰, 없는 저장소, 오프라인', async () => {
   const gh = fakeGitHub();
   const store = phone();
   await assert.rejects(syncOnce({ cfg: { ...cfg0, token: 'bad' }, store, fetchImpl: gh.fetch }), (e) => e instanceof SyncError && e.code === 'auth');

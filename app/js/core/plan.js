@@ -1,4 +1,4 @@
-// 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state · now 를 인자로 받는다.
+// 부위 추천과 세션 계획. v9 규칙을 옮기되 전역 상태 대신 state 와 now 를 인자로 받는다.
 import { DB, EMPHASIS, EMPHASIS_ALTERNATE, CORE_SLOTS, OPTIONAL_SLOTS, EMPHASIS_SLOTS, SECOND_SLOTS, SESSION_ORDER, SLOT_COMPAT, MUSCLE_BUDGET, PART_MUSCLES, catalogById, hasEquipment, emphasisMuscles, STRETCH_PARTS, isStretch } from './catalog.js';
 import { HOLD } from './hold.js';
 import { profileFor } from './coach.js';
@@ -46,7 +46,7 @@ export function muscleSets(state, muscle, now = new Date()) {
   return Math.round(n * 10) / 10;
 }
 
-// 그 부위를 직접 한 최근 세션 5번. PT · 세트 수 모름 · 가볍게 한 날은 평소 양이 아니라서 뺀다.
+// 그 부위를 직접 한 최근 세션 5번. PT, 세트 수 모름, 가볍게 한 날은 평소 양이 아니라서 뺀다.
 function directSessions(state, part) {
   return state.history.filter((h) => h.part === part && h.source !== 'pt' && !h.volumeUnknown && !h.light && +h.workSets > 0)
     .sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5);
@@ -166,7 +166,7 @@ function recentPT(state, part, now) {
 }
 
 // 오늘 컨디션. 컨디션 값은 그날 확인한 것만 믿는다: 어제 고른 근육통·피로가 오늘 추천을 움직이지 않게,
-// 오늘 확인하지 않은 항목은 기본값(보통 · 근육통 없음 · 통증 없음)으로 본다.
+// 오늘 확인하지 않은 항목은 기본값(보통, 근육통 없음, 통증 없음)으로 본다.
 // 시간·강도는 계획에 쓸 값으로 남기되, confirmed 에 없으면 시작할 때 다시 고르게 한다.
 export const CHECK_DEFAULTS = { energy: 'normal', upperDoms: 0, lowerDoms: 0, pain: 'none' };
 export const CHECK_KEYS = ['energy', 'upperDoms', 'lowerDoms', 'pain', 'minutes', 'intensity'];
@@ -218,7 +218,7 @@ export function recommendPart(state, now = new Date(), { extra = false } = {}) {
     if (sessionsWithin(state, p, POLICY.minGapHours, now)) v -= 6;
     if (recentPT(state, p, now)) v -= 3.5;
     score[p] = v;
-    detail.push(`${p.toUpperCase()}: ${d >= 99 ? '최근 기록 없음' : d + '일 전'} · 7일 ${sets}세트 · 볼륨 필요도 ${need.toFixed(2)}`);
+    detail.push(`${p.toUpperCase()}: ${d >= 99 ? '최근 기록 없음' : d + '일 전'}, 7일 ${sets}세트, 볼륨 필요도 ${need.toFixed(2)}`);
   }
   if (c.upperDoms >= 2) { score.push -= 2.5; score.pull -= 2; }
   if (c.lowerDoms >= 2) score.lower -= 4;
@@ -315,8 +315,8 @@ export function adjustedSetCount(state, profile, part, minutes, slot, now = new 
 }
 
 // 반환: { planned: [{ id, slot, sets, warmupLevel }], estimatedMinutes, emphasisHits }
-// emphasisHits: 강조 근육 운동 이름들. 0 · 1개면 종목을 늘리지 못했다고 미리보기에서 안내한다.
-// where.emphasis: 오늘 강조할 근육 목록. 강조 운동은 앞으로 · 세트 +1, 나머지 핵심은 2세트(유지),
+// emphasisHits: 강조 근육 운동 이름들. 0개나 1개면 종목을 늘리지 못했다고 미리보기에서 안내한다.
+// where.emphasis: 오늘 강조할 근육 목록. 강조 운동은 앞으로 오고 세트 +1, 나머지 핵심은 2세트(유지),
 // 보조 자리는 강조 근육 운동이 먼저(같은 역할의 두 번째 운동도 허용).
 export function buildPlan(state, part, minutes, now = new Date(), where = {}) {
   const used = new Set(), planned = [];

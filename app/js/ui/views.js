@@ -315,7 +315,7 @@ function gripChip(e) {
   const g = e.grip ? gripById(e.exerciseId, e.grip) : null;
   if (!g) return '';
   return `<button class="grip-chip" data-action="grip" data-uid="${e.uid}" data-testid="grip-chip"><span class="grip-thumb" aria-hidden="true">${gripArt(g, { arm: gripArm(e.exerciseId) })}</span>
-    <span class="grip-txt"><b>그립: ${esc(g.name)}</b><span class="tiny">주로 ${esc(muscleNames(e.primary))}. ${nw('눌러서 그림 보기와 바꾸기')}</span></span></button>`;
+    <span class="grip-txt"><b>그립: ${joinMeta(g.name.split(', '))}</b><span class="tiny">주로 ${esc(muscleNames(e.primary))}. ${nw('눌러서 그림 보기와 바꾸기')}</span></span></button>`;
 }
 
 // 그립 시트 본문. done: 이미 완료한 세트가 있으면 보기만 한다.
@@ -347,7 +347,7 @@ function guideHtml(e) {
   const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}>`;
   const gr = e.grip ? gripById(e.exerciseId, e.grip) : null;
   return `<details class="cue" data-testid="guide"><summary>운동 방법과 주의할 점</summary>
-    ${gr ? `<div class="guide-h">지금 그립: ${esc(gr.name)} (${esc(gr.hold)})</div>${list(gr.how, 'ul')}` : ''}
+    ${gr ? `<div class="guide-h">지금 그립: ${joinMeta(gr.name.split(', '))} ${nw(`(${esc(gr.hold)})`)}</div>${list(gr.how, 'ul')}` : ''}
     ${g ? `<div class="guide-h">하는 방법</div>${list(g.how, 'ol')}<div class="guide-h">주의할 점</div>${list(g.caution, 'ul')}` : '<div class="small">직접 만든 운동이라 설명이 없습니다. 메모에 자세 포인트를 적어 두세요.</div>'}
     ${e.cue ? `<div class="guide-h">내 체크 포인트</div><div>${esc(e.cue)}</div>` : ''}
     <div class="tiny" style="margin-top:6px">${[slotLabel(e.slot), muscles ? `주로 ${muscles}` : '', e.why].filter(Boolean).map(esc).join(', ')}</div></details>`;

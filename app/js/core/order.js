@@ -34,7 +34,7 @@ export function plannedPrefatigue(entries, idx) {
 
 // 실제 수행 기준: 이 운동 첫 본세트 완료 시각보다 먼저 끝난 다른 운동의 본세트.
 // items: [{ key, primary, secondary, sets }]. 반환: Map(key → { order, prefatigue }).
-// 시각이 없는 운동(한 줄 입력 · 계획대로 완료)이 섞이면 그 세션은 카드 순서로 센다.
+// 시각이 없는 운동(한 줄 입력이나 계획대로 완료)이 섞이면 그 세션은 카드 순서로 센다.
 export function actualOrder(items) {
   const firstAt = (it) => {
     const ts = mainsDone(it.sets).map((z) => z.doneAt).filter((t) => Number.isFinite(t));

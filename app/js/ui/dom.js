@@ -156,7 +156,7 @@ export async function choiceSheet(title, items, { note = '' } = {}) {
 
 // 숫자 입력 시트: 화면 키패드(Leap 방식, 폰 키보드를 띄우지 않는다) + 최근 칩.
 // recent: 최근 값 칩(누르면 그 값). combos: [{ label, weight, reps }] 무게 × 횟수 칩(누르면 둘 다).
-// 반환: 숫자 | null(비우기) | { weight, reps }(묶음 칩) | undefined(취소 · 잘못된 값).
+// 반환: 숫자 | null(비우기) | { weight, reps }(묶음 칩) | undefined(취소나 잘못된 값).
 export async function numberSheet(title, value, { step = 'any', suffix = '', zeroLabel = '', recent = [], combos = [] } = {}) {
   const chipRow = (label, items) => (items.length ? `<div class="tiny" style="margin-top:4px">${label}</div><div class="row recent-vals" style="margin:4px 0 8px">${items}</div>` : '');
   const chips = chipRow('최근 사용', combos.map((c, i) => `<button class="chip" data-sheet-value="c:${i}">${esc(c.label)}</button>`).join(''))

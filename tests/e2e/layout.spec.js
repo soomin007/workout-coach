@@ -1,4 +1,4 @@
-// 모바일 레이아웃 실측 (360 · 390 · 412). 가로 넘침, 좌우 여백, 터치 크기, 하단 고정 요소 가림.
+// 모바일 레이아웃 실측 (360, 390, 412). 가로 넘침, 좌우 여백, 터치 크기, 하단 고정 요소 가림.
 import { test, expect } from '@playwright/test';
 
 // 요일 고정: 일요일이면 '헬스장 휴무'로 집 세션이 되어 결과가 요일마다 달라진다 (known-issues 15). 시계는 그 시각부터 흐른다.
@@ -26,7 +26,7 @@ async function measure(page) {
   });
 }
 
-// 시작 전 확인 시트: 부위 · 컨디션 · 시간 · 강도를 고르고 시작한다.
+// 시작 전 확인 시트: 부위, 컨디션, 시간, 강도를 고르고 시작한다.
 async function fillStart(page, { part = null, energy = 'normal', minutes = 60, intensity = 'normal' } = {}) {
   const sh = page.locator('#sheet');
   if (part) await sh.locator(`.pick[data-k="part"] .chip[data-v="${part}"]`).click();
@@ -42,7 +42,7 @@ async function startPart(page, label, minutes) {
   await expect(page.getByTestId('session-head')).toBeVisible();
 }
 
-test('홈 · 기록 · 설정: 가로 넘침 없음, 카드 좌우 여백 확보', async ({ page }) => {
+test('홈, 기록, 설정: 가로 넘침 없음, 카드 좌우 여백 확보', async ({ page }) => {
   await page.goto('/');
   for (const tab of ['오늘', '운동', '기록', '설정']) {
     await page.locator('#tabs').getByRole('button', { name: tab }).click();
@@ -53,7 +53,7 @@ test('홈 · 기록 · 설정: 가로 넘침 없음, 카드 좌우 여백 확보
   }
 });
 
-test('세션: 일반 · 편측 · 좌우 분리 세트 행이 화면 안에 들어오고 터치 크기가 충분', async ({ page }) => {
+test('세션: 일반, 편측, 좌우 분리 세트 행이 화면 안에 들어오고 터치 크기가 충분', async ({ page }) => {
   await page.goto('/');
   await startPart(page, 'Lower', 60);
   await page.locator('section.ex[data-exercise="bulgarian"] .split-toggle').first().click();
@@ -64,7 +64,7 @@ test('세션: 일반 · 편측 · 좌우 분리 세트 행이 화면 안에 들�
   expect(m.smallTap).toEqual([]);
 });
 
-test('세션: 맨 아래 종료 버튼이 휴식 바 · 탭 바에 가리지 않는다', async ({ page }) => {
+test('세션: 맨 아래 종료 버튼이 휴식 바와 탭 바에 가리지 않는다', async ({ page }) => {
   await page.goto('/');
   await startPart(page, 'Push', 60);
   await page.locator('section.ex [data-action="done"]').first().click();

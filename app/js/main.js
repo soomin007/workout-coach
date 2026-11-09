@@ -9,7 +9,7 @@ import { replacementCandidates, recommendPart, todaysHistory } from './core/plan
 import { profileFor, lastPerformance, lighterThanUsual, recoverySuggested, RECOVERY } from './core/coach.js';
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, EMPHASIS, slotName } from './core/catalog.js';
 import { localISODate, fmtClock } from './core/util.js';
-import { esc, nw, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
+import { esc, nw, joinMeta, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
 import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
@@ -166,7 +166,7 @@ const actions = {
   'toggle-cond': () => { ui.condOpen = !ui.condOpen; render(); },
   why: () => {
     const r = recommendPart(store.state);
-    sheet(`<h3>추천 계산 자세히</h3><div class="small">${esc(r.why)} (신뢰도 ${esc(r.confidence || '-')})</div><ul class="reasons">${(r.detail || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul><div class="actions"><button class="btn" data-action="evidence-open" data-sheet-value="evidence">추천 근거</button><button class="btn primary" data-sheet-value="__cancel">닫기</button></div>`).then((v) => { if (v === 'evidence') sheet(evidenceHtml()); });
+    sheet(`<h3>추천 계산 자세히</h3><div class="small">${esc(r.why)} (신뢰도 ${esc(r.confidence || '-')})</div><ul class="reasons">${(r.detail || []).map((x) => `<li>${x.includes(', ') ? joinMeta(x.split(', ')) : esc(x)}</li>`).join('')}</ul><div class="actions"><button class="btn" data-action="evidence-open" data-sheet-value="evidence">추천 근거</button><button class="btn primary" data-sheet-value="__cancel">닫기</button></div>`).then((v) => { if (v === 'evidence') sheet(evidenceHtml()); });
   },
   'session-menu': () => sessionMenu(),
   'check-update': () => checkUpdate(),
@@ -618,6 +618,9 @@ async function holdSet(uid) {
   run((s) => T.recordHold(s, uid, i, r), () => (r.secs !== undefined ? `${r.secs}초 기록` : `왼쪽 ${r.left ?? '-'}초, 오른쪽 ${r.right ?? '-'}초 기록`));
 }
 
+// 토스트는 글만 받아 .nw 를 못 쓴다. 그립 이름은 항목 안의 공백을 줄바꿈 없는 공백으로 바꿔 쉼표 뒤에서만 꺾이게 한다.
+const tightName = (name) => String(name).split(', ').map((p) => p.split(' ').join(String.fromCharCode(0xA0))).join(', ');
+
 async function pickGrip(uid) {
   const e = entry(uid);
   const grips = gripsFor(e?.exerciseId);
@@ -625,7 +628,7 @@ async function pickGrip(uid) {
   const done = e.sets.some((z) => z.done);
   const v = await sheet(gripSheetHtml(e, grips, done));
   if (!v) return;
-  run((s) => T.setGrip(s, uid, v), (ne) => `${gripById(ne.exerciseId, ne.grip)?.name}(으)로 바꿨습니다. 처방도 이 그립 기록 기준입니다.`);
+  run((s) => T.setGrip(s, uid, v), (ne) => `${tightName(gripById(ne.exerciseId, ne.grip)?.name)}(으)로 바꿨습니다. 처방도 이 그립 기록 기준입니다.`);
 }
 
 async function confirmReplace(e) {

@@ -15,15 +15,15 @@ export const EQUIPMENT = {
   barbell: '바벨', shoulder_press: '숄더프레스 머신', dumbbell: '덤벨', cable: '케이블', pullup: '풀업바',
   lat_pulldown: '랫풀다운', cable_row: '케이블 로우', chest_supported_row: '가슴 패드 T바',
   iso_row: '아이소레터럴 로우 머신', rack: '스쿼트 랙', leg_curl: '레그컬', leg_extension: '레그 익스텐션', leg_press: '레그프레스',
-  abduction: '어브덕션 · 어덕션 머신', calf_machine: '카프 머신', ez_bar: '이지바', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
+  abduction: '어브덕션과 어덕션 머신', calf_machine: '카프 머신', ez_bar: '이지바', ankle_strap: '케이블 발목 스트랩', none: '장비 불필요',
 };
 // 있는지 확인하기 전까지는 없는 것으로 보는 장비. 설정에서 켜야 그 운동이 추천된다.
 const EQUIPMENT_OFF_BY_DEFAULT = ['ankle_strap'];
 export const hasEquipment = (equipment, k) => (EQUIPMENT_OFF_BY_DEFAULT.includes(k) ? equipment?.[k] === true : equipment?.[k] !== false);
 
-// 사용자 헬스장의 실제 무게 눈금 (10/22 · 10/23 메모). 눈금이 고르지 않은 기구만 적는다.
-// 덤벨은 20kg까지 2kg 단위이고 그 뒤로 26 · 30 · 35 · 40 이 있다. 덤벨 1개당 운동은 모두 이 눈금을 쓴다.
-// 힙 어브덕션 머신(벌리기 · 모으기 겸용)의 스택 표시값은 25 뒤로 7~8kg 간격이다.
+// 사용자 헬스장의 실제 무게 눈금 (10/22와 10/23 메모). 눈금이 고르지 않은 기구만 적는다.
+// 덤벨은 20kg까지 2kg 단위이고 그 뒤로 26, 30, 35, 40 이 있다. 덤벨 1개당 운동은 모두 이 눈금을 쓴다.
+// 힙 어브덕션 머신(벌리기와 모으기 겸용)의 스택 표시값은 25 뒤로 7~8kg 간격이다.
 export const LADDERS = {
   dumbbell: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 26, 30, 35, 40],
   abduction: [5, 10, 15, 20, 25, 32, 40, 47, 55, 62, 70, 78, 85, 92, 100],
@@ -44,14 +44,14 @@ export const PART_MUSCLES = {
   lower: ['quads', 'hamstring', 'glute'],
 };
 
-// 오늘 강조 부위 (시작 전 미리보기 칩). 고르면 그 근육 운동이 앞으로 오고 세트 · 보조 종목이 그쪽으로 몰린다.
-// 정책 15절 (RP 특화 · Fitbod 타깃 근육): 나머지는 줄이되 빼지 않는다.
+// 오늘 강조 부위 (시작 전 미리보기 칩). 고르면 그 근육 운동이 앞으로 오고 세트와 보조 종목이 그쪽으로 몰린다.
+// 정책 15절 (RP 특화, Fitbod 타깃 근육): 나머지는 줄이되 빼지 않는다.
 export const EMPHASIS = {
   push: [{ id: 'chest', label: '가슴', muscles: ['chest'] }, { id: 'shoulder', label: '어깨', muscles: ['front_delt', 'side_delt'] }, { id: 'triceps', label: '삼두', muscles: ['triceps'] }],
   pull: [{ id: 'lats', label: '광배', muscles: ['back'] }, { id: 'upper_back', label: '상부 등', muscles: ['upper_back'] }, { id: 'rear_delt', label: '후면 어깨', muscles: ['rear_delt'] }, { id: 'biceps', label: '이두', muscles: ['biceps'] }],
   lower: [{ id: 'quads', label: '앞 허벅지', muscles: ['quads'] }, { id: 'hamstring', label: '뒤 허벅지', muscles: ['hamstring'] }, { id: 'glute', label: '엉덩이', muscles: ['glute'] }],
 };
-// 한 주에 같은 부위를 두 번 할 때 번갈아 강조할 짝 (정책 15절). 시간이 나는 주에 가슴 날 · 어깨 날을 나누는 대신.
+// 한 주에 같은 부위를 두 번 할 때 번갈아 강조할 짝 (정책 15절). 시간이 나는 주에 가슴 날과 어깨 날을 나누는 대신.
 export const EMPHASIS_ALTERNATE = { push: ['chest', 'shoulder'] };
 export function emphasisMuscles(part, id) {
   return (EMPHASIS[part] || []).find((x) => x.id === id)?.muscles || [];
@@ -74,7 +74,7 @@ export const OPTIONAL_SLOTS = {
 export const EMPHASIS_SLOTS = {
   lower: ['glute_max'],
 };
-// 시간이 남으면 같은 패턴의 두 번째 운동을 넣을 자리 (정책 8절). 자극이 오는 굽히기 · 비틀기가 먼저.
+// 시간이 남으면 같은 패턴의 두 번째 운동을 넣을 자리 (정책 8절). 자극이 오는 굽히기와 비틀기가 먼저.
 export const SECOND_SLOTS = {
   core: ['core_flexion_lower', 'core_rotation', 'core_flexion', 'core_anti_extension'],
 };
@@ -84,7 +84,7 @@ export const SESSION_ORDER = {
   lower: ['squat', 'secondary_squat', 'unilateral', 'hamstring', 'secondary_lower', 'glute_max', 'glute_med', 'calf'],
   core: ['core_flexion', 'core_flexion_lower', 'core_rotation', 'core_anti_extension', 'core_anti_rotation', 'core_lateral', 'stretch'],
 };
-// 남는 시간에 맨몸 스트레칭을 붙이는 부위 (정책 22절). 스트레칭은 세트 수 · 처방 진행 · 근육 볼륨에 넣지 않는다.
+// 남는 시간에 맨몸 스트레칭을 붙이는 부위 (정책 22절). 스트레칭은 세트 수, 처방 진행, 근육 볼륨에 넣지 않는다.
 export const STRETCH_PARTS = ['core'];
 export const isStretch = (x) => x?.role === 'stretch';
 export const SLOT_COMPAT = {
@@ -121,8 +121,8 @@ export const slotName = (x) => SLOT_LABEL[x] || String(x || '').replaceAll('_', 
 export const DB = {
   push: [
     { id: 'bench', name: '바벨 벤치프레스', role: 'horizontal_push', primary: ['chest'], secondary: ['triceps', 'front_delt'], sets: 3, range: [6, 8], rest: 180, inc: 5, mode: 'total', priority: 100, equipment: 'bench_rack', compound: true, why: '가슴 메인 수평 프레스', cue: '견갑을 고정하고 전완이 바닥과 수직에 가깝게. 전면어깨/삼두만 강하면 그립·터치 위치를 점검.' },
-    // 2026-10-27 추가: 헬스장(작은 PT 샵)에 확실히 있는 장비로 하는 운동. 기존 운동보다 순위를 낮춰 교체 후보 · 강조 날 운동으로 쓰인다.
-    // 덤벨 벤치 · 인클라인 덤벨 플라이는 55: 지난번에 한 케이블 플라이(90/20 - 1.5 = 3.0)를 로테이션으로 밀어내지 않는 값.
+    // 2026-10-27 추가: 헬스장(작은 PT 샵)에 확실히 있는 장비로 하는 운동. 기존 운동보다 순위를 낮춰 교체 후보와 강조 날 운동으로 쓰인다.
+    // 덤벨 벤치와 인클라인 덤벨 플라이는 55: 지난번에 한 케이블 플라이(90/20 - 1.5 = 3.0)를 로테이션으로 밀어내지 않는 값.
     { id: 'db_bench', name: '덤벨 벤치프레스', role: 'horizontal_push', primary: ['chest'], secondary: ['triceps', 'front_delt'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 55, equipment: 'dumbbell_bench', compound: true, why: '바벨 벤치가 찼을 때의 수평 프레스. 양손이 따로 움직여 좌우 차이가 드러난다' },
     { id: 'incline_db', name: '덤벨 인클라인 프레스', role: 'secondary_chest_press', primary: ['chest'], secondary: ['front_delt', 'triceps'], sets: 3, range: [8, 10], rest: 150, inc: 2, mode: 'per_dumbbell', priority: 92, equipment: 'dumbbell_bench', compound: true, why: '상부가슴 보완 프레스' },
     { id: 'chest_press', name: '체스트프레스 머신', role: 'secondary_chest_press', primary: ['chest'], secondary: ['triceps'], sets: 3, range: [8, 12], rest: 120, inc: 5, mode: 'machine', priority: 90, equipment: 'chest_press', compound: true, why: '안정적으로 가슴 볼륨 확보' },
@@ -134,7 +134,7 @@ export const DB = {
     { id: 'cable_lateral', name: '케이블 레터럴레이즈', role: 'lateral_delt', primary: ['side_delt'], secondary: [], sets: 3, range: [12, 20], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 82, equipment: 'cable', why: '측면삼각근 지속 장력' },
     { id: 'pushdown', name: '트라이셉 푸시다운', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 95, equipment: 'cable', why: '삼두 직접 볼륨' },
     { id: 'oh_cable_ext', name: '오버헤드 케이블 익스텐션', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 5, start: 5, mode: 'machine', priority: 70, equipment: 'cable', why: '팔을 머리 위로 올려 삼두 긴 갈래를 늘린 채 자극' },
-    // 덤벨 · 이지바 삼두 (2026-10-27): 케이블이 찼을 때의 교체 후보, 삼두 강조 날의 두 번째 운동. 오버헤드 자세가 긴 갈래를 더 키운다(Maeo 2022).
+    // 덤벨과 이지바 삼두 (2026-10-27): 케이블이 찼을 때의 교체 후보, 삼두 강조 날의 두 번째 운동. 오버헤드 자세가 긴 갈래를 더 키운다(Maeo 2022).
     { id: 'db_oh_ext', name: '덤벨 오버헤드 익스텐션', role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [10, 15], rest: 75, inc: 2, mode: 'per_dumbbell', priority: 66, equipment: 'dumbbell', why: '덤벨 하나를 두 손으로 머리 위에 들어 삼두 긴 갈래를 늘린 채 자극' },
     // 원판 끼우는 이지바, 빈 바 10kg (10/27 사용자 확인). 무게는 바와 원판을 합친 총중량, 원판 2.5kg × 양쪽 = 5kg 단위.
     { id: 'skull_crusher', name: '이지바 스컬 크러셔', aliases: ['라잉 트라이셉 익스텐션'], role: 'triceps', primary: ['triceps'], secondary: [], sets: 2, range: [8, 12], rest: 90, inc: 5, start: 10, mode: 'total', priority: 64, equipment: 'ez_bar', why: '벤치에 누워 이지바를 이마 뒤로 내렸다 펴는 삼두 운동' },
@@ -186,7 +186,7 @@ export const DB = {
     { id: 'calf', name: '한발 카프레이즈', role: 'calf', primary: ['calf'], secondary: [], sets: 2, range: [12, 20], rest: 60, inc: 0, mode: 'bodyweight', priority: 75, equipment: 'none', unilateral: true, why: '종아리 보완', cue: '반동 없이 천천히. 통증/잠김/불안정이 있으면 중단.' },
   ],
   core: [
-    // 2026-10-04 개편 (정책 8절): 굽히는 운동(윗배 · 아랫배)을 핵심으로, 버티기(항신전 · 항측굴)는 그 뒤에. 동작이 있는 운동을 먼저.
+    // 2026-10-04 개편 (정책 8절): 굽히는 운동(윗배와 아랫배)을 핵심으로, 버티기(항신전과 항측굴)는 그 뒤에. 동작이 있는 운동을 먼저.
     { id: 'crunch', name: '크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 3, range: [12, 20], rest: 45, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', why: '윗배(복직근) 직접 자극. 복직근 활성이 가장 높은 기본 동작' },
     { id: 'cable_crunch', name: '케이블 크런치', role: 'core_flexion', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 60, inc: 5, start: 5, mode: 'machine', priority: 95, equipment: 'cable', why: '무게를 올려 가며 진행할 수 있는 윗배 운동' },
     { id: 'reverse_crunch', name: '리버스 크런치', aliases: ['리버스 크런치 / 레그레이즈'], role: 'core_flexion_lower', primary: ['core'], secondary: [], sets: 3, range: [10, 15], rest: 45, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', why: '아랫배: 골반을 말아 올리는 동작' },
@@ -204,7 +204,7 @@ export const DB = {
     { id: 'pallof', name: '팰로프 프레스', role: 'core_anti_rotation', primary: ['core'], secondary: [], sets: 2, range: [10, 12], rest: 45, inc: 5, start: 5, mode: 'machine', priority: 90, equipment: 'cable', unilateral: true, why: '케이블 당김에 버티는 항회전' },
     { id: 'side_plank', name: '사이드 플랭크', role: 'core_lateral', primary: ['core'], secondary: [], sets: 2, range: [15, 40], measure: 'seconds', rest: 45, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '옆구리 항측굴 (McGill 빅3)' },
     // 2026-11-01 추가(정책 22절): 코어 날 남는 시간에 붙이는 맨몸 정적 스트레칭. PT 선생님이 햄스트링이 뻣뻣하다고 했다.
-    // primary 를 비워 근육별 주간 세트에 들어가지 않게 하고, 늘리는 근육은 stretches 에 적는다(근육 지도 · 운동 목록 표시용).
+    // primary 를 비워 근육별 주간 세트에 들어가지 않게 하고, 늘리는 근육은 stretches 에 적는다(근육 지도와 운동 목록 표시용).
     // 허리 이력이 있어 서서 상체를 숙이는 자세는 넣지 않았다. 누워서 하면 허리를 바닥에 둔 채 다리만 움직인다.
     { id: 'hamstring_stretch_lying', name: '누워서 햄스트링 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['hamstring'], sets: 3, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 100, equipment: 'none', unilateral: true, why: '뒤 허벅지 스트레칭. 누워서 손으로 허벅지를 받치므로 도구가 없어도 되고 허리를 숙이지 않는다' },
     { id: 'hamstring_stretch_wall', name: '벽에 다리 올려 햄스트링 스트레칭', role: 'stretch', primary: [], secondary: [], stretches: ['hamstring'], sets: 2, range: [30, 60], measure: 'seconds', rest: 10, inc: 0, mode: 'bodyweight', priority: 90, equipment: 'none', unilateral: true, why: '손을 쓰지 않고 벽이나 문틀에 다리를 기대 오래 버티는 뒤 허벅지 스트레칭' },

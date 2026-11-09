@@ -1,4 +1,4 @@
-// 코어 날 스트레칭 (정책 22절): 남는 시간을 채우고, 세트 수 · 처방 진행 · 근육 볼륨에는 넣지 않는다.
+// 코어 날 스트레칭 (정책 22절): 남는 시간을 채우고, 세트 수, 처방 진행, 근육 볼륨에는 넣지 않는다.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { freshState } from '../../app/js/core/schema.js';

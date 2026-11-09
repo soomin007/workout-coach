@@ -1,4 +1,4 @@
-// 사용자 헬스장의 무게 눈금 (10/22 · 10/23 메모), 강도 가볍게 문구, 워밍업 이어받기 (10/21 메모), 카탈로그로 옮기기.
+// 사용자 헬스장의 무게 눈금 (10/22와 10/23 메모), 강도 가볍게 문구, 워밍업 이어받기 (10/21 메모), 카탈로그로 옮기기.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { freshState, normalizeState } from '../../app/js/core/schema.js';
@@ -25,7 +25,7 @@ test('눈금: 덤벨은 20 다음이 26, 어브덕션 스택은 25 다음이 32'
   assert.equal(stepW(50, 1, { inc: 7.5, start: 5 }), 57.5);
 });
 
-test('덤벨 1개당 운동은 덤벨 눈금, 어브덕션 · 어덕션은 스택 눈금을 쓴다', () => {
+test('덤벨 1개당 운동은 덤벨 눈금, 어브덕션과 어덕션은 스택 눈금을 쓴다', () => {
   const s = freshState();
   assert.deepEqual(profileFor(s, 'bulgarian').ladder, LADDERS.dumbbell);
   assert.deepEqual(profileFor(s, 'abduction').ladder, LADDERS.abduction);
@@ -136,7 +136,7 @@ test('아이소레터럴 로우는 한쪽당 원판, 증량은 원판 한 장(2.
   assert.equal(p.inc, 2.5);
 });
 
-test('시티드 로우 스택도 랫풀다운처럼 5에서 시작해 7.5씩: 가볍게 · 무게 찾기 · 감량이 35 · 42.5 · 50 에 떨어진다 (10/26 메모)', () => {
+test('시티드 로우 스택도 랫풀다운처럼 5에서 시작해 7.5씩: 가볍게, 무게 찾기, 감량이 35, 42.5, 50 에 떨어진다 (10/26 메모)', () => {
   const s = freshState();
   s.performance.push({ ...rec('2026-10-26', 'row', [set(42.5, 12), set(42.5, 12)]), part: 'pull' });
   const p = profileFor(s, 'row');

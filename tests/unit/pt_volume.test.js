@@ -43,7 +43,7 @@ test('강조 없이 기록한 PT 는 평소 같은 부위 세션의 근육 비�
   assert.ok(Math.abs(total - 12) < 0.3);
 });
 
-test('어깨 강조 PT 는 세트의 절반을 전면 · 측면 어깨에 나눠 준다', () => {
+test('어깨 강조 PT 는 세트의 절반을 전면과 측면 어깨에 나눠 준다', () => {
   const s = pushState();
   T.logPT(s, { date: '2026-10-15', parts: ['push'], emphasis: { push: 'shoulder' } });
   assert.equal(s.history.at(-1).emphasis, 'shoulder');
