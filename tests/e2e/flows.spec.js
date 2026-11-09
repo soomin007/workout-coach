@@ -360,7 +360,7 @@ test('버튼으로 시트를 닫은 뒤 이어서 연 시트도 뒤로가기로 
 });
 
 test('홈: 컨디션이 추천보다 위, 추천 이유는 문장으로, 부족한 근육만 먼저', async ({ page }) => {
-  const order = await page.evaluate(() => [...document.querySelectorAll('#view .card')].map((c) => c.querySelector('.kicker')?.textContent || c.querySelector('h3')?.textContent));
+  const order = await page.evaluate(() => [...document.querySelectorAll('#view .card')].map((c) => c.querySelector('h3, .hero-note')?.textContent));
   expect(order.slice(0, 2)).toEqual(['오늘 컨디션', '오늘 추천']);
   await expect(page.locator('.reasons li').first()).not.toContainText('필요도');
   await expect(page.locator('select[data-k="minutes"]')).toHaveCount(0);
@@ -879,7 +879,7 @@ test('가볍게 한 날: 평소보다 확실히 가벼우면 완료 때 묻고, 
   await c.getByRole('button', { name: '계획대로 완료' }).click();
   await page.locator('[data-action="finish"]').first().click();
   await expect(sheet(page)).toContainText('가볍게 한 날인가요');
-  await expect(sheet(page)).toContainText('평소 12kg → 오늘 4kg');
+  await expect(sheet(page)).toContainText('평소 12kg, 오늘 4kg');
   await sheet(page).getByRole('button', { name: '위 운동만 가볍게 저장' }).click();
   await sheet(page).getByRole('button', { name: '확인' }).click();
   const s1 = await st(page);

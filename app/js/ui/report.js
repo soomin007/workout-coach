@@ -85,7 +85,7 @@ function sessionPoint(p) {
   const weighted = mains.filter((z) => z.weight > 0 && !sec);
   if (weighted.length) {
     const best = weighted.map((z) => ({ z, e: estimate1RM(z.weight, setReps(z), z.rir) })).filter((x) => x.e).sort((a, b) => b.e - a.e)[0];
-    if (best) return { v: Math.round(best.e * 10) / 10, kind: 'e1rm', text: `${best.z.weight}kg × ${setReps(best.z)}회 → 추정 최대 ${Math.round(best.e)}kg` };
+    if (best) return { v: Math.round(best.e * 10) / 10, kind: 'e1rm', text: `${best.z.weight}kg × ${setReps(best.z)}회, 추정 최대 ${Math.round(best.e)}kg` };
   }
   const r = Math.max(...mains.map(setReps));
   return { v: r, kind: sec ? 'sec' : 'reps', text: `최고 ${r}${sec ? '초' : '회'}` };

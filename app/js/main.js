@@ -140,7 +140,7 @@ const actions = {
     const e = entry(d.uid); const z = e?.sets[+d.i];
     if (!z) return;
     const title = d.f === 'weight' ? `${e.name} 중량 (kg)` : `${e.name} ${d.f === 'leftReps' ? '왼쪽 ' : d.f === 'rightReps' ? '오른쪽 ' : ''}${e.measure === 'seconds' ? '시간(초)' : '반복'}`;
-    const zeroLabel = d.f === 'weight' && e.loadMode === 'plates' ? '양쪽에 꽂은 원판을 더한 무게입니다. 예: 한쪽 20 + 20 → 40. 원판이 없으면 0 (빈 기구).' : d.f === 'weight' && EMPTY_OK.includes(e.loadMode) ? '원판을 하나도 안 꽂았으면 0 을 입력하세요 (빈 기구).' : d.f === 'weight' && e.loadMode === 'assist' ? '보조중량: 몸무게를 덜어 주는 무게입니다. 숫자가 클수록 쉽습니다.' : '';
+    const zeroLabel = d.f === 'weight' && e.loadMode === 'plates' ? '양쪽에 꽂은 원판을 더한 무게입니다. 예: 한쪽 20 + 20 = 40. 원판이 없으면 0 (빈 기구).' : d.f === 'weight' && EMPTY_OK.includes(e.loadMode) ? '원판을 하나도 안 꽂았으면 0 을 입력하세요 (빈 기구).' : d.f === 'weight' && e.loadMode === 'assist' ? '보조중량: 몸무게를 덜어 주는 무게입니다. 숫자가 클수록 쉽습니다.' : '';
     const combos = d.f === 'weight' && !z.split ? recentCombos(e) : [];
     const v = await numberSheet(title, z[d.f], { step: d.f === 'weight' ? 'any' : '1', zeroLabel, recent: d.f === 'weight' ? recentWeights(e) : [], combos });
     if (v === undefined) return;
@@ -653,7 +653,7 @@ async function swapExercise(uid) {
   if (id === '__unavail' || id === '__unavail-perm') {
     if (T.entryHasUserData(e) && e.sets.some((z) => !z.done && z.touched) && !(await confirmSheet('아직 완료하지 않은 입력값은 버리고 교체합니다. 계속할까요?'))) return;
     const name = e.name;
-    return run((s) => T.markUnavailable(s, uid, { persistent: id === '__unavail-perm' }), (ne) => (ne ? `${name} → ${ne.name}` : '같은 동작의 대체 운동이 없습니다. 운동 변경이나 자동 보완을 써 보세요.'));
+    return run((s) => T.markUnavailable(s, uid, { persistent: id === '__unavail-perm' }), (ne) => (ne ? `${name} 대신 ${ne.name}(으)로 바꿨습니다.` : '같은 동작의 대체 운동이 없습니다. 운동 변경이나 자동 보완을 써 보세요.'));
   }
   if (!(await confirmReplace(e))) return;
   run((s) => T.replaceExercise(s, uid, id), (ne) => `${ne.name}(으)로 바꿨습니다.`);
@@ -759,7 +759,7 @@ async function finishSession() {
   let lightExercises = null;
   const lt = s.recovery ? { suggest: false } : lighterThanUsual(store.state, s);
   if (lt.suggest) {
-    const rows = lt.lighter.map((x) => `<div class="small"><b>${esc(x.name)}</b> 평소 ${x.was}kg → 오늘 ${x.now}kg</div>`).join('');
+    const rows = lt.lighter.map((x) => `<div class="small"><b>${esc(x.name)}</b> 평소 ${x.was}kg, 오늘 ${x.now}kg</div>`).join('');
     const v = await sheet(`<h3>오늘은 가볍게 한 날인가요?</h3>${rows}<p class="small">가볍게 저장하면 위 운동만 다음 무게를 평소 기록에서 이어 잡습니다. 나머지 운동은 오늘 기록으로 처방합니다. 기록과 주간 세트에는 모두 남습니다.</p>
       ${listHtml([{ value: 'light', label: '위 운동만 가볍게 저장' }, { value: 'normal', label: '평소 기록으로 저장 (다음 처방에 반영)' }])}`);
     if (!v) return;
@@ -824,7 +824,7 @@ async function onImportFile(ev) {
   if (store.state.session && T.sessionHasUserData(store.state) && !(await confirmSheet('진행 중인 세션이 있습니다. 백업으로 덮어쓸까요?', { ok: '덮어쓰기', danger: true }))) return;
   try {
     const notes = store.importJSON(await f.text());
-    await sheet(`<h3>복원 완료</h3>${notes.map((n) => `<div class="small">· ${esc(n)}</div>`).join('') || '<div class="small">그대로 복원했습니다.</div>'}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
+    await sheet(`<h3>복원 완료</h3>${notes.length ? `<ul class="reasons">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : '<div class="small">그대로 복원했습니다.</div>'}<div class="actions"><button class="btn primary" data-sheet-value="ok">확인</button></div>`);
   } catch (e) {
     toast(e.message || '복원하지 못했습니다.', 4000);
   }

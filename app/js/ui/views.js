@@ -51,8 +51,8 @@ export function renderToday(state, ui, now = new Date()) {
   const reasons = explainRecommendation(state, r, now);
   return `
   <section class="card">
-    <div class="kicker">오늘 컨디션</div>
-    <div class="row" style="margin-top:6px">${ENERGY.map(([v, l]) => `<button class="chip${ok.includes('energy') && c.energy === v ? ' on' : ''}" data-action="energy" data-v="${v}">${l}</button>`).join('')}</div>
+    <h3>오늘 컨디션</h3>
+    <div class="row">${ENERGY.map(([v, l]) => `<button class="chip${ok.includes('energy') && c.energy === v ? ' on' : ''}" data-action="energy" data-v="${v}">${l}</button>`).join('')}</div>
     <button class="cond-summary" data-action="toggle-cond" aria-expanded="${ui.condOpen ? 'true' : 'false'}"><span>${joinMeta(summary)}</span><span class="tiny nw">${ui.condOpen ? '접기' : '바꾸기'}</span></button>
     ${ui.condOpen ? `<div class="grid2" style="margin-top:8px">
       <label class="field">상체 근육통<select data-action="check" data-k="upperDoms">${DOMS.map(([v, l]) => opt(v, l, c.upperDoms)).join('')}</select></label>
@@ -64,8 +64,8 @@ export function renderToday(state, ui, now = new Date()) {
     </div>` : ''}
   </section>
   <section class="card hero">
-    <div class="hero-top"><div><div class="kicker">오늘 추천</div>
-      <div class="title" data-testid="rec-title">${esc(REC_LABEL[r.part])}</div></div>${PART_OPTS.includes(r.part) ? heroMap([r.part]) : ''}</div>
+    <div class="hero-top"><div>
+      <div class="title" data-testid="rec-title">${esc(REC_LABEL[r.part])}</div><div class="small hero-note">오늘 추천</div></div>${PART_OPTS.includes(r.part) ? heroMap([r.part]) : ''}</div>
     <ul class="reasons">${reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
     <div class="row" style="margin-top:12px">
       ${PART_OPTS.includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-home="${r.home ? 1 : 0}">${r.home ? '집에서 ' : ''}${esc(REC_LABEL[r.part])} 시작</button>` : ''}
@@ -94,13 +94,13 @@ function renderDoneToday(state, now) {
   const extraBtn = PART_OPTS.includes(x.part)
     ? `<button class="btn" data-action="start" data-part="${x.part}" data-extra="1" data-home="${x.home ? 1 : 0}">추가로 ${esc(REC_LABEL[x.part])} 하기</button>` : '';
   return `<section class="card hero done" data-testid="done-today">
-    <div class="hero-top"><div><div class="kicker">오늘 운동 완료</div>
+    <div class="hero-top"><div>
       <div class="title" data-testid="rec-title">${parts.map((p, i) => nw(`${esc(PART_LABEL[p])}${i < parts.length - 1 ? ',' : ' 완료'}`)).join(' ')}</div></div>${heroMap(parts)}</div>
     <ul class="reasons">${lines}</ul>
     <div class="small" style="margin-top:10px">오늘 할 운동은 끝났습니다. 이제는 회복이 다음 운동을 만듭니다.</div>
     <div class="sep"></div>
-    <div class="kicker">추가 운동을 할까요?</div>
-    <div class="small" style="margin-top:4px">${x.part === 'rest' ? esc(x.why) : '한다면 오늘 안 한 부위를 짧게 권합니다.'}</div>
+    <h3>추가 운동을 할까요?</h3>
+    <div class="small">${x.part === 'rest' ? esc(x.why) : '한다면 오늘 안 한 부위를 짧게 권합니다.'}</div>
     <div class="row" style="margin-top:10px">${extraBtn}<button class="btn ghost" data-action="start-manual" data-extra="1">다른 부위 고르기</button><button class="btn ghost" data-action="pt">PT 기록</button></div>
   </section>`;
 }
@@ -200,7 +200,7 @@ function renderSetRow(e, z, i, mainNo, isNext) {
   const toggle = e.unilateral && !warm ? `<button class="split-toggle" data-action="split" data-uid="${e.uid}" data-i="${i}" data-on="${z.split ? 0 : 1}">${z.split ? '좌우 같게' : '좌우 다르게 입력'}</button>` : '';
   const cls = `set ${z.type}${z.heavy === 'top' ? ' top' : ''}${z.done ? ' done' : ''}${isNext ? ' next' : ''}`;
   const noBtn = `<button class="no" data-action="set-menu" data-uid="${e.uid}" data-i="${i}" aria-label="세트 ${no} 메뉴">${no}${z.rir !== null && !warm ? `<small>R${z.rir}</small>` : ''}</button>`;
-  const doneBtn = `<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료" aria-pressed="${z.done}">${z.done ? '✓' : ''}</button>`;
+  const doneBtn = `<button class="done-btn" data-action="done" data-uid="${e.uid}" data-i="${i}" aria-label="세트 완료" aria-pressed="${z.done}">${z.done ? iconSvg('check', 'ico') : ''}</button>`;
   if (z.split) return `<div class="${cls}" data-set="${i}">${doneBtn}${noBtn}${w}<span></span>${repsBlock}${toggle}</div>`;
   return `<div class="${cls}" data-set="${i}">${doneBtn}${noBtn}${w}${repsBlock}${toggle}</div>`;
 }
@@ -214,7 +214,7 @@ function renderExercise(state, e, idx, ui, next) {
   if (allDone && (e.effort || stretch) && !ui.expanded?.has(e.uid)) {
     const memo = (e.memo || '').trim().split('\n')[0];
     return `<section class="card ex collapsed" data-uid="${e.uid}" data-exercise="${esc(e.exerciseId)}">
-      <div class="fold-row"><button class="ex-fold" data-action="expand" data-uid="${e.uid}"><span class="ex-title"><span class="ok">✓</span> ${idx + 1}. ${esc(e.name)}</span>
+      <div class="fold-row"><button class="ex-fold" data-action="expand" data-uid="${e.uid}"><span class="ex-title"><span class="ok">${iconSvg('check', 'ico')}</span> ${idx + 1}. ${esc(e.name)}</span>
       <span class="small" data-testid="ex-summary">${joinMeta([...mains.map((z) => setSummary(e, z)), ...(e.effort ? [EFFORT_LABEL[e.effort]] : [])])}</span>${memo ? `<span class="fold-memo" data-testid="fold-memo">메모: ${esc(memo)}</span>` : ''}</button>
       <button class="btn sm ghost fold-memo-btn" data-action="memo" data-uid="${e.uid}" data-testid="fold-memo-btn">${iconSvg('memo')}${memo ? '메모 수정' : '메모'}</button></div></section>`;
   }
@@ -223,7 +223,7 @@ function renderExercise(state, e, idx, ui, next) {
   // 항목 안이 아니라 항목 사이에서만 꺾는다(320 폭에서 '휴식 / 90초', '덤벨 / 1개당'으로 꺾였다). 쉼표는 앞 덩어리 끝에 붙인다.
   const restTodayOn = e.restToday !== null && e.restToday !== e.rest;
   const metaGoal = e.heavy
-    ? `${nw('<b class="heavy-tag">무거운 날</b>')} ${nw(`톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회 →`)} ${nw(`백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회,`)}`
+    ? `${nw('<b class="heavy-tag">무거운 날</b>')} ${nw(`톱세트 ${HEAVY.top[0]}~${HEAVY.top[1]}회,`)} ${nw(`백오프 ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회,`)}`
     : nw(`목표 ${e.range[0]}~${e.range[1]}${unitOf(e)},`);
   const exMeta = `${metaGoal} ${nw(`휴식 ${restNow}초${restTodayOn ? '' : ','}`)}${restTodayOn ? ` ${nw('(오늘),')}` : ''} ${nw(esc(MODE_LABEL[e.loadMode] || e.loadMode))}`;
   let mainNo = 0;
@@ -245,7 +245,7 @@ function renderExercise(state, e, idx, ui, next) {
       <div class="ex-head-txt"><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
       <div class="ex-progress" data-testid="ex-progress">${mains.filter((z) => z.done).length}/${mains.length} 완료</div>
       <div class="ex-meta">${exMeta}</div></div>
-      <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">⋯</button></div>
+      <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">${iconSvg('more', 'ico')}</button></div>
     </div>
     ${gripChip(e)}
     ${holdButton(e, allDone)}
@@ -293,12 +293,12 @@ function previewCard(state, s, now) {
   }).join('');
   const total = s.exercises.reduce((a, e) => a + e.sets.filter((z) => z.type !== 'warmup').length, 0);
   return `<section class="card preview" data-testid="preview">
-    <div class="pv-top"><div><div class="kicker">시작 전 확인</div><h2>운동 ${s.exercises.length}개</h2><div class="small">${joinMeta([`예상 ${s.estimatedMinutes}분`, `본세트 ${total}개`])}</div></div><div class="pv-map">${bodyMap({ primary: prim, secondary: sec })}</div></div>
+    <div class="pv-top"><div><h2>시작 전 확인</h2><div class="small">${joinMeta([`운동 ${s.exercises.length}개`, `예상 ${s.estimatedMinutes}분`, `본세트 ${total}개`])}</div></div><div class="pv-map">${bodyMap({ primary: prim, secondary: sec })}</div></div>
     ${emphasisRow(s)}
     <ol class="pv-list">${items}</ol>
     ${keptLine(state, s, now)}
     <div class="pv-actions"><button class="btn" data-action="regen" data-testid="preview-regen">다시 추천</button><button class="btn primary" data-action="begin" data-testid="preview-go">시작</button></div>
-    <div class="tiny" data-testid="preview-help"><span class="nw">시간이나 컨디션은</span> <span class="nw">맨 위 ⋯ 의 '오늘 설정 바꾸기'로,</span> <span class="nw">운동은</span> <span class="nw">아래 카드의 ⋯ 로 바꿉니다.</span> <span class="nw">첫 세트를 체크해도</span> <span class="nw">바로 시작됩니다.</span></div>
+    <div class="tiny" data-testid="preview-help"><span class="nw">시간이나 컨디션은</span> <span class="nw">맨 위 점 세 개 메뉴의 '오늘 설정 바꾸기'로,</span> <span class="nw">운동은</span> <span class="nw">아래 카드의 점 세 개 메뉴로 바꿉니다.</span> <span class="nw">첫 세트를 체크해도</span> <span class="nw">바로 시작됩니다.</span></div>
   </section>`;
 }
 
@@ -367,12 +367,12 @@ export function renderSession(state, ui, now = new Date()) {
   return `
   <section class="card session-top" data-testid="session-head">
     <div class="session-head">
-      <div><div class="kicker" data-testid="session-mode">${joinMeta(mode)}</div><h2>${esc(PART_LABEL[s.part])}</h2></div>
+      <div><h2>${esc(PART_LABEL[s.part])}</h2><div class="small" data-testid="session-mode">${joinMeta(mode)}</div></div>
       <div class="head-right"><div class="clock${s.timer.running ? '' : ' paused'}" id="sessionClock">${fmtClock(timerSeconds(s.timer, now.getTime()))}</div>${s.timer.running ? '' : s.ready ? '<div class="small paused-label">시작 전</div>' : '<div class="small paused-label" data-testid="timer-paused">일시정지됨, 세트를 끝내면 다시 갑니다</div>'}
         <div class="row" style="flex-wrap:nowrap;justify-content:flex-end">
-          <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${s.timer.running ? '❚❚' : '▶'}</button>
+          <button class="btn sm ghost" data-action="timer" aria-label="${s.timer.running ? '일시정지' : '재개'}">${iconSvg(s.timer.running ? 'pause' : 'play', 'ico')}</button>
           <button class="btn sm ghost${ui.wakeLock ? ' lit' : ''}" data-action="wakelock" data-testid="wakelock" aria-pressed="${ui.wakeLock ? 'true' : 'false'}">${ui.wakeLock ? '화면 유지 중' : '화면 유지'}</button>
-          <button class="btn sm ghost" data-action="session-menu" aria-label="세션 메뉴">⋯</button>
+          <button class="btn sm ghost" data-action="session-menu" aria-label="세션 메뉴">${iconSvg('more', 'ico')}</button>
         </div></div>
     </div>
     <div class="small session-meta" data-testid="session-meta">${joinMeta([`예상 ${s.estimatedMinutes}분`, `운동 ${s.exercises.length}개`, `본세트 ${work}/${total}`])}</div>
@@ -452,7 +452,7 @@ export function renderSettings(state, ui) {
   const st = state.settings;
   const goal = st.goal || 'hypertrophy';
   const goalCard = `<section class="card"><h3>목표</h3><div class="small">운동마다 목표 횟수 범위가 바뀝니다. 운동별로 직접 정한 범위가 있으면 그것이 우선입니다.</div>
-    <div class="goal-list">${Object.entries(GOALS).map(([k, l]) => `<button class="goal-opt${goal === k ? ' on' : ''}" data-action="goal" data-v="${k}" aria-pressed="${goal === k}"><b>${l}</b><span class="small">${GOAL_HINT[k]}</span>${goal === k ? '<span class="goal-check">✓</span>' : ''}</button>`).join('')}</div></section>`;
+    <div class="goal-list">${Object.entries(GOALS).map(([k, l]) => `<button class="goal-opt${goal === k ? ' on' : ''}" data-action="goal" data-v="${k}" aria-pressed="${goal === k}"><b>${l}</b><span class="small">${GOAL_HINT[k]}</span>${goal === k ? `<span class="goal-check">${iconSvg('check', 'ico')}</span>` : ''}</button>`).join('')}</div></section>`;
   const days = [['none', '고정 없음'], [1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토']];
   const equip = Object.entries(EQUIPMENT).filter(([k]) => k !== 'none').map(([k, n]) => `<label class="setting"><span>${esc(n)}</span><input type="checkbox" data-action="equip" data-k="${k}"${hasEquipment(st.equipment, k) ? ' checked' : ''}></label>`).join('');
   const unav = (st.unavailableExercises || []).map((id) => `<div class="setting"><span>${esc(catalogById(id)?.name || state.customExercises.find((c) => c.id === id)?.name || id)}</span><button class="btn sm" data-action="unavail-remove" data-id="${esc(id)}">다시 사용</button></div>`).join('') || '<div class="small">없음</div>';

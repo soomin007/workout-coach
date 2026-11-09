@@ -1,6 +1,6 @@
 // 운동 탭(라이브러리)과 운동 상세 시트. 운동 중이 아닐 때도 설명, 근육, 그립, 지난 기록을 본다 (2026-10-03 사용자 요청).
 // 화면 구성은 Leap 앱의 운동 탭과 운동 상세(설명과 기록)를 따른다 (docs/LEAP_UI_PLAN.md).
-import { esc, nw } from './dom.js';
+import { esc, iconSvg, nw } from './dom.js';
 import { ALL_CATALOG, EQUIPMENT, MUSCLE_LABEL, LOAD_MODES } from '../core/catalog.js';
 import { profileFor, prescribeForOrder } from '../core/coach.js';
 import { isAvailable } from '../core/plan.js';
@@ -104,7 +104,7 @@ export function addExercisesHtml(state, session) {
   pool.sort((a, b) => ((b.part === session.part) - (a.part === session.part)) || (b.priority - a.priority));
   const thumb = (p) => (exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy">` : bodyMap(p));
   const items = pool.map((p) => `<button type="button" class="add-item" data-id="${esc(p.id)}" data-search="${esc(searchText(p))}" aria-pressed="false">
-      <span class="add-check" aria-hidden="true"></span><span class="lib-thumb" aria-hidden="true">${thumb(p)}</span>
+      <span class="add-check" aria-hidden="true">${iconSvg('check', 'ico')}</span><span class="lib-thumb" aria-hidden="true">${thumb(p)}</span>
       <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))}${p.part !== session.part ? ` ${nw(`(${esc(p.part.toUpperCase())})`)}` : ''}</span></span></button>`).join('');
   return `<div class="add-sheet" data-testid="add-sheet">
     <h3>운동 추가</h3>

@@ -133,8 +133,16 @@ const ICON_PATHS = {
   checks: 'M7 12l5 5L22 7M2 12l5 5M12 12l5-5',
   calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   replan: 'M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4',
+  // 버튼 안 아이콘. 체크, 재생, 점 세 개 같은 글자 글리프는 글꼴마다 모양이 달라 쓰지 않고 여기서 그린다(2026-11-09 디자인 규칙)
+  check: 'M5 12.5l4.5 4.5L19 7',
+  play: 'M8 5.5v13l10.5-6.5z',
+  pause: 'M7.5 5h3v14h-3zM13.5 5h3v14h-3z',
+  more: 'M3.5 12a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0M10.1 12a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0M16.7 12a1.9 1.9 0 1 0 3.8 0a1.9 1.9 0 1 0-3.8 0',
+  backspace: 'M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17.5 9.5l-5 5M12.5 9.5l5 5',
 };
-export const iconSvg = (k) => (ICON_PATHS[k] ? `<svg class="li-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS[k]}"/></svg>` : '');
+const SOLID_ICONS = new Set(['play', 'pause', 'more']); // 선이 아니라 면으로 채우는 그림
+// cls: 메뉴 항목 앞은 'li-icon'(기본), 버튼 안은 'ico'
+export const iconSvg = (k, cls = 'li-icon') => (ICON_PATHS[k] ? `<svg class="${cls}${SOLID_ICONS.has(k) ? ' solid' : ''}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS[k]}"/></svg>` : '');
 
 // 선택 목록. item: { value, label, hint, icon, danger, disabled, group }.
 // group 이 바뀌는 곳에서 상자를 나눈다: 자주 쓰는 동작과 다음에도 남는 설정, 지우는 동작을 떼어 놓아 모양으로 구분한다.
@@ -162,7 +170,7 @@ export async function numberSheet(title, value, { step = 'any', suffix = '', zer
   const chips = chipRow('최근 사용', combos.map((c, i) => `<button class="chip" data-sheet-value="c:${i}">${esc(c.label)}</button>`).join(''))
     || chipRow('최근 무게', recent.map((x) => `<button class="chip" data-sheet-value="v:${esc(x)}">${esc(x)}</button>`).join(''));
   const dec = step !== '1';
-  const key = (k, cls = '') => `<button type="button" class="key${cls}" data-key="${k}">${k === 'back' ? '⌫' : k}</button>`;
+  const key = (k, cls = '') => `<button type="button" class="key${cls}" data-key="${k}"${k === 'back' ? ' aria-label="지우기"' : ''}>${k === 'back' ? iconSvg('backspace', 'ico') : k}</button>`;
   const pad = `<div class="keypad">${['1', '2', '3'].map((k) => key(k)).join('')}${key('back', ' fn')}${['4', '5', '6'].map((k) => key(k)).join('')}<button type="button" class="key fn" data-key="kbd" aria-label="폰 키보드로 입력">자판</button>${['7', '8', '9'].map((k) => key(k)).join('')}<button class="key ok btn primary" data-sheet-value="ok">확인</button>${dec ? key('.') : '<span></span>'}${key('0')}<button class="key fn" data-sheet-value="clear">비우기</button></div>`;
   const p = sheet(`<h3>${esc(title)}</h3>${zeroLabel ? `<p class="small">${esc(zeroLabel)}</p>` : ''}${chips}<div class="row num-display"><input type="text" inputmode="none" enterkeyhint="done" autocomplete="off" name="n" value="${value ?? ''}" style="flex:1"><span class="small">${esc(suffix)}</span></div>${pad}`,
     { collect: (b) => b.querySelector('[name=n]').value });

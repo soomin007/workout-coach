@@ -203,14 +203,14 @@ export function recommendPart(state, now = new Date(), { extra = false } = {}) {
     ? { part: 'rest', confidence: '높음', why: `오늘 ${r.part.toUpperCase()}는 이미 했습니다. ${r.home ? '집에서 더 할 운동은 없습니다.' : '추가로 할 부위가 없습니다.'}`, detail: [...(r.detail || []), `${r.part.toUpperCase()}: 오늘 이미 함`] }
     : r);
   if (doneToday.length && !extra) return { part: 'done', confidence: '높음', why: '오늘 운동을 이미 마쳤습니다. 추가 운동은 선택입니다.', detail: ['오늘 기록 있음'] };
-  if (c.energy === 'very_tired') return { part: 'rest', confidence: '높음', why: '전신 피로가 매우 높아 회복을 우선합니다.', detail: ['매우 피곤 → 휴식'] };
+  if (c.energy === 'very_tired') return { part: 'rest', confidence: '높음', why: '전신 피로가 매우 높아 회복을 우선합니다.', detail: ['매우 피곤해서 휴식'] };
   const dow = now.getDay();
   // 헬스장을 못 가는 날은 PT 도 없으므로 휴무 규칙이 PT 요일보다 먼저다.
-  if (c.gymClosedDate === today) return noRepeat({ part: 'core', home: true, confidence: '높음', why: '오늘은 헬스장에 못 가서 집에서 할 수 있는 Core를 추천합니다.', detail: ['헬스장 휴무 → 홈 운동'] });
+  if (c.gymClosedDate === today) return noRepeat({ part: 'core', home: true, confidence: '높음', why: '오늘은 헬스장에 못 가서 집에서 할 수 있는 Core를 추천합니다.', detail: ['헬스장 휴무라서 홈 운동'] });
   // PT 요일은 "보통 그날"일 뿐 확정이 아니다(선생님 사정으로 바뀜). 오늘 PT 가 없다고 하면 일반 추천으로.
   if (!extra && state.settings.ptDay === dow && !ptToday && c.noPtDate !== today) return { part: 'pt', confidence: '보통', why: '보통 PT가 있는 요일입니다. PT를 마친 뒤 기록하면 다음 추천에 반영합니다. 오늘 PT가 없으면 아래 "오늘 PT 없어요"를 누르세요.', detail: ['PT 예정 요일'] };
   if (ptToday && !extra) return { part: 'rest', confidence: '높음', why: '오늘 PT 기록이 있어 추가 웨이트보다 회복을 우선합니다.', detail: ['오늘 PT 기록 있음'] };
-  if (dow === 0 && state.settings.gymClosedSunday) return noRepeat({ part: 'core', home: true, confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무 → 홈 Core'] });
+  if (dow === 0 && state.settings.gymClosedSunday) return noRepeat({ part: 'core', home: true, confidence: '높음', why: '일요일 헬스장 휴무라 집에서 할 수 있는 Core를 추천합니다.', detail: ['일요일 휴무라서 홈 Core'] });
   const score = {};
   for (const p of ['push', 'pull', 'lower']) {
     const d = daysSince(state, p, now), sets = weeklySets(state, p, now), need = partNeed(state, p, now);
