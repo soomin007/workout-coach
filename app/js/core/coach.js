@@ -284,7 +284,9 @@ export function learnedWarmups(state, exerciseId) {
 
 // ---------- 무거운 날 (근력 중심) ----------
 // RTS식 톱세트 + 백오프 (docs/research/strength_day_proposal.md, 2026-10-01 사용자 결정 A·B·C 모두 권장안).
-export const HEAVY = { top: [3, 5], target: 4, rir: 2, backoffPct: 0.9, backoff: [5, 6], rest: 240 };
+// 휴식(초)은 하체 rest, 상체 restUpper 다(정책 10절, 24절). 11/12 랫풀다운과 11/14 오버헤드프레스는 2분 안팎을 쉬고도
+// 톱세트와 백오프를 채웠고 PT 쌤은 그것도 길다고 했다. 하체 스쿼트는 10/1에 3~6분을 쉬었다.
+export const HEAVY = { top: [3, 5], target: 4, rir: 2, backoffPct: 0.9, backoff: [5, 6], rest: 240, restUpper: 180 };
 const HEAVY_MODES = ['total', 'per_side', 'plates', 'per_dumbbell', 'machine'];
 
 // 무거운 날을 적용할 수 있는 운동: 중량을 다는 복합 운동, 반복으로 세는 것.

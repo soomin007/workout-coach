@@ -123,7 +123,7 @@ export function makeHeavy(state, entry) {
   entry.heavy = true;
   entry.warmupLevel = 'heavy';
   entry.prescription = { ...rx, note: `${rx.note} 이어서 백오프 ${nBack}세트${bw !== null ? ` ${bw}kg` : ''} × ${HEAVY.backoff[0]}~${HEAVY.backoff[1]}회.` };
-  entry.restToday = Math.max(entry.rest, HEAVY.rest);
+  entry.restToday = Math.max(entry.rest, p.part === 'lower' ? HEAVY.rest : HEAVY.restUpper);
   const top = { ...makeSet('main', rx.weight, rx.reps), heavy: 'top' };
   const backs = Array.from({ length: nBack }, () => ({ ...makeSet('main', bw, HEAVY.backoff[1]), heavy: 'backoff' }));
   const warm = warmupPlan(p, rx.weight, 'heavy').map((w) => makeSet('warmup', w.weight, w.reps));

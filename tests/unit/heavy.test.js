@@ -38,6 +38,20 @@ test('근력 중심: 첫 메인 운동만 톱세트 1 + 백오프, 10/1 기록 �
   assert.equal(ex.filter((e) => e.heavy).length, 1, '무거운 날은 한 운동만');
 });
 
+test('무거운 날 휴식: 상체는 180초, 하체는 240초 그대로 (11/14 메모, 정책 24절)', () => {
+  const heavyOf = (part, rec) => {
+    const s = freshState();
+    s.performance.push(rec);
+    T.setCheck(s, { energy: 'good', minutes: 60, intensity: 'strength' }, { now });
+    T.createSession(s, { part, source: 'manual', now });
+    return s.session.exercises.find((e) => e.heavy);
+  };
+  const bench = heavyOf('push', { sessionId: 'b', date: '2026-10-31', part: 'push', exerciseId: 'bench', name: '바벨 벤치프레스', sets: [set(60, 6), set(60, 7), set(60, 6, 0)], effort: 'hard' });
+  assert.deepEqual([bench.exerciseId, bench.rest, bench.restToday], ['bench', 180, 180]);
+  const lat = heavyOf('pull', { sessionId: 'l', date: '2026-11-02', part: 'pull', exerciseId: 'lat', name: '랫풀다운', sets: [set(50, 11), set(50, 11, 0)], effort: 'hard' });
+  assert.deepEqual([lat.exerciseId, lat.rest, lat.restToday], ['lat', 120, 180], '기본 휴식이 짧은 운동은 180초로 늘린다');
+});
+
 test('근력 중심이어도 세트 수를 늘리지 않는다', () => {
   const total = (st) => st.session.exercises.reduce((x, e) => x + e.sets.filter((z) => z.type === 'main').length, 0);
   const c = freshState();
