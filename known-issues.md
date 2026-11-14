@@ -332,3 +332,12 @@
 - 규칙: 웹 코드는 네이티브 기능을 부르기 전에 `hasPlugin`(ui/native.js, PluginHeaders)으로 그 APK 에 플러그인이 있는지 본다.
   플러그인을 새로 들이면 APK 를 먼저 빌드해 폰에 설치한 뒤 그 플러그인을 쓰는 웹 코드를 push 한다.
   `tests/unit/sw_shell.test.js` 가 app/js 의 모든 파일이 SHELL 에 있는지 검사한다. 자세한 구조는 docs/NATIVE_APP.md.
+
+## 50. 폰이 잠겨 있으면 앱 웹뷰가 멈춰 디버깅 명령이 끝나지 않는다
+- 증상: 알림 실측 뒤 시험 세션을 지우는 명령이 12분 동안 끝나지 않았다. 출력은 `| tr | tail` 파이프에 걸려 끝날 때 한꺼번에 나와서,
+  실제로는 끝 단계에서 멈춘 것을 시작 단계에서 멈춘 것으로 잘못 알렸다(2026-11-14).
+- 원인: 화면을 끈 동안 기기가 잠기면, 화면만 켜서는 잠금 화면이 앞에 와서 앱 액티비티가 다시 시작되지 않는다. 그동안 웹뷰는 CDP 의
+  Runtime.evaluate 를 처리하지 않고, 스크립트에는 시간 제한이 없었다.
+- 규칙: adb 와 CDP 로 앱 JS 를 부르기 전에 `dumpsys activity activities` 의 ResumedActivity 가 이 앱인지 확인하고,
+  아니면 사용자에게 잠금을 풀어 달라고 알린다(`scripts/measure-notice.mjs` 의 ensureForeground). 긴 측정은 파이프 없이 돌려 진행 줄을 바로 본다.
+  멈춘 것 같으면 추측하기 전에 앱 로그(`adb logcat -s Capacitor`)의 시각으로 어디까지 갔는지 확인한다.

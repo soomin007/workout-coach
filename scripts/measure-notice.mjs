@@ -2,6 +2,7 @@
 //   node scripts/measure-notice.mjs 60 120 180          초마다 한 번씩 차례로 잰다
 //   node scripts/measure-notice.mjs --idle 60           Doze(깊은 절전)를 강제로 걸고 잰다
 // 준비: USB 디버깅으로 폰을 연결하고, 앱(디버그 빌드)을 화면에 띄워 둔다. 측정 중에는 폰을 건드리지 않는다.
+// 진행 줄이 바로 보이게 파이프(| tail 등) 없이 돌린다. 파이프를 걸면 끝날 때 한꺼번에 나와 멈춘 것처럼 보인다.
 // 방법: 앱 웹뷰의 디버깅 포트(CDP)로 window.__native.testNotice 를 불러 실제 앱과 같은 옵션으로 예약하고,
 // adb 로 화면을 끈다. 충전 중이면 절전이 걸리지 않으므로 'dumpsys battery unplug' 로 배터리 상태를 흉내 내고 끝나면 되돌린다.
 // 울린 시각은 안드로이드 이벤트 로그의 notification_enqueue(알림을 올린 때)와 notification_alert(진동, 소리)로 읽는다.
@@ -23,6 +24,18 @@ const adb = (...a) => {
   return r.stdout.trim();
 };
 const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+
+// 앱이 화면 앞에 있어야 웹뷰가 디버깅 명령에 답한다. 화면을 오래 끈 뒤 잠금 화면이 떠 있으면 웹뷰가 멈춰 명령이 끝나지 않는다(known-issues 50).
+async function ensureForeground() {
+  adb('shell', 'input', 'keyevent', 'KEYCODE_WAKEUP');
+  for (let i = 0; ; i += 1) {
+    const act = adb('shell', 'dumpsys', 'activity', 'activities');
+    if (act.split('\n').some((l) => /ResumedActivity/.test(l) && l.includes(PKG))) return;
+    if (i === 1) console.log('\n폰 잠금을 풀어 앱 화면을 띄워 주세요. 잠금 화면에서는 앱 웹뷰가 측정 명령을 받지 못합니다.');
+    if (i > 150) throw new Error('5분 동안 앱이 화면에 나오지 않아 멈춥니다.');
+    await wait(2000);
+  }
+}
 
 async function cdp() {
   const pid = adb('shell', 'pidof', PKG).split(/\s+/)[0];
@@ -55,6 +68,7 @@ function readEvents(sinceMs, id) {
 
 async function main() {
   console.log(`폰: ${adb('shell', 'getprop', 'ro.product.manufacturer')} ${adb('shell', 'getprop', 'ro.product.model')}, 안드로이드 ${adb('shell', 'getprop', 'ro.build.version.release')}`);
+  await ensureForeground();
   const c = await cdp();
   const perm = await c.evaluate('JSON.stringify(window.__native?.notice)');
   console.log(`알림 상태: ${perm}`);
@@ -64,8 +78,7 @@ async function main() {
     for (const [k, sec] of secs.entries()) {
       const id = 7100 + k;
       // 측정 사이 화면을 켜서 앱이 다시 앞에 오게 한다 (실제 운동처럼 세트를 기록한 직후 화면을 끄는 상황)
-      adb('shell', 'input', 'keyevent', 'KEYCODE_WAKEUP');
-      await wait(1500);
+      await ensureForeground();
       const at = await c.evaluate(`window.__native.testNotice(${sec}, ${id})`);
       if (!at) throw new Error('예약하지 못했습니다 (알림 권한 확인)');
       adb('shell', 'input', 'keyevent', 'KEYCODE_SLEEP');
