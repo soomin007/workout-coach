@@ -10,7 +10,8 @@ import { profileFor, lastPerformance, lighterThanUsual, recoverySuggested, RECOV
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, EMPHASIS, slotName } from './core/catalog.js';
 import { localISODate, fmtClock } from './core/util.js';
 import { esc, nw, joinMeta, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
-import { renderToday, renderRecords, renderSettings, renderRestbar, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
+import { renderToday, renderRecords, renderSettings, renderRestbar, restNoticeText, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
+import { notice, initNotices, refreshNotices, syncRestAlarm, restAlarmOn, testNotice, openExactAlarmSetting } from './ui/native.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
 import { bindSwipeDelete } from './ui/swipe.js';
@@ -40,7 +41,7 @@ const idb = {
   }),
 };
 
-const ui = { tab: 'today', newDate: null, historyLimit: 30, wakeLock: false, storage: {}, condOpen: false, expanded: new Set(), version: null };
+const ui = { tab: 'today', newDate: null, historyLimit: 30, wakeLock: false, storage: {}, condOpen: false, expanded: new Set(), version: null, notice };
 let wakeLockHandle = null;
 
 const store = createStore({
@@ -48,6 +49,7 @@ const store = createStore({
   onChange: (_s, info = {}) => { ui.storage = { ...ui.storage, ...store.status }; if ('persisted' in info) renderStatus(); else { render(); if (!info.loaded) scheduleSync(); } },
 });
 window.__store = store; // E2E 테스트용 조회 핸들
+window.__native = { notice, testNotice }; // 폰에서 알림 지연을 재는 scripts/measure-notice.mjs 용
 
 // ---------- 렌더 ----------
 function render() {
@@ -78,6 +80,9 @@ function renderStatus() {
 
 let restNotified = null;
 function renderRest() {
+  // 안드로이드 앱이면 휴식 끝 알림 예약을 지금 restTimer 에 맞춘다 (탭과 상관없이, 바뀐 때만 네이티브를 부른다)
+  const ses = store.state.session;
+  syncRestAlarm(ses?.restTimer || null, ses?.restTimer ? restNoticeText(ses) : null);
   const bar = document.getElementById('restbar');
   const r = ui.tab === 'today' ? renderRestbar(store.state) : null;
   if (!r) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
@@ -86,7 +91,8 @@ function renderRest() {
   bar.innerHTML = r.html;
   const rt = store.state.session.restTimer;
   const key = rt && `${rt.uid}:${rt.setIndex}:${rt.startedAt}`;
-  if (r.over && rt && restNotified !== key) { restNotified = key; navigator.vibrate?.([150, 80, 150]); }
+  // 앱의 휴식 끝 알림이 진동과 소리를 내므로, 알림을 쓸 수 있으면 화면 안 진동은 겹쳐 내지 않는다
+  if (r.over && rt && restNotified !== key) { restNotified = key; if (!restAlarmOn()) navigator.vibrate?.([150, 80, 150]); }
 }
 
 setInterval(() => {
@@ -191,6 +197,8 @@ const actions = {
   'ex-menu': (d) => exerciseMenu(d.uid),
   'rest-adj': (d) => { const rt = store.state.session?.restTimer; if (rt) run((s) => T.adjustRest(s, rt.uid, +d.d)); },
   'rest-stop': () => run((s) => T.stopRest(s)),
+  'notice-test': async () => { toast((await testNotice(10)) ? '10초 뒤에 시험 알림이 옵니다. 화면을 꺼 두고 기다려 보세요.' : '알림 권한이 없어 시험 알림을 보낼 수 없습니다.', 4000); },
+  'notice-exact': async () => { await openExactAlarmSetting(); render(); },
   finish: () => finishSession(),
   'export-json': () => exportJSON(),
   'sync-connect': () => connectSync(),
@@ -856,6 +864,7 @@ async function toggleWakeLock() {
 }
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
+    refreshNotices(() => { if (ui.tab === 'settings' && !sheetOpen()) render(); });
     if (ui.wakeLock && !wakeLockHandle && !(await acquireWakeLock())) ui.wakeLock = false;
     render();
     askStaleSession();
@@ -918,6 +927,8 @@ window.addEventListener('popstate', () => {
 
 // ---------- 시작 ----------
 (async () => {
+  // 안드로이드 앱이면 알림 채널을 만들고 알림 권한을 묻는다 (크롬에서는 아무 일도 없다). 첫 렌더보다 먼저 준비를 걸어 둔다.
+  initNotices(() => { if (ui.tab === 'settings' && !sheetOpen()) render(); });
   const notes = await store.load();
   if (navigator.storage?.persist) {
     try { ui.storage.persisted = (await navigator.storage.persisted()) || (await navigator.storage.persist()); } catch { ui.storage.persisted = false; }

@@ -1,0 +1,15 @@
+{
+  "appId": "io.github.soomin007.workoutcoach",
+  "appName": "Workout Coach",
+  "webDir": "native/web",
+  "server": {
+    "url": "https://soomin007.github.io/workout-coach/",
+    "errorPath": "offline.html"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_rest",
+      "iconColor": "#3449d6"
+    }
+  }
+}

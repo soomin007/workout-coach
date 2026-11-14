@@ -308,3 +308,27 @@
   글자로 쓰는 색 토큰은 bg, surface, surface2 위에서 4.5:1 이상으로 둔다.
   이 규칙은 `scripts/check-design.mjs` 가 검사하고 `tests/unit/design_rules.test.js` 가 npm test 에서 돌리므로 배포 워크플로의 단위 테스트에서도 막힌다.
   새 화면이나 색을 더하면 `node scripts/check-design.mjs` 를 먼저 돌린다. 예외가 필요해 보이면 검사를 고치기 전에 사용자에게 묻는다.
+
+## 47. 알림 플러그인의 기본 옵션이 화면 꺼짐과 운동 흐름에 맞지 않는다
+- 증상: (2026-11-14 설계 때 플러그인 소스를 읽고 예방, 실사고 전) `@capacitor/local-notifications` 8.3.1 을 기본 옵션으로 예약하면
+  화면이 꺼진 동안 알림이 늦거나 울리지 않을 수 있었다. 또 운동 중 첫 세트를 체크하는 순간 알림 권한 창이나 '알람 및 리마인더' 설정 화면이 뜰 수 있었다.
+- 원인: `schedule.allowWhileIdle` 이 기본값 false 면 플러그인이 기기를 깨우지 않는 알람(`AlarmManager.RTC` 의 setExact)을 건다.
+  `schedule()` 은 알림 권한이 없으면 그 자리에서 묻고, 정확한 알람 권한이 없으면 설정 화면을 연다(`isExactNotification` 기본 true).
+  플러그인이 넣는 `SCHEDULE_EXACT_ALARM` 은 안드로이드 14 부터 새로 설치한 앱에 꺼진 채로 주어진다.
+  알림 채널의 중요도, 소리, 진동은 처음 만들 때 정해지고 그 뒤에는 앱이 바꿀 수 없다.
+- 규칙: 휴식 알림은 `allowWhileIdle: true` 로 예약한다(RTC_WAKEUP). 알림 권한은 앱 시작 때 묻고(`ui/native.js` initNotices),
+  정확한 알람이 허용되지 않았으면 `isExactNotification: false` 로 예약해 운동 중에 화면을 띄우지 않는다. 매니페스트에 `USE_EXACT_ALARM` 을 둔다.
+  채널 설정을 바꿔야 하면 새 채널 id 를 만든다. 플러그인 버전을 올리면 node_modules 의 Kotlin 소스에서 `setExactIfPossible` 과 `doSchedule` 을 다시 읽는다.
+
+## 48. Claude Code 셸에서 현재 폴더의 .bat 을 이름만으로 부르면 찾지 못한다
+- 증상: `scripts/android.mjs` 가 android 폴더에서 `gradlew.bat` 을 이름만으로 부르자 "내부 또는 외부 명령이 아닙니다"로 빌드가 멈췄다(2026-11-14).
+- 원인: 이 환경의 cmd 는 `NoDefaultCurrentDirectoryInExePath` 가 켜져 있어 현재 폴더의 실행 파일을 찾지 않는다.
+- 규칙: 스크립트에서 .bat, .cmd, .exe 를 부를 때는 절대 경로를 쓴다. 파이프 뒤 `tail` 이 종료 코드를 가리므로 빌드 결과는 산출물 파일이 생겼는지로 확인한다.
+
+## 49. 앱 껍데기(APK)와 웹 코드가 따로 배포된다
+- 증상: (2026-11-14 설계 때 예방) 안드로이드 앱은 GitHub Pages 의 웹 코드를 띄우므로, main 에 push 한 웹 코드가 폰에 깔린 APK 에 없는 플러그인을
+  부르면 그 기능만 조용히 실패한다. 서비스 워커 SHELL 에서 파일이 빠지면 앱이 오프라인에서 아예 뜨지 않는다.
+- 원인: 웹 화면은 push 하면 바로 바뀌지만 플러그인(네이티브 코드)은 APK 를 다시 빌드해 설치해야 바뀐다. 앱의 오프라인 시작은 서비스 워커에만 달려 있다.
+- 규칙: 웹 코드는 네이티브 기능을 부르기 전에 `hasPlugin`(ui/native.js, PluginHeaders)으로 그 APK 에 플러그인이 있는지 본다.
+  플러그인을 새로 들이면 APK 를 먼저 빌드해 폰에 설치한 뒤 그 플러그인을 쓰는 웹 코드를 push 한다.
+  `tests/unit/sw_shell.test.js` 가 app/js 의 모든 파일이 SHELL 에 있는지 검사한다. 자세한 구조는 docs/NATIVE_APP.md.

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Workout Coach</title>
+<style>
+  /* 앱 안 웹 화면을 처음 받아 오지 못했을 때 Capacitor 가 대신 띄우는 페이지 (server.errorPath).
+     색은 app/styles.css 의 토큰과 같다. 이 파일은 APK 안에 들어가므로 고치면 APK 를 다시 빌드한다. */
+  :root { --bg: #f1f2f5; --surface: #ffffff; --line: #e3e6eb; --text: #121419; --muted: #5d6573; --accent: #3449d6; --accent-ink: #ffffff; color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1216; --surface: #171b21; --line: #2a313b; --text: #e8ecf1; --muted: #9aa4b2; --accent: #6f80ff; --accent-ink: #0b1233; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif; font-size: 15px; line-height: 1.5;
+    word-break: keep-all; overflow-wrap: anywhere; }
+  main { max-width: 560px; margin-left: auto; margin-right: auto; padding-left: 20px; padding-right: 20px;
+    padding-top: calc(48px + env(safe-area-inset-top)); padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding-top: 20px; padding-bottom: 20px; padding-left: 18px; padding-right: 18px; }
+  h1 { font-size: 20px; margin-top: 0; margin-bottom: 10px; }
+  p { margin-top: 0; margin-bottom: 10px; color: var(--muted); }
+  button { font: inherit; margin-top: 8px; min-height: 44px; padding-left: 18px; padding-right: 18px; border: 0; border-radius: 12px;
+    background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>인터넷 연결이 필요합니다</h1>
+    <p>이 앱은 처음 열 때 운동 화면을 인터넷(GitHub Pages)에서 받아 옵니다. 한 번 받아 두면 그다음부터는 인터넷이 없어도 열립니다.</p>
+    <p>와이파이나 모바일 데이터를 켠 뒤 다시 시도해 주세요.</p>
+    <button type="button" id="retry">다시 시도</button>
+  </div>
+</main>
+<script>
+  document.getElementById('retry').addEventListener('click', () => { location.replace('https://soomin007.github.io/workout-coach/'); });
+</script>
+</body>
+</html>

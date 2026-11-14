@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 휴식 끝 알림의 상태 표시줄 아이콘(스톱워치). 안드로이드는 작은 알림 아이콘의 모양(알파)만 쓰므로 흰색 한 가지로 그린다.
+     capacitor.config.json 의 plugins.LocalNotifications.smallIcon 이 이 이름을 가리킨다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M5,13.5A7,7 0,1 0,19 13.5A7,7 0,1 0,5 13.5M12,13.5V9.5M10,3H14M12,3V6.5" />
+</vector>

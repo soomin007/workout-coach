@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱을 처음 띄울 때 웹 화면이 그려지기 전까지 보이는 바탕. Capacitor 기본 로고 그림 대신 앱 아이콘을 가운데 둔다. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/ic_launcher_background" />
+    <item
+        android:width="144dp"
+        android:height="144dp"
+        android:gravity="center"
+        android:drawable="@drawable/ic_launcher_fg" />
+</layer-list>

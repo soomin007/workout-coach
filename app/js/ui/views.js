@@ -189,6 +189,15 @@ function setSummary(e, z) {
   return `${w}${reps}${unitOf(e)}`;
 }
 
+// 다음 세트 번호 ('워밍업' 또는 워밍업을 뺀 'n세트')
+const setNo = (e, z) => (z.type === 'warmup' ? '워밍업' : `${e.sets.filter((x) => x.type !== 'warmup').indexOf(z) + 1}세트`);
+
+// 휴식 끝 알림 글 (안드로이드 앱). 알림은 HTML 이 아니라 글자 그대로 보이므로 esc 를 하지 않는다.
+export function restNoticeText(session) {
+  const n = nextSet(session);
+  return { title: '휴식이 끝났어요', body: n ? `다음: ${n.e.name} ${setNo(n.e, n.z)}, ${setSummary(n.e, n.z)}` : '마지막 세트까지 끝났어요. 저장하고 종료하세요.' };
+}
+
 function renderSetRow(e, z, i, mainNo, isNext) {
   const warm = z.type === 'warmup';
   const no = warm ? 'W' : z.heavy === 'top' ? '톱' : z.type === 'backoff' || z.heavy === 'backoff' ? 'B' : String(mainNo);
@@ -407,7 +416,7 @@ export function renderRestbar(state, now = Date.now()) {
   if (s.ready) main = `<button class="btn primary dock-btn" data-action="begin" data-testid="dock-begin"><b>시작</b><span>운동 ${s.exercises.length}개, 예상 ${s.estimatedMinutes}분</span></button>`;
   else if (!n) main = `<button class="btn good dock-btn" data-action="finish" data-testid="dock-finish">저장하고 종료 (${countWorkSets(s)}세트)</button>`;
   else {
-    const no = n.z.type === 'warmup' ? '워밍업' : `${n.e.sets.filter((z) => z.type !== 'warmup').indexOf(n.z) + 1}세트`;
+    const no = setNo(n.e, n.z);
     const timed = n.e.measure === 'seconds' && n.z.type !== 'warmup';
     main = `<button class="btn primary dock-btn" data-action="${timed ? 'hold' : 'next-set'}" data-uid="${n.e.uid}" data-i="${n.i}" data-testid="dock-next"><b>${timed ? '타이머로 다음 세트' : '다음 세트 기록'}</b><span>${esc(n.e.name)} ${nw(`${no},`)} ${nw(esc(setSummary(n.e, n.z)))}</span></button>`;
   }
@@ -480,10 +489,25 @@ export function renderSettings(state, ui) {
     <div class="tiny" style="margin-top:4px">저장 번호 ${state.revision}, ${state.savedAt ? new Date(state.savedAt).toLocaleString('ko-KR') : '-'}</div>
   </section>
   ${syncCard(ui.sync)}
+  ${noticeCard(ui.notice)}
   <section class="card"><h3>추천 근거</h3><button class="btn" data-action="evidence">근거와 앱 정책 보기</button></section>
   <section class="card"><h3>앱 정보</h3><div class="small" data-testid="app-version">버전 ${esc(ui.version || '확인 중')}</div><div class="tiny">${ui.sync ? '데이터는 이 기기와 GitHub 저장소에 저장됩니다.' : '데이터는 이 기기에만 저장됩니다.'}</div>
     <button class="btn sm" data-action="check-update" style="margin-top:8px">업데이트 확인</button>
     <div class="tiny credit" data-testid="media-credit" style="margin-top:10px">운동 그림: <a href="${MEDIA_CREDIT.url}" target="_blank" rel="noopener">${esc(MEDIA_CREDIT.text)}</a></div></section>`;
+}
+
+// 안드로이드 앱에서만 보이는 휴식 끝 알림 상태 (ui/native.js 의 notice)
+function noticeCard(nt) {
+  if (!nt?.available) return '';
+  const on = nt.display === 'granted';
+  const exactOff = on && nt.exact && nt.exact !== 'granted';
+  const line = nt.error ? `알림을 준비하지 못했습니다. ${esc(nt.error)}`
+    : nt.display === null ? '알림 권한을 확인하는 중입니다.'
+    : !on ? '알림이 꺼져 있어 휴식이 끝나도 알리지 못합니다. 휴대전화 설정의 앱 알림에서 Workout Coach 알림을 켜 주세요.'
+    : exactOff ? '알림은 켜져 있지만 정확한 시각 알람이 꺼져 있어 늦게 울릴 수 있습니다.'
+    : '휴식이 끝나면 화면 위 알림과 진동, 소리로 알립니다. 화면이 꺼져 있어도 울립니다.';
+  return `<section class="card"><h3>휴식 끝 알림</h3><div class="small" data-testid="notice-status">${line}</div>
+    ${on || exactOff ? `<div class="row" style="margin-top:8px">${on ? '<button class="btn sm" data-action="notice-test">시험 알림 (10초 뒤)</button>' : ''}${exactOff ? '<button class="btn sm" data-action="notice-exact">정확한 알람 허용</button>' : ''}</div>` : ''}</section>`;
 }
 
 function syncCard(sy) {

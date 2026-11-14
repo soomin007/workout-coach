@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 적응형 아이콘 앞면: app/icon.svg 의 덤벨과 체크를 108dp 판의 가운데 안전 영역(지름 66dp)에 맞춰 줄였다.
+     scale 0.145, 내용 중심 (256, 303.5) 을 판 중심 (54, 54) 에 둔다. 배경색은 values/ic_launcher_background.xml. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.145"
+        android:scaleY="0.145"
+        android:translateX="16.88"
+        android:translateY="9.99">
+        <path
+            android:fillColor="#5B9DFF"
+            android:pathData="M108,196H132A12,12 0,0 1,144 208V304A12,12 0,0 1,132 316H108A12,12 0,0 1,96 304V208A12,12 0,0 1,108 196Z M380,196H404A12,12 0,0 1,416 208V304A12,12 0,0 1,404 316H380A12,12 0,0 1,368 304V208A12,12 0,0 1,380 196Z M70,226H86A10,10 0,0 1,96 236V276A10,10 0,0 1,86 286H70A10,10 0,0 1,60 276V236A10,10 0,0 1,70 226Z M426,226H442A10,10 0,0 1,452 236V276A10,10 0,0 1,442 286H426A10,10 0,0 1,416 276V236A10,10 0,0 1,426 226Z" />
+        <path
+            android:fillColor="#E8ECF1"
+            android:pathData="M152,240H360A8,8 0,0 1,368 248V264A8,8 0,0 1,360 272H152A8,8 0,0 1,144 264V248A8,8 0,0 1,152 240Z" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#3ECF8E"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M200,356L240,396L320,308" />
+    </group>
+</vector>

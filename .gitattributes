@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.webp binary
+# 안드로이드 Gradle 래퍼: .bat 은 CRLF 여야 cmd 가 goto 라벨을 제대로 읽는다
+*.bat text eol=crlf
+*.jar binary

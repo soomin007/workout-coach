@@ -5,9 +5,19 @@
   "scripts": {
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "e2e": "playwright test",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "android:build": "node scripts/android.mjs build",
+    "android:install": "node scripts/android.mjs install",
+    "android:run": "node scripts/android.mjs run"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
     "@playwright/test": "^1.63.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/local-notifications": "8.3.1"
   }
 }
