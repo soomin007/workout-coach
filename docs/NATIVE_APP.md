@@ -82,7 +82,7 @@ Android Studio 없이 명령줄 도구만 쓴다. 2026-11-14 에 아래를 설�
 
 - JDK 21: `C:\Users\soomi\Android\jdk-21.0.13+9` (Temurin 21.0.13, 압축 파일을 푼 것)
 - Android SDK: `C:\Users\soomi\Android\sdk` (cmdline-tools 23.0, platform-tools 37.0.1, platforms;android-36, 빌드 도구는 Gradle 이 받는다)
-- 받은 압축 파일: `C:\Users\soomi\Android\_downloads` (체크섬 확인 뒤 남겨 둠, 지워도 된다)
+- 설치용 압축 파일(JDK, 명령줄 도구)은 체크섬을 확인하고 푼 뒤 지웠다(2026-11-14). 다시 깔 때는 위 버전을 Adoptium 과 Google SDK 저장소에서 받는다
 
 명령은 셋이다. 웹 화면(app/)만 고쳤으면 빌드할 필요 없이 push 만 한다.
 
