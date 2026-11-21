@@ -97,5 +97,7 @@ app/src/main/assets/public
 
 # Generated Config files
 app/src/main/assets/capacitor.config.json
+# 시험용 앱(dev 빌드)의 설정 사본. scripts/android.mjs build --dev 가 server.url 만 바꿔 만든다
+app/src/dev/assets/
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml

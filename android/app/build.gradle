@@ -21,6 +21,15 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        // 시험용 앱 'Coach 시험'(scripts/android.mjs build --dev). 쓰는 앱과 패키지가 달라 따로 깔리고 기록도 따로다.
+        // PC 의 로컬 서버(npm run serve)를 adb reverse 로 띄워, push 하기 전의 웹 코드와 네이티브 코드를 함께 시험한다.
+        // server.url 을 바꾼 capacitor.config.json 은 빌드 스크립트가 src/dev/assets 에 만든다(커밋하지 않는다).
+        dev {
+            initWith debug
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
+            matchingFallbacks = ['debug']
+        }
     }
 }
 
@@ -33,6 +42,8 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    // 운동 중 알림(WorkoutNotice)이 라이브 업데이트 요청(setRequestPromotedOngoing)과 운동 분류를 쓴다. 1.17 부터 있다.
+    implementation "androidx.core:core:$androidxCoreVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')

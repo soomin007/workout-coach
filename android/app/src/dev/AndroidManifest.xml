@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 시험용 앱(dev 빌드)만: PC 의 로컬 서버를 http://localhost:8080 으로 띄우므로 평문 HTTP 를 허용한다. 쓰는 앱(debug)에는 들어가지 않는다. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:usesCleartextTraffic="true" />
+</manifest>

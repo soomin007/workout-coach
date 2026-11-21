@@ -15,7 +15,8 @@ export function hasPlugin(name) {
 }
 
 // 설정 탭 표시용. display: 알림 권한, exact: 정확한 시각 알람 권한 ('granted', 'denied', 'prompt' …)
-export const notice = { available: false, display: null, exact: null, error: null };
+// workout: 이 APK 에 운동 중 알림 플러그인(WorkoutNotice)이 있는지
+export const notice = { available: false, display: null, exact: null, error: null, workout: false };
 let ready = null;
 let queue = Promise.resolve();
 let appliedKey; // 마지막으로 맞춘 키. undefined 면 앱을 새로 띄운 것이라 지난 실행에서 남은 예약도 한 번 지운다.
@@ -55,6 +56,8 @@ export const restAlarmOn = () => notice.available && notice.display === 'granted
 // 렌더마다 부른다. restTimer 가 바뀐 때만 네이티브를 부른다 (시간이 흐르는 것만으로는 아무 일도 없다).
 export function syncRestAlarm(rt, text) {
   if (!ready) return;
+  // 운동 중 알림이 있는 APK 면 휴식 끝 알림도 그쪽이 같은 '휴식 끝' 채널로 낸다. 여기서는 지난 실행에서 남은 예약만 한 번 지운다.
+  if (notice.workout) rt = null;
   const plan = planRestAlarm(appliedKey, rt, { body: text?.body || '' });
   if (!plan) return;
   appliedKey = plan.key;
@@ -90,4 +93,36 @@ export async function openExactAlarmSetting() {
   if (!ready) return;
   const r = await call('changeExactNotificationSetting');
   notice.exact = r.exact_alarm;
+}
+
+// ---------- 운동 중 알림 (WorkoutNotice, 이 APK 안에 든 플러그인) ----------
+// 알림 창과 잠금 화면에서 남은 휴식과 다음 세트를 보고, '세트 완료'로 앱을 열지 않고 기록한다 (docs/NATIVE_APP.md).
+// 계획(core/notice.js)을 넘기면 네이티브가 버튼마다 한 칸씩 넘기고 누른 기록을 적어 둔다. 기록은 화면 계층이 전이 함수로 넣는다.
+const WN = 'WorkoutNotice';
+let workoutKey; // 마지막으로 넘긴 계획. undefined 면 앱을 새로 띄운 것이라 처음 한 번은 꼭 넘긴다.
+let workoutQueue = Promise.resolve();
+
+// 앱 시작 때 한 번. onRecorded 는 앱이 떠 있는 동안 알림 버튼으로 세트가 기록되면 불린다.
+export function initWorkoutNotice(onRecorded) {
+  if (!hasPlugin(WN)) return false;
+  notice.workout = true;
+  try { cap().addListener(WN, 'recorded', () => onRecorded?.()); } catch (e) { console.warn('[workout-notice]', e?.message || e); }
+  return true;
+}
+
+// 렌더마다 부른다. 계획이 바뀐 때만 네이티브를 부른다. plan 이 null 이면 세션이 끝난 것이라 알림과 기록장을 비운다.
+export function syncWorkoutNotice(plan, { force = false } = {}) {
+  if (!notice.workout) return;
+  const key = plan ? JSON.stringify(plan) : 'none';
+  if (key === workoutKey && !force) return;
+  workoutKey = key;
+  workoutQueue = workoutQueue.then(() => cap().nativePromise(WN, 'sync', { plan })).catch((e) => console.warn('[workout-notice]', e?.message || e));
+}
+
+// 네이티브 기록장의 버튼 기록. 앞서 넘긴 계획이 먼저 닿은 뒤에 읽는다.
+export async function workoutEvents() {
+  if (!notice.workout) return [];
+  await workoutQueue;
+  const r = await cap().nativePromise(WN, 'pending', {});
+  return Array.isArray(r?.events) ? r.events : [];
 }

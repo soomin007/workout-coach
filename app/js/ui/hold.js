@@ -18,7 +18,8 @@ function beep(freq = 880, ms = 140) {
   } catch { /* 소리를 못 내도 타이머는 계속 */ }
 }
 
-function phaseLabel(ph) {
+// 단계 이름. 앱의 버티기 타이머와 알림의 버티기 타이머(views.js noticePayload)가 같이 쓴다.
+export function phaseLabel(ph) {
   const side = ph.side ? SIDE_LABEL[ph.side] : '';
   if (ph.kind === 'prep') return side ? `준비, ${side}부터` : '준비';
   if (ph.kind === 'switch') return `자세 바꾸기, 다음은 ${side}`;

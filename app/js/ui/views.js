@@ -3,6 +3,8 @@ import { esc, iconSvg, nw, joinMeta } from './dom.js';
 import { PART_LABEL, PART_MUSCLES, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment, isStretch } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
+import { noticePlan } from '../core/notice.js';
+import { phaseLabel } from './hold.js';
 import { EFFORT_LABEL, EFFORTS } from '../core/schema.js';
 import { EVIDENCE, POLICY_NOTE } from '../core/evidence.js';
 import { guideFor } from '../core/guide.js';
@@ -196,6 +198,25 @@ const setNo = (e, z) => (z.type === 'warmup' ? '워밍업' : `${e.sets.filter((x
 export function restNoticeText(session) {
   const n = nextSet(session);
   return { title: '휴식이 끝났어요', body: n ? `다음: ${n.e.name} ${setNo(n.e, n.z)}, ${setSummary(n.e, n.z)}` : '마지막 세트까지 끝났어요. 저장하고 종료하세요.' };
+}
+
+// 운동 중 알림(안드로이드 앱)의 문구. 네이티브는 이 글을 그대로 그리므로, 문구를 고칠 때 APK 를 다시 깔 필요가 없다.
+// 제목은 휴식 상태(resting, over, idle)로 고르고, 본문은 단계 글이다. 휴식 중이면 본문 앞에 prefix 를 붙인다.
+export const NOTICE_TEXT = {
+  resting: '휴식 중', over: '휴식이 끝났어요', idle: '다음 세트', prefix: '다음: ',
+  done: '세트 완료', hold: '버티기 시작', skip: '바로 시작', stop: '여기까지',
+  ask: '앱에서 느낌을 골라 주세요',
+  end: '마지막 세트까지 끝났어요', endBody: '앱에서 저장하고 종료하세요.', endRest: '마지막 세트까지 끝났어요. 앱에서 저장하고 종료하세요.',
+};
+
+// 운동 중 알림에 넘길 계획 (core/notice.js 의 단계에 문구를 붙인다). 알림은 글자 그대로 보이므로 esc 를 하지 않는다.
+export function noticePayload(state) {
+  const plan = noticePlan(state, {
+    describe: (e, z, kind) => (kind === 'ask' ? `${e.name} 다음 무게는 방금 세트의 느낌으로 정합니다.` : `${e.name} ${setNo(e, z)}, ${setSummary(e, z)}`),
+  });
+  if (!plan) return null;
+  for (const st of plan.steps) if (st.phases) st.phases = st.phases.map((p) => ({ kind: p.kind, secs: p.secs, side: p.side || null, label: phaseLabel(p) }));
+  return { ...plan, texts: NOTICE_TEXT };
 }
 
 function renderSetRow(e, z, i, mainNo, isNext) {
@@ -505,6 +526,7 @@ function noticeCard(nt) {
     : nt.display === null ? '알림 권한을 확인하는 중입니다.'
     : !on ? '알림이 꺼져 있어 휴식이 끝나도 알리지 못합니다. 휴대전화 설정의 앱 알림에서 Workout Coach 알림을 켜 주세요.'
     : exactOff ? '알림은 켜져 있지만 정확한 시각 알람이 꺼져 있어 늦게 울릴 수 있습니다.'
+    : nt.workout ? '운동하는 동안 알림 창과 잠금 화면에 남은 휴식과 다음 세트가 보이고, 알림의 세트 완료 버튼으로 앱을 열지 않고 기록합니다. 휴식이 끝나면 진동과 소리로 알립니다.'
     : '휴식이 끝나면 화면 위 알림과 진동, 소리로 알립니다. 화면이 꺼져 있어도 울립니다.';
   return `<section class="card"><h3>휴식 끝 알림</h3><div class="small" data-testid="notice-status">${line}</div>
     ${on || exactOff ? `<div class="row" style="margin-top:8px">${on ? '<button class="btn sm" data-action="notice-test">시험 알림 (10초 뒤)</button>' : ''}${exactOff ? '<button class="btn sm" data-action="notice-exact">정확한 알람 허용</button>' : ''}</div>` : ''}</section>`;

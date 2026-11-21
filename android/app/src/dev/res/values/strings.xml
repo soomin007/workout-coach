@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- 시험용 앱(dev 빌드)의 이름. 쓰는 앱과 홈 화면, 알림에서 구분된다. -->
+<resources>
+    <string name="app_name">Coach 시험</string>
+    <string name="title_activity_main">Coach 시험</string>
+</resources>

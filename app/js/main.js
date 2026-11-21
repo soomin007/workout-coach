@@ -10,8 +10,10 @@ import { profileFor, lastPerformance, lighterThanUsual, recoverySuggested, RECOV
 import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_CATALOG, MUSCLE_LABEL, EMPHASIS, slotName } from './core/catalog.js';
 import { localISODate, fmtClock } from './core/util.js';
 import { esc, nw, joinMeta, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
-import { renderToday, renderRecords, renderSettings, renderRestbar, restNoticeText, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
-import { notice, initNotices, refreshNotices, syncRestAlarm, restAlarmOn, testNotice, openExactAlarmSetting } from './ui/native.js';
+import { renderToday, renderRecords, renderSettings, renderRestbar, restNoticeText, noticePayload, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
+import { notice, initNotices, refreshNotices, syncRestAlarm, restAlarmOn, testNotice, openExactAlarmSetting, initWorkoutNotice, syncWorkoutNotice, workoutEvents } from './ui/native.js';
+import { applyNoticeEvents } from './core/notice.js';
+import { holdSeconds } from './core/hold.js';
 import { gripsFor, gripById } from './core/grips.js';
 import { runHold } from './ui/hold.js';
 import { bindSwipeDelete } from './ui/swipe.js';
@@ -43,10 +45,12 @@ const idb = {
 
 const ui = { tab: 'today', newDate: null, historyLimit: 30, wakeLock: false, storage: {}, condOpen: false, expanded: new Set(), version: null, notice };
 let wakeLockHandle = null;
+// 저장소에서 기록을 읽은 뒤인지. 읽기 전의 빈 상태로 운동 중 알림을 맞추면 네이티브 기록장의 버튼 기록이 지워진다.
+let loaded = false;
 
 const store = createStore({
   local, idb,
-  onChange: (_s, info = {}) => { ui.storage = { ...ui.storage, ...store.status }; if ('persisted' in info) renderStatus(); else { render(); if (!info.loaded) scheduleSync(); } },
+  onChange: (_s, info = {}) => { if (info.loaded) loaded = true; ui.storage = { ...ui.storage, ...store.status }; if ('persisted' in info) renderStatus(); else { render(); if (!info.loaded) scheduleSync(); } },
 });
 window.__store = store; // E2E 테스트용 조회 핸들
 window.__native = { notice, testNotice }; // 폰에서 알림 지연을 재는 scripts/measure-notice.mjs 용
@@ -83,6 +87,7 @@ function renderRest() {
   // 안드로이드 앱이면 휴식 끝 알림 예약을 지금 restTimer 에 맞춘다 (탭과 상관없이, 바뀐 때만 네이티브를 부른다)
   const ses = store.state.session;
   syncRestAlarm(ses?.restTimer || null, ses?.restTimer ? restNoticeText(ses) : null);
+  syncWorkout();
   const bar = document.getElementById('restbar');
   const r = ui.tab === 'today' ? renderRestbar(store.state) : null;
   if (!r) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
@@ -93,6 +98,37 @@ function renderRest() {
   const key = rt && `${rt.uid}:${rt.setIndex}:${rt.startedAt}`;
   // 앱의 휴식 끝 알림이 진동과 소리를 내므로, 알림을 쓸 수 있으면 화면 안 진동은 겹쳐 내지 않는다
   if (r.over && rt && restNotified !== key) { restNotified = key; if (!restAlarmOn()) navigator.vibrate?.([150, 80, 150]); }
+}
+
+// 운동 중 알림(안드로이드 앱)에 넘길 계획. 세션(커밋마다 새 객체)이나 버티기 시작 쪽 설정이 바뀐 때만 다시 계산해 넘긴다
+// (renderRest 는 0.5초마다 돈다). 처음 값은 어떤 세션과도 다른 빈 객체라 첫 호출에서 한 번은 꼭 넘긴다.
+let noticeFor = {}, noticeLeft;
+function syncWorkout() {
+  if (!notice.workout || !loaded) return;
+  const ses = store.state.session, left = store.state.settings.leftFirst;
+  if (ses === noticeFor && left === noticeLeft) return;
+  noticeFor = ses; noticeLeft = left;
+  syncWorkoutNotice(noticePayload(store.state));
+}
+
+// 폰이 잠긴 동안 알림 버튼으로 기록한 세트를 누른 시각 그대로 전이 함수에 넣는다 (core/notice.js).
+// 앱 시작, 화면 복귀, 앱이 떠 있을 때의 버튼마다 부른다. 도는 중에 또 불리면 끝난 뒤 한 번 더 읽는다.
+let draining = null, drainAgain = false;
+function drainNotice() {
+  if (!notice.workout || !loaded) return Promise.resolve();
+  if (draining) { drainAgain = true; return draining; }
+  draining = (async () => {
+    do {
+      drainAgain = false;
+      const events = await workoutEvents().catch(() => []);
+      if (!events.length) continue;
+      // 세션이 이미 끝났으면 넣을 곳이 없다. 네이티브 기록장을 비운다.
+      if (!store.state.session) { syncWorkoutNotice(null, { force: true }); continue; }
+      const r = run((s) => applyNoticeEvents(s, events));
+      if (r?.missing) toast(`알림에서 기록한 ${r.missing}세트는 그사이 운동이 바뀌어 넣지 못했습니다.`, 4000);
+    } while (drainAgain);
+  })().finally(() => { draining = null; });
+  return draining;
 }
 
 setInterval(() => {
@@ -619,8 +655,7 @@ async function holdSet(uid) {
   const e = entry(uid);
   const i = e?.sets.findIndex((z) => z.type !== 'warmup' && !z.done);
   if (!e || i < 0) return;
-  const z = e.sets[i];
-  const secs = z.reps ?? (z.split ? Math.max(z.leftReps ?? 0, z.rightReps ?? 0) || null : null) ?? e.prescription?.reps ?? e.range[0];
+  const secs = holdSeconds(e, e.sets[i]);
   const r = await runHold({ title: e.name, seconds: secs, unilateral: e.unilateral, leftFirst: store.state.settings.leftFirst !== false });
   if (!r) return;
   run((s) => T.recordHold(s, uid, i, r), () => (r.secs !== undefined ? `${r.secs}초 기록` : `왼쪽 ${r.left ?? '-'}초, 오른쪽 ${r.right ?? '-'}초 기록`));
@@ -864,6 +899,8 @@ async function toggleWakeLock() {
 }
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
+    // 잠긴 동안 알림에서 기록한 세트를 먼저 넣는다. 그래야 아래의 '끝내지 않은 운동' 확인이 마지막 기록 시각을 바르게 본다.
+    await drainNotice();
     refreshNotices(() => { if (ui.tab === 'settings' && !sheetOpen()) render(); });
     if (ui.wakeLock && !wakeLockHandle && !(await acquireWakeLock())) ui.wakeLock = false;
     render();
@@ -928,12 +965,15 @@ window.addEventListener('popstate', () => {
 // ---------- 시작 ----------
 (async () => {
   // 안드로이드 앱이면 알림 채널을 만들고 알림 권한을 묻는다 (크롬에서는 아무 일도 없다). 첫 렌더보다 먼저 준비를 걸어 둔다.
+  initWorkoutNotice(() => drainNotice());
   initNotices(() => { if (ui.tab === 'settings' && !sheetOpen()) render(); });
   const notes = await store.load();
   if (navigator.storage?.persist) {
     try { ui.storage.persisted = (await navigator.storage.persisted()) || (await navigator.storage.persist()); } catch { ui.storage.persisted = false; }
   }
   render();
+  // 앱이 꺼져 있던 동안 알림에서 기록한 세트를 넣는다 ('끝내지 않은 운동' 확인보다 먼저)
+  await drainNotice();
   if (notes.length) toast(notes[0], 4000);
   const incoming = takeTransferFromUrl();
   if (incoming) acceptTransfer(incoming); // 연결 확인 시트가 먼저 뜨고, 끝난 세션 확인은 다음 복귀 때

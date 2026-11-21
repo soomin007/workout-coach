@@ -33,6 +33,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- 운동 중 알림의 버튼과 휴식 끝 알람 (WorkoutNotice). 다른 앱이 보낼 수 없게 내보내지 않는다. -->
+        <receiver
+            android:name=".WorkoutNoticeReceiver"
+            android:exported="false" />
     </application>
 
     <!-- Permissions -->
@@ -44,4 +49,6 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- 알림을 끈 경우 화면이 켜져 있을 때라도 navigator.vibrate 로 진동하게 (웹뷰는 이 권한이 있어야 진동한다) -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 안드로이드 16 라이브 업데이트: 운동 중 알림을 상태 바 칩과 잠금 화면 맨 위에 올려 달라고 청할 수 있다(설치할 때 허용, 사용자가 끌 수 있다) -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
 </manifest>
