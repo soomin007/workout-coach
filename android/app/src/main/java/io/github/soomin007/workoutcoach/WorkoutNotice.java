@@ -431,7 +431,7 @@ final class WorkoutNotice {
         } else {
             // 승격이 안 되는 폰(One UI 8.0 등)은 잠금 화면에서 알림이 접힌 채로 보여 버튼을 누르려면 먼저 펼쳐야 한다.
             // 접힌 줄에 남은 시간과 버튼을 함께 두어 펼치지 않고 바로 누르게 한다 (2026-11-21 갤럭시 S22+ 실측).
-            // 남은 시간은 제목 옆의 시계 하나로 보인다. 펼치면 위쪽 머리글에도 시각이 겹쳐 보이므로 머리글 시각은 끈다.
+            // 남은 시간은 첫 줄의 큰 시계 하나로 보인다(상태 말은 그 옆에 옅게). 펼치면 위쪽 머리글에도 시각이 겹쳐 보이므로 머리글 시각은 끈다.
             b.setStyle(new NotificationCompat.DecoratedCustomViewStyle())
                 .setShowWhen(false)
                 .setUsesChronometer(false)
