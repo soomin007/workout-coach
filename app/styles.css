@@ -89,6 +89,20 @@ textarea { min-height: 64px; padding-top: 8px; padding-bottom: 8px; resize: vert
 .reasons li { margin: 3px 0; }
 .cond-summary { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; min-height: 40px;
   background: var(--surface2); border: 0; border-radius: var(--r-ctl); padding-left: 12px; padding-right: 12px; text-align: left; font-size: 13px; color: var(--muted); }
+/* 홈 추천 카드: 시작과 부위 직접 선택은 카드 폭을 나눠 꽉 채우고, 그 아래 보조 동작은 파란 글자 버튼을 한 줄 양끝에 맞춘다(2026-11-22 사용자 요청).
+   첫 버튼과 끝 버튼은 바깥쪽 여백을 없애 위 버튼의 양끝과 글자 끝이 맞는다. 버튼이 넷인 날(오늘 PT 없다고 한 날)은 두 줄에 둘씩 양끝을 맞춘다 */
+.hero-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin-top: 14px; }
+.hero-actions .btn { min-height: 48px; padding-left: 8px; padding-right: 8px; }
+.hero-links { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; column-gap: 4px; margin-top: 6px; }
+.link-btn { min-height: 40px; padding-left: 6px; padding-right: 6px; border: 0; background: none; color: var(--accent); font-size: 14px; font-weight: 600; white-space: nowrap; }
+.hero-links .link-btn:first-child { padding-left: 0; }
+.hero-links .link-btn:last-child { padding-right: 0; }
+.hero-links:has(> :nth-child(4)) { display: grid; grid-template-columns: auto auto; justify-content: space-between; }
+.hero-links:has(> :nth-child(4)) > :nth-child(odd) { padding-left: 0; justify-self: start; }
+.hero-links:has(> :nth-child(4)) > :nth-child(even) { padding-right: 0; justify-self: end; }
+.link-btn.lit { color: var(--warn); }
+/* 320 폭: PT 요일의 세 버튼('오늘 PT 없어요', '오늘 헬스장 못 가요', '계산 자세히')도 한 줄에 들어가게 글자와 여백을 줄인다 */
+@media (max-width: 340px) { .link-btn { font-size: 12px; padding-left: 2px; padding-right: 2px; } .hero-links { column-gap: 0; } }
 .recent-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .recent { display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--r-ctl); background: var(--surface2); font-size: 12px; color: var(--muted); }
 .recent b { color: var(--text); font-size: 13px; font-weight: 600; }

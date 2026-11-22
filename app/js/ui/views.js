@@ -69,12 +69,12 @@ export function renderToday(state, ui, now = new Date()) {
     <div class="hero-top"><div>
       <div class="title" data-testid="rec-title">${esc(REC_LABEL[r.part])}</div><div class="small hero-note">오늘 추천</div></div>${PART_OPTS.includes(r.part) ? heroMap([r.part]) : ''}</div>
     <ul class="reasons">${reasons.map((x) => `<li>${escText(x)}</li>`).join('')}</ul>
-    <div class="row" style="margin-top:12px">
+    <div class="hero-actions">
       ${PART_OPTS.includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-home="${r.home ? 1 : 0}">${r.home ? '집에서 ' : ''}${esc(REC_LABEL[r.part])} 시작</button>` : ''}
       ${r.part === 'pt' ? '<button class="btn primary" data-action="pt">PT 기록</button>' : ''}
       <button class="btn" data-action="start-manual">부위 직접 선택</button>
     </div>
-    <div class="row" style="margin-top:6px">${r.part === 'pt' || c.noPtDate === localISODate(now) ? `<button class="btn sm ${c.noPtDate === localISODate(now) ? 'lit' : 'ghost'}" data-action="no-pt" data-testid="no-pt">${c.noPtDate === localISODate(now) ? '오늘 PT 있어요' : '오늘 PT 없어요'}</button>` : ''}<button class="btn sm ${c.gymClosedDate === localISODate(now) ? 'lit' : 'ghost'}" data-action="gym-closed" data-testid="gym-closed">${c.gymClosedDate === localISODate(now) ? '헬스장 휴무 해제' : '오늘 헬스장 못 가요'}</button><button class="btn sm ghost" data-action="why">계산 자세히</button>${r.part !== 'pt' ? '<button class="btn sm ghost" data-action="pt">PT 기록</button>' : ''}</div>
+    <div class="hero-links">${r.part === 'pt' || c.noPtDate === localISODate(now) ? `<button class="link-btn${c.noPtDate === localISODate(now) ? ' lit' : ''}" data-action="no-pt" data-testid="no-pt">${c.noPtDate === localISODate(now) ? '오늘 PT 있어요' : '오늘 PT 없어요'}</button>` : ''}<button class="link-btn${c.gymClosedDate === localISODate(now) ? ' lit' : ''}" data-action="gym-closed" data-testid="gym-closed">${c.gymClosedDate === localISODate(now) ? '헬스장 휴무 해제' : '오늘 헬스장 못 가요'}</button><button class="link-btn" data-action="why">계산 자세히</button>${r.part !== 'pt' ? '<button class="link-btn" data-action="pt">PT 기록</button>' : ''}</div>
   </section>
   ${renderDashboard(state, now)}`;
 }
