@@ -1,28 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 적응형 아이콘 앞면: app/icon.svg 의 덤벨과 체크를 108dp 판의 가운데 안전 영역(지름 66dp)에 맞춰 줄였다.
-     scale 0.145, 내용 중심 (256, 303.5) 을 판 중심 (54, 54) 에 둔다. 배경색은 values/ic_launcher_background.xml. -->
+<!-- 적응형 아이콘 앞면 (2026-11-22 개편): 강조색 파랑 바탕(values/ic_launcher_background.xml) 위 흰 덤벨 하나.
+     108dp 판 가운데 지름 66dp 안전 영역에 들어가게 그렸다(가장 먼 모서리가 중심에서 28dp). app/icon.svg 와 같은 모양이다.
+     흰색 한 가지라 안드로이드 13 이상의 테마 아이콘(monochrome)에도 그대로 쓴다. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:scaleX="0.145"
-        android:scaleY="0.145"
-        android:translateX="16.88"
-        android:translateY="9.99">
-        <path
-            android:fillColor="#5B9DFF"
-            android:pathData="M108,196H132A12,12 0,0 1,144 208V304A12,12 0,0 1,132 316H108A12,12 0,0 1,96 304V208A12,12 0,0 1,108 196Z M380,196H404A12,12 0,0 1,416 208V304A12,12 0,0 1,404 316H380A12,12 0,0 1,368 304V208A12,12 0,0 1,380 196Z M70,226H86A10,10 0,0 1,96 236V276A10,10 0,0 1,86 286H70A10,10 0,0 1,60 276V236A10,10 0,0 1,70 226Z M426,226H442A10,10 0,0 1,452 236V276A10,10 0,0 1,442 286H426A10,10 0,0 1,416 276V236A10,10 0,0 1,426 226Z" />
-        <path
-            android:fillColor="#E8ECF1"
-            android:pathData="M152,240H360A8,8 0,0 1,368 248V264A8,8 0,0 1,360 272H152A8,8 0,0 1,144 264V248A8,8 0,0 1,152 240Z" />
-        <path
-            android:fillColor="#00000000"
-            android:strokeColor="#3ECF8E"
-            android:strokeWidth="30"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M200,356L240,396L320,308" />
-    </group>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M28.5,46H30.5A1.5,1.5 0,0 1,32 47.5V60.5A1.5,1.5 0,0 1,30.5 62H28.5A1.5,1.5 0,0 1,27 60.5V47.5A1.5,1.5 0,0 1,28.5 46Z
+            M34.5,40H37.5A2.5,2.5 0,0 1,40 42.5V65.5A2.5,2.5 0,0 1,37.5 68H34.5A2.5,2.5 0,0 1,32 65.5V42.5A2.5,2.5 0,0 1,34.5 40Z
+            M40,51H68V57H40Z
+            M70.5,40H73.5A2.5,2.5 0,0 1,76 42.5V65.5A2.5,2.5 0,0 1,73.5 68H70.5A2.5,2.5 0,0 1,68 65.5V42.5A2.5,2.5 0,0 1,70.5 40Z
+            M77.5,46H79.5A1.5,1.5 0,0 1,81 47.5V60.5A1.5,1.5 0,0 1,79.5 62H77.5A1.5,1.5 0,0 1,76 60.5V47.5A1.5,1.5 0,0 1,77.5 46Z" />
 </vector>

@@ -409,7 +409,7 @@ final class WorkoutNotice {
         boolean hasButton = button != null && !button.isEmpty();
         PendingIntent press = hasButton ? pressIntent(ctx, st.token()) : null;
         NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_rest)
+            .setSmallIcon(R.drawable.ic_stat_workout)
             .setColor(0xFF3449D6)
             .setContentTitle(title)
             .setContentText(body)
@@ -456,13 +456,21 @@ final class WorkoutNotice {
     private static RemoteViews views(Context ctx, int layout, String title, String body, String button, PendingIntent press, long when, boolean countDown, long now) {
         RemoteViews v = new RemoteViews(ctx.getPackageName(), layout);
         v.setTextViewText(R.id.notice_title, title);
+        v.setTextViewText(R.id.notice_label, title);
         v.setTextViewText(R.id.notice_text, body);
         if (when > 0) {
             // 크로노미터는 부팅 뒤 경과 시각(elapsedRealtime)을 기준으로 센다. 휴식이 끝난 뒤에는 앱 화면처럼 +0:12 로 지난 시간을 보인다.
+            // 시간이 있으면 시간을 크게 두고 상태 말(휴식 중)은 옆의 옅은 글(notice_label)로 보인다(2026-11-22).
             v.setChronometer(R.id.notice_clock, SystemClock.elapsedRealtime() + (when - now), countDown ? null : "+%s", true);
             v.setChronometerCountDown(R.id.notice_clock, countDown);
             v.setViewVisibility(R.id.notice_clock, View.VISIBLE);
-        } else v.setViewVisibility(R.id.notice_clock, View.GONE);
+            v.setViewVisibility(R.id.notice_label, View.VISIBLE);
+            v.setViewVisibility(R.id.notice_title, View.GONE);
+        } else {
+            v.setViewVisibility(R.id.notice_clock, View.GONE);
+            v.setViewVisibility(R.id.notice_label, View.GONE);
+            v.setViewVisibility(R.id.notice_title, View.VISIBLE);
+        }
         if (press != null) {
             v.setTextViewText(R.id.notice_button, button);
             v.setOnClickPendingIntent(R.id.notice_button, press);

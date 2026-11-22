@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 운동 중 알림의 버튼 배경. 앱의 강조색(#3449d6) 위 흰 글자는 대비 6.8:1 이다. -->
+<!-- 운동 중 알림의 버튼 배경. 앱의 강조색(#3449d6) 위 흰 글자는 대비 6.8:1 이다. 모서리는 높이의 절반을 넘겨 늘 알약 모양이 되게 한다. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="#3449D6" />
-    <corners android:radius="18dp" />
+    <corners android:radius="24dp" />
 </shape>

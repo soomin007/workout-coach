@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 운동 중 알림의 접힌 모양 (WorkoutNotice). 잠금 화면에서 알림 창을 내리면 알림이 접힌 채로 보여서,
-     펼치지 않고 바로 누르도록 버튼을 접힌 줄 오른쪽에 둔다. 라이브 업데이트를 쓰는 폰에서는 쓰지 않는다(그때는 늘 펼쳐 보인다). -->
+     펼치지 않고 바로 누르도록 버튼을 접힌 줄 오른쪽에 둔다. 라이브 업데이트를 쓰는 폰에서는 쓰지 않는다(그때는 늘 펼쳐 보인다).
+     2026-11-22: 남은 시간을 가장 크게 두고 상태 말(휴식 중)은 옅게 옆에 둔다. 시간이 없을 때는 제목(다음 세트 등)이 첫 줄이다. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -16,7 +17,29 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:baselineAligned="true"
             android:orientation="horizontal">
+
+            <Chronometer
+                android:id="@+id/notice_clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFeatureSettings="tnum"
+                android:includeFontPadding="false"
+                android:singleLine="true"
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+                android:textSize="20sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/notice_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Line2"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/notice_title"
@@ -25,21 +48,13 @@
                 android:ellipsize="end"
                 android:singleLine="true"
                 android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
-
-            <Chronometer
-                android:id="@+id/notice_clock"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:singleLine="true"
-                android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
-                android:visibility="gone" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/notice_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
             android:ellipsize="end"
             android:singleLine="true"
             android:textAppearance="@style/TextAppearance.Compat.Notification.Line2" />
@@ -51,12 +66,12 @@
         android:layout_height="36dp"
         android:layout_marginStart="12dp"
         android:background="@drawable/notice_button"
+        android:fontFamily="sans-serif-medium"
         android:gravity="center"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:singleLine="true"
         android:textColor="#FFFFFF"
         android:textSize="14sp"
-        android:textStyle="bold"
         android:visibility="gone" />
 </LinearLayout>
