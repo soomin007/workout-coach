@@ -135,8 +135,10 @@ export function checkContrast(css) {
       if (r < 4.5) bad(`${name}, ${label} ${r.toFixed(2)} (4.5 필요)`);
     };
     for (const k of TEXT_TOKENS) for (const s of SURFACES) need(t[k], t[s], `${k} 글자와 ${s} 바탕`);
-    need(t['accent-ink'], t.accent, 'accent-ink 글자와 accent 바탕');
-    need(t['good-ink'], t.good, 'good-ink 글자와 good 바탕');
+    // 버튼과 완료 줄의 바탕은 accent-fill, good-fill 이다(없으면 accent, good). 글자색 토큰과 바탕 토큰을 나눠야
+    // 어두운 테마에서도 진한 바탕에 흰 글자를 쓸 수 있다(known-issues 55).
+    need(t['accent-ink'], t['accent-fill'] || t.accent, `accent-ink 글자와 ${t['accent-fill'] ? 'accent-fill' : 'accent'} 바탕`);
+    need(t['good-ink'], t['good-fill'] || t.good, `good-ink 글자와 ${t['good-fill'] ? 'good-fill' : 'good'} 바탕`);
     if (t.warn && t.surface) need(t.warn, mixHex(t.surface, t.warn, 0.14), 'warn 글자와 경고 상자 바탕');
   }
   return out;

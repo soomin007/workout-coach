@@ -376,7 +376,7 @@ test('다음 세트 강조, 휴식 바에 다음 할 것, 느낌까지 입력하
   expect(first).toBe('pullup');
   await c.locator('[data-action="done"]').first().click();
   await expect(c.locator('.set.next')).toHaveCount(0);
-  await expect(page.getByTestId('rest-next')).toContainText('다음: 풀업');
+  await expect(page.getByTestId('rest-next')).toContainText('다음 풀업');
   await c.locator('[data-action="done"]').nth(1).click();
   await c.getByTestId('effort').getByRole('button', { name: '적당' }).click();
   await expect(c.getByTestId('ex-summary')).toContainText('8kg × ');
@@ -429,7 +429,7 @@ test('오늘 설정 바꾸기: 지금 값이 채워진 시트에서 시간만 �
   const sh = sheet(page);
   await expect(sh.locator('.pick[data-k="part"] .chip.on')).toHaveAttribute('data-v', 'push');
   await expect(sh.locator('.pick[data-k="minutes"] .chip.on')).toHaveAttribute('data-v', '60');
-  await expect(sh.getByTestId('start-go')).toHaveText('Push 다시 짜기 (60분, 일반)');
+  await expect(sh.getByTestId('start-go')).toHaveText('Push 다시 짜기 60분, 일반');
   await sh.locator('.pick[data-k="minutes"] .chip[data-v="30"]').click();
   await sh.getByTestId('start-go').click();
   await expect(page.locator('#toast')).toContainText('다시 짰습니다');
@@ -586,7 +586,7 @@ test('시작 전 확인: 오늘 고르지 않은 시간·강도는 비어 있고
   await sh.locator('.pick[data-k="minutes"] .chip[data-v="75"]').click();
   await expect(go).toBeDisabled();
   await sh.locator('.pick[data-k="intensity"] .chip[data-v="strength"]').click();
-  await expect(go).toHaveText('Lower 시작 (75분, 근력 중심)');
+  await expect(go).toHaveText('Lower 시작 75분, 근력 중심');
   await go.click();
   await expect(page.getByTestId('session-mode')).toContainText('75분, 근력 중심');
   const s = await st(page);

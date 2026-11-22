@@ -1,6 +1,6 @@
 // 운동 탭(라이브러리)과 운동 상세 시트. 운동 중이 아닐 때도 설명, 근육, 그립, 지난 기록을 본다 (2026-10-03 사용자 요청).
 // 화면 구성은 Leap 앱의 운동 탭과 운동 상세(설명과 기록)를 따른다 (docs/LEAP_UI_PLAN.md).
-import { esc, iconSvg, nw } from './dom.js';
+import { esc, escText, iconSvg, nw } from './dom.js';
 import { ALL_CATALOG, EQUIPMENT, MUSCLE_LABEL, LOAD_MODES } from '../core/catalog.js';
 import { profileFor, prescribeForOrder } from '../core/coach.js';
 import { isAvailable } from '../core/plan.js';
@@ -21,7 +21,7 @@ const names = (xs) => xs.map((m) => MUSCLE_X[m] || m).join(', ');
 // 'gym': 이름을 모르는 헬스장 기구 (직접 추가 운동)
 const equipLabel = (p) => EQUIPMENT[p.equipment] || (p.equipment === 'gym' ? '헬스장 기구' : '맨몸');
 // 목록 줄의 '(장비)': 짧은 이름만 한 덩어리로 묶는다(320 폭의 한 줄 길이 안). 더 긴 이름은 묶으면 칸 밖으로 넘친다.
-const equipHtml = (p) => { const t = `(${esc(equipLabel(p))})`; return equipLabel(p).length <= 9 ? nw(t) : t; };
+const equipHtml = (p) => { const t = esc(equipLabel(p)); return equipLabel(p).length <= 9 ? nw(t) : t; };
 
 function allExercises(state) {
   const custom = (state.customExercises || []).map((x) => x.id);
@@ -42,7 +42,7 @@ export function renderLibrary(state, ui) {
     const text = searchText(p);
     return `<button class="lib-item${q && !text.includes(q) ? ' hidden' : ''}" data-action="ex-detail" data-id="${esc(p.id)}" data-search="${esc(text)}">
       <span class="lib-thumb" aria-hidden="true">${exerciseImages(p.id)[0] ? `<img class="ex-img" src="${exerciseImages(p.id)[0]}" alt="" loading="lazy" decoding="async">` : bodyMap(p)}</span>
-      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))} ${equipHtml(p)}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
+      <span class="lib-txt"><b>${esc(p.name)}</b><span class="small">${esc(p.stretches ? `${names(p.stretches)} 스트레칭` : names(p.primary))}, ${equipHtml(p)}</span>${unav.has(p.id) ? '<span class="tiny">이 헬스장에 없음으로 제외됨</span>' : ''}</span>
     </button>`;
   }).join('');
   return `<section class="lib-head">
@@ -68,7 +68,7 @@ export function exerciseDetailHtml(state, id) {
   const g = guideFor(id);
   const grips = gripsFor(id);
   const gNow = grips ? lastGrip(state, id) : null;
-  const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}>`;
+  const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${escText(x)}</li>`).join('')}</${tag}>`;
   const u = p.measure === 'seconds' ? '초' : '회';
   const facts = [
     ...(p.stretches ? [['늘리는 곳', names(p.stretches)]] : [['집중 영역', names(p.primary)], ['보조', p.secondary.length ? names(p.secondary) : '-']]),

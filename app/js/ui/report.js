@@ -116,7 +116,7 @@ export function renderReport(state, ui, now = new Date()) {
     const unit = kind === 'e1rm' ? 'kg' : kind === 'sec' ? '초' : '회';
     const opts = done.map((id) => `<option value="${esc(id)}"${id === pick ? ' selected' : ''}>${esc(profileFor(state, id)?.name || id)}</option>`).join('');
     trend = `<select data-action="report-ex" aria-label="운동 고르기">${opts}</select>
-      <div class="small" style="margin:6px 0">${kind === 'e1rm' ? '세션마다 가장 좋은 세트로 계산한 추정 최대 무게(kg)' : kind === 'sec' ? '세션마다 가장 오래 버틴 시간(초)' : '세션마다 최고 반복 수'}</div>
+      <div class="small" style="margin:6px 0">${kind === 'e1rm' ? '세션마다 가장 좋은 세트로 계산한 추정 <span class="nw">최대 무게(kg)</span>' : kind === 'sec' ? '세션마다 가장 오래 버틴 시간(초)' : '세션마다 최고 반복 수'}</div>
       ${pts.length ? trendChart(pts, unit) : '<p class="small">평소 기록이 아직 없습니다.</p>'}
       ${pts.length ? `<details class="more"><summary>표로 보기</summary><table class="mini"><tr><th>날짜</th><th>내용</th></tr>${pts.slice().reverse().map((p) => `<tr><td>${esc(p.date)}</td><td>${esc(p.text)}</td></tr>`).join('')}</table></details>` : ''}`;
   }

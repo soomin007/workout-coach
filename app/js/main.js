@@ -482,9 +482,9 @@ async function startFlow({ part = null, home = false, extra = false, replan = fa
       const missing = [...form.querySelectorAll('.pick[data-required]')].filter((g) => !g.querySelector('.chip.on')).length;
       const go = form.querySelector('[data-testid=start-go]');
       go.disabled = missing > 0;
-      // 좁은 폭에서는 '부위 시작'과 '(시간, 강도)' 사이에서만 줄을 바꾼다 (360 폭에서 강도만 줄 첫머리로 간 적이 있다)
+      // 고른 시간과 강도는 괄호 대신 작은 둘째 줄로 보인다 (2026-11-22 문장 부호 덜기). 줄은 '부위 시작'과 둘째 줄 사이에서만 바뀐다
       go.innerHTML = missing ? esc(`${missing}개 더 고르면 ${verb}`)
-        : `${nw(`${esc(PART_LABEL[v('part')])} ${verb}`)} ${nw(`(${esc(v('minutes'))}분, ${esc(INTENSITY[v('intensity')])})`)}`;
+        : `${nw(`${esc(PART_LABEL[v('part')])} ${verb}`)} <small class="go-sub">${nw(`${esc(v('minutes'))}분, ${esc(INTENSITY[v('intensity')])}`)}</small>`;
       const p = v('part');
       const warn = [
         v('energy') === 'very_tired' ? '매우 피곤한 날은 쉬는 편이 낫습니다. 한다면 가볍게 고르세요.' : null,

@@ -69,7 +69,7 @@ test('강도 가볍게 문구는 낮춘 무게와 엇갈리는 "30kg 유지"를 
   const p = profileFor(s, 'legcurl');
   const rx = easyRx(p, prescribeForOrder(p, s, 0));
   assert.equal(rx.weight, 25);
-  assert.doesNotMatch(rx.note, /유지/);
+  assert.doesNotMatch(rx.note, /그대로,/);
   assert.match(rx.note, /30kg × 13회/);
   assert.match(rx.note, /25kg로 13회/);
 });

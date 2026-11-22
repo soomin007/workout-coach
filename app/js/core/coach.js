@@ -215,10 +215,10 @@ export function prescribe(profile, last) {
   const weighted = main.filter((s) => s.weight !== null);
   if (!weighted.length) {
     const minR = Math.min(...main.map(setReps));
-    if (minR >= hi) return { weight: null, reps: hi, kind: 'bw_top', note: `지난번 모든 세트 ${hi}${u} 달성. 세트를 하나 늘리거나 추가 중량을 고려하세요.` };
+    if (minR >= hi) return { weight: null, reps: hi, kind: 'bw_top', note: `지난번 모든 세트에서 ${hi}${u}를 채웠습니다. 세트를 하나 늘리거나 추가 중량을 고려하세요.` };
     const reps = even(clamp(hard ? minR : minR + (profile.alternating ? 2 : 1), lo, hi));
-    const side = profile.alternating ? ` (한쪽 ${reps / 2}${u}씩)` : '';
-    return { weight: null, reps, kind: 'hold', note: `지난번 최저 ${minR}${u}. 이번 목표 ${reps}${u}${side}.` };
+    const side = profile.alternating ? `, 한쪽 ${reps / 2}${u}씩` : '';
+    return { weight: null, reps, kind: 'hold', note: `지난번 가장 적게 한 세트가 ${minR}${u}여서 이번 목표는 ${reps}${u}${side}입니다.` };
   }
   const qualifying = weighted.filter((s) => setReps(s) >= lo);
   const step = profile.inc > 0 ? profile.inc : 0;
@@ -231,7 +231,7 @@ export function prescribe(profile, last) {
     if (!isAssist(profile.mode) && w >= W) {
       return { weight: W, reps: lo, kind: 'hold', note: `${W}kg가 이 기구의 가장 가벼운 칸이라 더 낮출 수 없습니다. 같은 무게로 ${lo}${u}를 목표로 하세요.` };
     }
-    return { weight: w, reps: lo, kind: 'decrease', note: `지난번 ${W}kg에서 목표 하한(${lo}${u})에 못 미쳤습니다. ${w}kg로 낮춰 범위 안에서 반복하세요.` };
+    return { weight: w, reps: lo, kind: 'decrease', note: `지난번 ${W}kg에서 목표 최소 ${lo}${u}에 못 미쳐 ${w}kg로 낮춥니다.` };
   }
   // 작업 중량: 하한 이상을 채운 세트 중 가장 무거운(assist 는 가장 가벼운 보조) 중량
   const W = isAssist(profile.mode) ? Math.min(...qualifying.map((s) => s.weight)) : Math.max(...qualifying.map((s) => s.weight));
@@ -241,14 +241,14 @@ export function prescribe(profile, last) {
   const top = jump ? hi + JUMP.extra : hi;
   if (minR >= top && !hard && step > 0) {
     const w = isAssist(profile.mode) ? Math.max(0, roundTo(W - step, step)) : stepW(W, 1, profile);
-    return { weight: w, reps: lo, kind: 'increase', note: isAssist(profile.mode) ? `지난번 ${W}kg 보조로 상한 달성. 보조를 ${w}kg로 줄여 ${lo}${u}부터.` : `지난번 ${W}kg로 모든 세트 상한(${hi}${u}) 달성. ${w}kg로 올려 ${lo}${u}부터.` };
+    return { weight: w, reps: lo, kind: 'increase', note: isAssist(profile.mode) ? `지난번 ${W}kg 보조로 상한을 채워 보조를 ${w}kg로 줄이고 ${lo}${u}부터 합니다.` : `지난번 ${W}kg로 모든 세트 ${hi}${u}를 채워 ${w}kg로 올리고 ${lo}${u}부터 합니다.` };
   }
   const reps = clamp(hard ? minR : minR + 1, lo, top);
-  const why = hard ? '지난번 한계였으니 같은 반복을 여유 있게.' : `반복을 ${reps}${u}로 하나씩 올리기.`;
+  const why = hard ? '지난번이 한계였으니 같은 반복을 여유 있게 합니다.' : `반복을 ${reps}${u}로 하나 늘립니다.`;
   if (jump && minR >= hi) {
     return { weight: W, reps, kind: 'hold', note: `다음 무게 ${jump}kg는 ${W}kg보다 ${Math.round((jump / W - 1) * 100)}% 무거워 한 번에 올리지 않습니다. ${W}kg로 ${top}${u}까지 늘린 뒤 올립니다. ${why}` };
   }
-  return { weight: W, reps, kind: 'hold', note: `${W}kg 유지. ${why}` };
+  return { weight: W, reps, kind: 'hold', note: `${W}kg 그대로, ${why}` };
 }
 
 // 워밍업 행 (코칭 정책 6절). level: 'heavy' | 'full' | 'short' | 'none'

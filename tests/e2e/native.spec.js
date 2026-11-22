@@ -85,7 +85,7 @@ test('앱: 세트 체크로 휴식이 시작되면 끝 시각에 알림을 예�
   const n = (await calls(page, 'schedule'))[0].opts.notifications[0];
   expect(n).toMatchObject({ id: 7001, channelId: 'rest-end', autoCancel: true, isExactNotification: true, title: '휴식이 끝났어요' });
   expect(n.schedule).toEqual({ at: endOf(rt), allowWhileIdle: true });
-  expect(n.body).toMatch(/^다음: .+ (워밍업|\d세트), /);
+  expect(n.body).toMatch(/^다음 .+ (워밍업|\d세트), /);
 
   // 시간이 흐르기만 해서는 다시 부르지 않는다
   await page.clock.runFor(3000);

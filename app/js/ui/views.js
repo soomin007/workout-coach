@@ -1,5 +1,5 @@
 // 상태 → HTML. 이벤트는 data-action 속성으로만 연결한다 (main.js 의 actions 가 위임 처리).
-import { esc, iconSvg, nw, joinMeta } from './dom.js';
+import { esc, escText, iconSvg, nw, joinMeta } from './dom.js';
 import { PART_LABEL, PART_MUSCLES, LOAD_MODES, EQUIPMENT, MUSCLE_LABEL, MUSCLE_BUDGET, ALL_CATALOG, catalogById, slotName, EMPHASIS, hasEquipment, isStretch } from '../core/catalog.js';
 import { recommendPart, explainRecommendation, keptMains, josa, daysSince, muscleSets, missingCoreSlots, effectiveCheck, checkConfirmed, todaysHistory } from '../core/plan.js';
 import { countWorkSets, timerSeconds, findWeightPending } from '../core/session.js';
@@ -68,7 +68,7 @@ export function renderToday(state, ui, now = new Date()) {
   <section class="card hero">
     <div class="hero-top"><div>
       <div class="title" data-testid="rec-title">${esc(REC_LABEL[r.part])}</div><div class="small hero-note">오늘 추천</div></div>${PART_OPTS.includes(r.part) ? heroMap([r.part]) : ''}</div>
-    <ul class="reasons">${reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <ul class="reasons">${reasons.map((x) => `<li>${escText(x)}</li>`).join('')}</ul>
     <div class="row" style="margin-top:12px">
       ${PART_OPTS.includes(r.part) ? `<button class="btn primary" data-action="start" data-part="${r.part}" data-home="${r.home ? 1 : 0}">${r.home ? '집에서 ' : ''}${esc(REC_LABEL[r.part])} 시작</button>` : ''}
       ${r.part === 'pt' ? '<button class="btn primary" data-action="pt">PT 기록</button>' : ''}
@@ -197,13 +197,13 @@ const setNo = (e, z) => (z.type === 'warmup' ? '워밍업' : `${e.sets.filter((x
 // 휴식 끝 알림 글 (안드로이드 앱). 알림은 HTML 이 아니라 글자 그대로 보이므로 esc 를 하지 않는다.
 export function restNoticeText(session) {
   const n = nextSet(session);
-  return { title: '휴식이 끝났어요', body: n ? `다음: ${n.e.name} ${setNo(n.e, n.z)}, ${setSummary(n.e, n.z)}` : '마지막 세트까지 끝났어요. 저장하고 종료하세요.' };
+  return { title: '휴식이 끝났어요', body: n ? `다음 ${n.e.name} ${setNo(n.e, n.z)}, ${setSummary(n.e, n.z)}` : '마지막 세트까지 끝났어요. 저장하고 종료하세요.' };
 }
 
 // 운동 중 알림(안드로이드 앱)의 문구. 네이티브는 이 글을 그대로 그리므로, 문구를 고칠 때 APK 를 다시 깔 필요가 없다.
 // 제목은 휴식 상태(resting, over, idle)로 고르고, 본문은 단계 글이다. 휴식 중이면 본문 앞에 prefix 를 붙인다.
 export const NOTICE_TEXT = {
-  resting: '휴식 중', over: '휴식이 끝났어요', idle: '다음 세트', prefix: '다음: ',
+  resting: '휴식 중', over: '휴식이 끝났어요', idle: '다음 세트', prefix: '다음 ',
   done: '세트 완료', hold: '버티기 시작', skip: '바로 시작', stop: '여기까지',
   ask: '앱에서 느낌을 골라 주세요',
   end: '마지막 세트까지 끝났어요', endBody: '앱에서 저장하고 종료하세요.', endRest: '마지막 세트까지 끝났어요. 앱에서 저장하고 종료하세요.',
@@ -273,14 +273,14 @@ function renderExercise(state, e, idx, ui, next) {
     <div class="ex-head">
       <button class="ex-thumb" data-action="ex-detail" data-id="${esc(e.exerciseId)}" aria-label="${esc(e.name)} 설명 보기">${thumbHtml(e.exerciseId, e.grip, e)}</button>
       <div class="ex-head-txt"><div class="ex-title">${idx + 1}. ${esc(e.name)}</div>
-      <div class="ex-progress" data-testid="ex-progress">${mains.filter((z) => z.done).length}/${mains.length} 완료</div>
+      <div class="ex-sub"><span class="ex-progress" data-testid="ex-progress">${mains.filter((z) => z.done).length}/${mains.length} 완료</span><span class="badge">${badge}</span></div>
       <div class="ex-meta">${exMeta}</div></div>
-      <div class="row" style="flex-wrap:nowrap"><span class="badge">${badge}</span><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">${iconSvg('more', 'ico')}</button></div>
+      <div class="row" style="flex-wrap:nowrap"><button class="btn sm ghost" data-action="ex-menu" data-uid="${e.uid}" aria-label="운동 메뉴">${iconSvg('more', 'ico')}</button></div>
     </div>
     ${gripChip(e)}
     ${holdButton(e, allDone)}
-    <div class="rx">${esc(e.prescription?.note || '')}</div>
-    ${e.coach ? `<div class="coach" data-testid="coach">${esc(e.coach)}</div>` : ''}
+    <div class="rx">${escText(e.prescription?.note || '')}</div>
+    ${e.coach ? `<div class="coach" data-testid="coach">${escText(e.coach)}</div>` : ''}
     ${guideHtml(e)}
     <div class="sets">${rows}</div>
     ${topRir}${findAsk}
@@ -308,7 +308,7 @@ function keptLine(state, s, now) {
   const names = keptMains(state, s, now);
   if (!names.length) return '';
   const head = names.length > 2 ? `${names.slice(0, 2).join(', ')} 외 ${names.length - 2}개` : names.join(', ');
-  return `<div class="tiny" data-testid="kept-mains">${esc(josa(head, '은', '는'))} 지난번과 같게 둡니다. 메인 운동은 같은 운동을 이어 가야 무게와 횟수를 올려 갈 수 있습니다.</div>`;
+  return `<div class="tiny" data-testid="kept-mains">${esc(josa(head, '은', '는'))} 지난번과 같게 둡니다. 메인 운동은 같은 운동을 이어 가야 무게와 횟수를 <span class="nw">올려 갈 수 있습니다.</span></div>`;
 }
 
 // 시작 전 미리보기 (Leap 의 루틴 상세): 근육 지도, 운동 목록과 처방, 시작, 다시 추천.
@@ -374,7 +374,7 @@ export function gripSheetHtml(e, grips, done) {
 function guideHtml(e) {
   const g = guideFor(e.exerciseId);
   const muscles = [...e.primary.map((m) => MUSCLE_LABEL[m] || m)].join('·');
-  const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</${tag}>`;
+  const list = (xs, tag) => `<${tag}>${xs.map((x) => `<li>${escText(x)}</li>`).join('')}</${tag}>`;
   const gr = e.grip ? gripById(e.exerciseId, e.grip) : null;
   return `<details class="cue" data-testid="guide"><summary>운동 방법과 주의할 점</summary>
     ${gr ? `<div class="guide-h">지금 그립: ${joinMeta(gr.name.split(', '))} ${nw(`(${esc(gr.hold)})`)}</div>${list(gr.how, 'ul')}` : ''}
@@ -430,7 +430,7 @@ export function renderRestbar(state, now = Date.now()) {
   if (rt) {
     const left = Math.ceil((rt.startedAt + rt.seconds * 1000 - now) / 1000);
     over = left < 0;
-    const nx = n ? `다음: ${esc(n.e.name)} ${nw(esc(setSummary(n.e, n.z)))}` : '마지막 세트까지 끝났어요';
+    const nx = n ? `다음 ${esc(n.e.name)} ${nw(esc(setSummary(n.e, n.z)))}` : '마지막 세트까지 끝났어요';
     rest = `<div class="rest-row"><div class="rest-info"><span class="lbl" data-testid="rest-next">${nx}</span><span class="t" data-testid="rest-time">${left >= 0 ? fmtClock(left) : '+' + fmtClock(-left)}</span></div><button class="btn sm" data-action="rest-adj" data-d="-15">−15</button><button class="btn sm" data-action="rest-adj" data-d="30">+30</button><button class="btn sm" data-action="rest-stop">건너뛰기</button></div>`;
   }
   let main;
@@ -476,13 +476,13 @@ export function renderRecords(state, ui, now = new Date()) {
 
 // ---------- 설정 ----------
 
-const GOAL_HINT = { hypertrophy: '보통 8~12회. 지금까지의 기본값입니다.', strength: '복합 운동을 5~8회로 무겁게, 휴식은 길게.', endurance: '12~20회로 가볍게, 휴식은 짧게.' };
+const GOAL_HINT = { hypertrophy: '보통 8~12회로, 지금까지의 기본값입니다', strength: '복합 운동을 5~8회로 무겁게 하고 휴식은 길게 둡니다', endurance: '12~20회로 가볍게 하고 휴식은 짧게 둡니다' };
 
 export function renderSettings(state, ui) {
   const st = state.settings;
   const goal = st.goal || 'hypertrophy';
   const goalCard = `<section class="card"><h3>목표</h3><div class="small">운동마다 목표 횟수 범위가 바뀝니다. 운동별로 직접 정한 범위가 있으면 그것이 우선입니다.</div>
-    <div class="goal-list">${Object.entries(GOALS).map(([k, l]) => `<button class="goal-opt${goal === k ? ' on' : ''}" data-action="goal" data-v="${k}" aria-pressed="${goal === k}"><b>${l}</b><span class="small">${GOAL_HINT[k]}</span>${goal === k ? `<span class="goal-check">${iconSvg('check', 'ico')}</span>` : ''}</button>`).join('')}</div></section>`;
+    <div class="goal-list">${Object.entries(GOALS).map(([k, l]) => `<button class="goal-opt${goal === k ? ' on' : ''}" data-action="goal" data-v="${k}" aria-pressed="${goal === k}"><b>${l}</b><span class="small">${escText(GOAL_HINT[k])}</span>${goal === k ? `<span class="goal-check">${iconSvg('check', 'ico')}</span>` : ''}</button>`).join('')}</div></section>`;
   const days = [['none', '고정 없음'], [1, '월'], [2, '화'], [3, '수'], [4, '목'], [5, '금'], [6, '토']];
   const equip = Object.entries(EQUIPMENT).filter(([k]) => k !== 'none').map(([k, n]) => `<label class="setting"><span>${esc(n)}</span><input type="checkbox" data-action="equip" data-k="${k}"${hasEquipment(st.equipment, k) ? ' checked' : ''}></label>`).join('');
   const unav = (st.unavailableExercises || []).map((id) => `<div class="setting"><span>${esc(catalogById(id)?.name || state.customExercises.find((c) => c.id === id)?.name || id)}</span><button class="btn sm" data-action="unavail-remove" data-id="${esc(id)}">다시 사용</button></div>`).join('') || '<div class="small">없음</div>';
@@ -498,7 +498,7 @@ export function renderSettings(state, ui) {
       <label class="field">PT 요일 (보통)<select data-action="setting" data-k="ptDay">${days.map(([v, l]) => opt(v, l, st.ptDay ?? 'none')).join('')}</select></label>
     </div>
     <label class="setting"><span>허리 부하 큰 힙힌지 자동 추천 제외</span><input type="checkbox" data-action="setting-bool" data-k="avoidHinge"${st.avoidHinge !== false ? ' checked' : ''}></label>
-    <label class="setting"><span>편측 하체: 왼쪽 먼저, 오른쪽은 왼쪽 반복 초과 금지 안내</span><input type="checkbox" data-action="setting-bool" data-k="leftFirst"${st.leftFirst !== false ? ' checked' : ''}></label>
+    <label class="setting"><span>편측 하체는 왼쪽 먼저 하고, 오른쪽이 왼쪽 반복을 넘지 않게 안내</span><input type="checkbox" data-action="setting-bool" data-k="leftFirst"${st.leftFirst !== false ? ' checked' : ''}></label>
   </section>
   <section class="card"><h3>헬스장에 없는 운동</h3>${unav}</section>
   <section class="card"><h3>운동별 설정</h3><div class="small">중량 방식, 증량 단위, 기본 휴식, 반복 범위를 바꾼 운동만 보입니다.</div>${prefs}
@@ -534,7 +534,7 @@ function noticeCard(nt) {
 
 function syncCard(sy) {
   if (!sy) {
-    return `<section class="card"><h3>기록 동기화</h3><div class="small">GitHub 비공개 저장소에 기록을 자동으로 올려 둡니다. 폰을 바꿔도 그대로 받고, PC에서 기록을 확인하거나 고칠 수 있습니다.</div>
+    return `<section class="card"><h3>기록 동기화</h3><div class="small">GitHub 비공개 저장소에 기록을 자동으로 <span class="nw">올려 둡니다.</span> 폰을 바꿔도 그대로 받고, PC에서 기록을 확인하거나 <span class="nw">고칠 수 있습니다.</span></div>
     <button class="btn sm primary" data-action="sync-connect" style="margin-top:8px">GitHub 연결</button></section>`;
   }
   const at = sy.at ? new Date(sy.at).toLocaleString('ko-KR') : '아직 없음';
