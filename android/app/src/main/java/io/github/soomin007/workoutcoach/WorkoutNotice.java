@@ -9,11 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -39,11 +37,11 @@ final class WorkoutNotice {
     // 휴식 끝 알림(7001), 시험 알림(7002), 측정 스크립트의 시험 알림(7100 부터)과 겹치지 않는 번호
     static final int NOTICE_ID = 7010;
     static final int TEST_ID = 7002;
-    // 중요도 높음, 진동, 잠금 화면 공개. 평소 갱신은 조용히 올리고 휴식이 끝날 때와 버티기 단계가 바뀔 때만 진동과 소리를 낸다.
-    // 소리는 알람 소리(USAGE_ALARM)로 내서 무음 모드에서도 울린다. 시계 앱의 타이머와 같고, 크기는 알람 볼륨을 따른다(11/23 세션 메모).
-    // 채널 설정은 처음 만들 때 정해져 바꿀 수 없으므로 예전 'rest-end'(보통 알림음) 대신 새 id 를 쓴다(known-issues 47).
-    static final String CHANNEL = "rest-alarm";
-    static final String LEGACY_CHANNEL = "rest-end";
+    // 중요도 높음(화면 위에 뜸), 잠금 화면 공개, 채널 자체의 소리와 진동은 없음. 휴식이 끝날 때와 버티기 단계가 바뀔 때의
+    // 소리와 진동은 앱이 직접 낸다(AlertSound, 이어폰으로 나가는 안내음). 삼성 무음 모드는 알림 채널의 소리를 알람 용도여도 막았다(11/23 실측).
+    // 채널 설정은 처음 만들 때 정해져 바꿀 수 없으므로 새 id 를 쓰고 예전 채널은 지운다(known-issues 47, 58).
+    static final String CHANNEL = "workout";
+    static final String[] LEGACY_CHANNELS = { "rest-end", "rest-alarm" };
     static final String ACTION_PRESS = "workoutcoach.notice.PRESS";
     static final String ACTION_ALARM = "workoutcoach.notice.ALARM";
     static final String ACTION_TEST = "workoutcoach.notice.TEST";
@@ -239,8 +237,9 @@ final class WorkoutNotice {
         if (recorded) WorkoutNoticePlugin.onRecorded();
     }
 
-    // 예약한 시각이 됐다: 휴식 끝이면 진동과 소리, 버티기면 다음 단계로 넘긴다.
-    static void alarm(Context ctx) {
+    // 예약한 시각이 됐다: 휴식 끝이면 알리고, 버티기면 다음 단계로 넘긴다.
+    // 반환: 소리와 진동을 낼 때인지. 리시버가 AlertSound 로 낸다(알림 채널은 조용하다).
+    static boolean alarm(Context ctx) {
         State st;
         boolean alert = false;
         boolean recorded = false;
@@ -248,7 +247,7 @@ final class WorkoutNotice {
         long due;
         synchronized (LOCK) {
             st = load(ctx);
-            if (st.plan == null) return;
+            if (st.plan == null) return false;
             due = st.hold != null ? st.phaseEnd() : st.restEnd(); // 늦은 시간은 단계가 넘어가기 전의 예정 시각으로 잰다
             if (st.hold != null) {
                 long end = st.phaseEnd();
@@ -269,6 +268,7 @@ final class WorkoutNotice {
         }
         Log.i(TAG, "alarm alert=" + alert + " recorded=" + recorded + " late=" + (now - due) + "ms");
         if (recorded) WorkoutNoticePlugin.onRecorded();
+        return alert;
     }
 
     // 세트 하나를 끝냈다: 기록장에 적고 다음 단계와 그 뒤 휴식으로 넘긴다
@@ -355,23 +355,21 @@ final class WorkoutNotice {
         return NotificationManagerCompat.from(ctx).areNotificationsEnabled();
     }
 
-    // 알림 채널을 만든다(플러그인을 불러올 때와 알림을 올릴 때). 예전 'rest-end' 채널은 이 APK 에서 쓰지 않으므로 지운다.
-    // 웹 코드도 이 APK 에서는 그 채널을 다시 만들지 않는다(ui/native.js 의 notice.alarm).
+    // 알림 채널을 만든다(플러그인을 불러올 때와 알림을 올릴 때). 예전 채널은 이 APK 에서 쓰지 않으므로 지운다.
+    // 웹 코드도 이 APK 에서는 예전 채널을 다시 만들지 않는다(ui/native.js 의 notice.alarm). 다만 APK 를 새로 깐 첫 실행에서는
+    // 서비스 워커가 옛 웹 코드를 먼저 띄워 'rest-end' 를 다시 만들 수 있어, 다음 실행의 이 함수가 한 번 더 지운다.
     static void ensureChannel(Context ctx) {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
         if (nm == null) return;
-        if (nm.getNotificationChannel(LEGACY_CHANNEL) != null) nm.deleteNotificationChannel(LEGACY_CHANNEL);
+        for (String id : LEGACY_CHANNELS) if (nm.getNotificationChannel(id) != null) nm.deleteNotificationChannel(id);
         if (nm.getNotificationChannel(CHANNEL) != null) return;
-        NotificationChannel ch = new NotificationChannel(CHANNEL, "휴식 끝 알람", NotificationManager.IMPORTANCE_HIGH);
-        ch.setDescription("휴식과 버티기 타이머가 끝나면 무음 모드에서도 알람 소리로 알립니다. 소리 크기는 알람 볼륨을 따릅니다.");
+        NotificationChannel ch = new NotificationChannel(CHANNEL, "운동 중 알림", NotificationManager.IMPORTANCE_HIGH);
+        ch.setDescription("남은 휴식과 다음 세트를 보이고, 휴식이 끝나면 화면 위에 띄웁니다. 소리는 앱이 미디어 볼륨으로 내서 무음 모드에서도 이어폰으로 들립니다.");
         ch.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
-        ch.enableVibration(true);
+        ch.setSound(null, null);
+        ch.enableVibration(false);
         ch.enableLights(false);
-        ch.setSound(Settings.System.DEFAULT_NOTIFICATION_URI, new AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ALARM)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build());
         nm.createNotificationChannel(ch);
     }
 
@@ -403,7 +401,7 @@ final class WorkoutNotice {
             .setSmallIcon(R.drawable.ic_stat_workout)
             .setColor(0xFF3449D6)
             .setContentTitle("시험 알림")
-            .setContentText(seconds + "초 뒤에 울리도록 예약한 알림입니다. 무음 모드에서도 알람 볼륨으로 울립니다.")
+            .setContentText(seconds + "초 뒤에 울리도록 예약한 알림입니다. 소리는 무음 모드에서도 이어폰으로 납니다.")
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openApp(ctx))
