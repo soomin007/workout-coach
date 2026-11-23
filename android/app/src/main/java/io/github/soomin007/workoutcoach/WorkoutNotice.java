@@ -2,6 +2,7 @@ package io.github.soomin007.workoutcoach;
 
 import android.Manifest;
 import android.app.AlarmManager;
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -396,8 +397,17 @@ final class WorkoutNotice {
 
     static void postTest(Context ctx, int id, int seconds) {
         if (!canPost(ctx)) return;
+        try {
+            NotificationManagerCompat.from(ctx).notify(id, testNotice(ctx, seconds));
+        } catch (SecurityException e) {
+            Log.w(TAG, "postTest", e);
+        }
+    }
+
+    /** 시험 알림. 소리 서비스(CueService)도 같은 번호로 잠깐 포그라운드 알림으로 쓴다. */
+    static Notification testNotice(Context ctx, int seconds) {
         ensureChannel(ctx);
-        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL)
+        return new NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_workout)
             .setColor(0xFF3449D6)
             .setContentTitle("시험 알림")
@@ -405,11 +415,15 @@ final class WorkoutNotice {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openApp(ctx))
-            .setAutoCancel(true);
-        try {
-            NotificationManagerCompat.from(ctx).notify(id, b.build());
-        } catch (SecurityException e) {
-            Log.w(TAG, "postTest", e);
+            .setAutoCancel(true)
+            .build();
+    }
+
+    /** 소리 서비스용: 저장된 상태로 지금의 운동 중 알림을 만든다. 세션이 없으면 시험 알림 모양으로 대신한다. */
+    static Notification current(Context ctx) {
+        synchronized (LOCK) {
+            Notification n = build(ctx, load(ctx), false);
+            return n != null ? n : testNotice(ctx, 0);
         }
     }
 
@@ -417,7 +431,7 @@ final class WorkoutNotice {
         return t == null ? "" : t.optString(key);
     }
 
-    /** 지금 상태로 알림을 그린다. alert 가 아니면 조용히 바꾼다(진동, 소리, 화면 위 팝업 없음). */
+    /** 지금 상태로 알림을 그린다. alert 가 아니면 조용히 바꾼다(화면 위 팝업 없음). */
     static void render(Context ctx, State st, boolean alert) {
         NotificationManagerCompat nm = NotificationManagerCompat.from(ctx);
         if (st.plan == null) {
@@ -425,6 +439,16 @@ final class WorkoutNotice {
             return;
         }
         if (!canPost(ctx)) return;
+        try {
+            nm.notify(NOTICE_ID, build(ctx, st, alert));
+        } catch (SecurityException e) {
+            Log.w(TAG, "notify", e);
+        }
+    }
+
+    /** 지금 상태의 운동 중 알림. plan 이 없으면 null. 소리 서비스도 같은 알림을 쓴다(current). */
+    static Notification build(Context ctx, State st, boolean alert) {
+        if (st.plan == null) return null;
         ensureChannel(ctx);
         JSONObject t = st.plan.optJSONObject("texts");
         JSONObject step = st.step();
@@ -494,11 +518,7 @@ final class WorkoutNotice {
                 .setCustomContentView(views(ctx, R.layout.notice_collapsed, title, body, button, press, when, countDown, now))
                 .setCustomBigContentView(views(ctx, R.layout.notice_expanded, title, body, button, press, when, countDown, now));
         }
-        try {
-            nm.notify(NOTICE_ID, b.build());
-        } catch (SecurityException e) {
-            Log.w(TAG, "notify", e);
-        }
+        return b.build();
     }
 
     // 이 폰에서 라이브 업데이트(승격)를 쓸 수 있는지. 안드로이드 16 이상이고 제조사와 사용자가 막지 않았을 때만 참이다.

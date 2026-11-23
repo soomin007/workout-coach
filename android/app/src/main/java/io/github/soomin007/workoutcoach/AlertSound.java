@@ -1,6 +1,8 @@
 package io.github.soomin007.workoutcoach;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
@@ -13,7 +15,6 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
-import android.provider.Settings;
 import android.util.Log;
 
 /**
@@ -24,12 +25,16 @@ import android.util.Log;
  * 알람 용도로 앱이 직접 내면 무음에서도 나지만 이어폰이 연결돼 있어도 스피커로 같이 울린다. 그래서 내비게이션 안내 음성처럼
  * 미디어 쪽 소리(USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)로 낸다. 이 소리는 무음과 진동 모드의 영향을 받지 않고 연결된 이어폰으로만 나가며
  * (연결이 없으면 스피커), 크기는 미디어 볼륨을 따른다. 음악을 듣는 중이면 잠깐 줄였다가(오디오 포커스 duck) 끝나면 되돌린다.
- * 통화 중처럼 포커스를 얻지 못하면 소리는 내지 않고 진동만 한다. 알림 채널은 소리와 진동 없이 화면 위에만 띄운다(WorkoutNotice.CHANNEL).
+ *
+ * 안드로이드 15 부터 화면에 없는 앱은 오디오 포커스를 얻지 못한다(삼성 로그: "Audio focus request blocked by hardening").
+ * 그래서 화면이 꺼진 동안에는 소리를 내는 몇 초만 포그라운드 서비스(CueService)로 앞에 서서 포커스를 얻는다. 정확한 알람이 울린 직후라
+ * 백그라운드에서도 서비스를 띄울 수 있다. 그래도 포커스를 얻지 못하면 통화 중이 아닌 한 음악을 줄이지 않은 채 소리를 낸다(2026-11-24).
+ * 소리는 음악 위로 들리게 만든 짧은 두 음(res/raw/rest_cue.wav, -10 LUFS)이다. 기본 알림음(-16 LUFS)은 작게 들렸다(11/24 사용자).
  */
 final class AlertSound {
     private static final String TAG = "WorkoutNotice";
     private static final long[] PATTERN = {0, 150, 80, 150}; // 앱 화면의 휴식 끝 진동과 같다
-    private static final long MAX_MS = 6000; // 브로드캐스트를 붙잡아 둘 수 있는 10초 안에서 끊는다
+    private static final long MAX_MS = 4000; // 소리가 끝나지 않아도 이 시간 뒤에는 정리한다
 
     private AlertSound() {}
 
@@ -40,16 +45,33 @@ final class AlertSound {
             .build();
     }
 
-    /** 소리와 진동을 낸다. 재생이 끝나거나 MAX_MS 가 지나면 done 을 한 번 부른다(리시버의 goAsync 를 끝낸다). */
+    /**
+     * 리시버에서 부른다. 짧은 포그라운드 서비스로 소리를 낸다. 서비스를 띄우지 못하면 false 라서 리시버가 직접 play 한다.
+     * noticeId 는 서비스가 잠깐 포그라운드 알림으로 쓸 알림(운동 중 알림 7010, 시험 알림 7002 등)이다. 이미 떠 있는 알림을 그대로 쓴다.
+     */
+    static boolean startService(Context ctx, int noticeId, int testSecs) {
+        try {
+            Intent i = new Intent(ctx, CueService.class).putExtra(CueService.EXTRA_ID, noticeId).putExtra(CueService.EXTRA_SECS, testSecs);
+            if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i);
+            else ctx.startService(i);
+            return true;
+        } catch (RuntimeException e) {
+            Log.w(TAG, "cue service not started", e);
+            return false;
+        }
+    }
+
+    /** 소리와 진동을 낸다. 재생이 끝나거나 MAX_MS 가 지나면 done 을 한 번 부른다. */
     static void play(Context ctx, Runnable done) {
         vibrate(ctx);
         AudioManager am = ctx.getSystemService(AudioManager.class);
-        Object focus = requestFocus(am);
-        if (focus == null) {
-            Log.i(TAG, "sound skipped: no audio focus");
+        int mode = am == null ? AudioManager.MODE_NORMAL : am.getMode();
+        if (mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION) {
+            Log.i(TAG, "sound skipped: in call");
             if (done != null) done.run();
             return;
         }
+        Object focus = requestFocus(am);
         Handler h = new Handler(Looper.getMainLooper());
         MediaPlayer mp = new MediaPlayer();
         final boolean[] over = { false };
@@ -64,9 +86,9 @@ final class AlertSound {
             abandonFocus(am, focus);
             if (done != null) done.run();
         };
-        try {
+        try (AssetFileDescriptor afd = ctx.getResources().openRawResourceFd(R.raw.rest_cue)) {
             mp.setAudioAttributes(cue());
-            mp.setDataSource(ctx, Settings.System.DEFAULT_NOTIFICATION_URI);
+            mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
             mp.setOnCompletionListener((p) -> finish.run());
             mp.setOnErrorListener((p, what, extra) -> {
                 Log.w(TAG, "sound error " + what + "/" + extra);
@@ -76,7 +98,7 @@ final class AlertSound {
             mp.prepare();
             mp.start();
             h.postDelayed(finish, MAX_MS);
-            Log.i(TAG, "sound cue started");
+            Log.i(TAG, "sound cue started focus=" + (focus != null));
         } catch (Exception e) {
             Log.w(TAG, "sound fallback beep", e);
             beep(h);
@@ -84,7 +106,7 @@ final class AlertSound {
         }
     }
 
-    // 음악을 잠깐 줄이고 그 위에 낸다. 얻지 못하면(통화 중 등) null.
+    // 음악을 잠깐 줄이고 그 위에 낸다. 얻지 못하면 null (화면에 없고 서비스도 없을 때)
     private static Object requestFocus(AudioManager am) {
         if (am == null) return null;
         if (Build.VERSION.SDK_INT >= 26) {
@@ -103,10 +125,10 @@ final class AlertSound {
         else if (focus instanceof AudioManager.OnAudioFocusChangeListener) am.abandonAudioFocus((AudioManager.OnAudioFocusChangeListener) focus);
     }
 
-    // 기본 알림음을 열 수 없을 때(알림음을 '없음'으로 둔 경우 등) 같은 미디어 쪽 소리로 짧게 두 번 울린다
+    // 소리 파일을 열지 못할 때 같은 미디어 쪽 소리로 짧게 두 번 울린다
     private static void beep(Handler h) {
         try {
-            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_MUSIC, 80);
+            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_MUSIC, 90);
             tg.startTone(ToneGenerator.TONE_PROP_BEEP2, 400);
             h.postDelayed(tg::release, 600);
         } catch (RuntimeException e) {

@@ -6,6 +6,9 @@
 // 방법: 앱 웹뷰의 디버깅 포트(CDP)로 window.__native.testNotice 를 불러 실제 앱과 같은 옵션으로 예약하고,
 // adb 로 화면을 끈다. 충전 중이면 절전이 걸리지 않으므로 'dumpsys battery unplug' 로 배터리 상태를 흉내 내고 끝나면 되돌린다.
 // 울린 시각은 안드로이드 이벤트 로그의 notification_enqueue(알림을 올린 때)와 notification_alert(진동, 소리)로 읽는다.
+// 화면 끄기 키(KEYCODE_SLEEP)를 보내도 꺼지지 않거나 곧 다시 켜질 수 있어서(2026-11-24 에는 6초 뒤 생체 인식으로 켜졌다),
+// 보낸 뒤 dumpsys power 로 꺼졌는지 보고 알림 1.5초 전의 화면 상태를 줄마다 적는다.
+// 그때 Awake(켜짐)였으면 그 줄은 화면을 끈 측정이 아니다(known-issues 63). 앱이 휴식 끝 소리를 직접 내는 APK 면 앱 로그의 소리 줄도 적는다.
 //
 // 운동 중 알림(WorkoutNotice)은 시험용 앱(--dev, scripts/android.mjs build --dev)에서 실제 흐름으로 잰다:
 //   node scripts/measure-notice.mjs --dev --workout 3    다음 세트를 3번 끝내며, 휴식마다 끝 알림이 늦은 시간을 잰다
@@ -45,6 +48,29 @@ async function ensureForeground() {
     if (i > 150) throw new Error('5분 동안 앱이 화면에 나오지 않아 멈춥니다.');
     await wait(2000);
   }
+}
+
+// 화면 상태: Awake 는 켜짐, Dozing 과 Asleep 은 꺼짐
+const wakefulness = () => (adb('shell', 'dumpsys', 'power').split('\n').find((l) => l.includes('mWakefulness=')) || '').trim().replace('mWakefulness=', '');
+
+// 화면을 끄고 꺼졌는지 확인한다. 끄기 키가 먹지 않으면 전원 키를 보내고, 그래도 켜져 있으면 until 까지 전원 버튼을 눌러 달라고 한다.
+async function screenOff(until) {
+  adb('shell', 'input', 'keyevent', 'KEYCODE_SLEEP');
+  await wait(1500);
+  if (wakefulness() !== 'Awake') return;
+  adb('shell', 'input', 'keyevent', 'KEYCODE_POWER');
+  await wait(1500);
+  for (let i = 0; wakefulness() === 'Awake' && Date.now() < until; i += 1) {
+    if (i === 0) console.log('\n화면이 꺼지지 않았습니다. 폰의 전원 버튼을 한 번 눌러 주세요.');
+    await wait(1000);
+  }
+}
+
+// 앱이 직접 내는 휴식 끝 소리(AlertSound)의 로그 줄. 'sound cue started focus=true' 면 오디오 포커스를 얻어 음악을 줄이고 냈다.
+function readSound(sinceMs) {
+  const out = adb('logcat', '-d', '-v', 'epoch', '-T', (sinceMs / 1000).toFixed(3), '-s', 'WorkoutNotice');
+  const line = out.split('\n').find((l) => /WorkoutNotice.*: sound /.test(l));
+  return line ? line.replace(/^.*?WorkoutNotice[^:]*:\s*/, '').trim() : null;
 }
 
 async function cdp() {
@@ -119,17 +145,19 @@ async function main() {
       const at = workout ? await c.evaluate(NEXT_SET) : await c.evaluate(`window.__native.testNotice(${sec}, ${id})`);
       if (!at) throw new Error(workout ? '끝낼 세트가 없습니다' : '예약하지 못했습니다 (알림 권한 확인)');
       const lead = at - Date.now();
-      adb('shell', 'input', 'keyevent', 'KEYCODE_SLEEP');
-      if (idle) { await wait(1500); adb('shell', 'dumpsys', 'deviceidle', 'force-idle'); }
+      await screenOff(at - 3000);
+      if (idle) adb('shell', 'dumpsys', 'deviceidle', 'force-idle');
       const t0 = Date.now();
-      process.stdout.write(`${workout ? `세트 완료, 휴식 ${Math.round(lead / 1000)}초` : `${sec}초 예약`} (id ${id}), 화면 끔${idle ? ', Doze 강제' : ''}. 기다리는 중...`);
+      process.stdout.write(`${workout ? `세트 완료, 휴식 ${Math.round(lead / 1000)}초` : `${sec}초 예약`} (id ${id}), 화면 ${wakefulness()}${idle ? ', Doze 강제' : ''}. 기다리는 중...`);
+      await wait(Math.max(0, at - Date.now() - 1500));
+      const screen = wakefulness();
       await wait(Math.max(0, at - Date.now()) + 20000);
       if (idle) adb('shell', 'dumpsys', 'deviceidle', 'unforce');
       // 운동 중 알림은 휴식을 시작할 때도 조용히 올리므로, 끝 시각 바로 앞부터 읽는다
       const ev = readEvents(workout ? at - 1000 : at - sec * 1000 - 5000, id);
-      const row = { sec: sec ?? Math.round(lead / 1000), idle, delayMs: ev.enq === null ? null : ev.enq - at, alertDelayMs: ev.alert === null ? null : ev.alert - at, alert: ev.alertText };
+      const row = { sec: sec ?? Math.round(lead / 1000), idle, screen, delayMs: ev.enq === null ? null : ev.enq - at, alertDelayMs: ev.alert === null ? null : ev.alert - at, alert: ev.alertText, sound: readSound(at - 1000) };
       rows.push(row);
-      console.log(` 지연 ${row.delayMs === null ? '알림 없음' : `${(row.delayMs / 1000).toFixed(2)}초`} (alert ${row.alert || '-'}), 측정 ${Math.round((Date.now() - t0) / 1000)}초`);
+      console.log(` 지연 ${row.delayMs === null ? '알림 없음' : `${(row.delayMs / 1000).toFixed(2)}초`} (alert ${row.alert || '-'}), 알림 직전 화면 ${screen}${screen === 'Awake' ? '(켜져 있어 화면을 끈 측정이 아님)' : ''}, 소리 ${row.sound || '-'}, 측정 ${Math.round((Date.now() - t0) / 1000)}초`);
     }
   } finally {
     try { adb('shell', 'dumpsys', 'deviceidle', 'unforce'); } catch { /* 이미 풀림 */ }

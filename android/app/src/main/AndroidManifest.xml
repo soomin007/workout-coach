@@ -38,6 +38,12 @@
         <receiver
             android:name=".WorkoutNoticeReceiver"
             android:exported="false" />
+
+        <!-- 휴식 끝 소리를 내는 몇 초만 도는 포그라운드 서비스 (CueService). 화면이 꺼져 있어도 오디오 포커스를 얻어 음악을 줄인다. -->
+        <service
+            android:name=".CueService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
     <!-- Permissions -->
@@ -51,4 +57,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- 안드로이드 16 라이브 업데이트: 운동 중 알림을 상태 바 칩과 잠금 화면 맨 위에 올려 달라고 청할 수 있다(설치할 때 허용, 사용자가 끌 수 있다) -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <!-- 휴식 끝 소리를 내는 동안의 짧은 포그라운드 서비스(mediaPlayback). 둘 다 설치할 때 허용된다. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 </manifest>
