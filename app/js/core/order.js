@@ -3,7 +3,8 @@
 // DOM 도 상태 구조도 모르는 순수 함수만 둔다 (schema.js 와 coach.js 가 함께 쓴다).
 
 // fatiguedAt: 이 이상이면 "앞 피로 있음". lookback: 같은 조건 기록을 찾을 최근 기록 수. repCut: 피로 상태로 옮겨질 때 줄이는 목표 반복.
-export const ORDER = { fatiguedAt: 3, lookback: 3, repCut: 2, secondaryCredit: 0.5 };
+// maxGapDays: 같은 조건 기록이 가장 최근 기록보다 이만큼 넘게 오래됐으면 쓰지 않는다(4주, 정책 11절).
+export const ORDER = { fatiguedAt: 3, lookback: 3, repCut: 2, secondaryCredit: 0.5, maxGapDays: 28 };
 
 export function fatigueClass(pf) {
   if (pf === null || pf === undefined || !Number.isFinite(+pf)) return null;

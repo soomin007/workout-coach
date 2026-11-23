@@ -233,7 +233,7 @@ test('미리보기 안내: 지난 같은 부위 세션과 같은 메인 운동�
   assert.deepEqual(keptMains(s, session, new Date(2026, 9, 12, 18, 0)), ['바벨 오버헤드프레스'], '보조 종목(플라이)은 빼고 메인만');
 });
 
-test('목표: 근력이면 복합 운동만 낮은 반복과 긴 휴식, 근지구력이면 12~20회, 운동별 직접 설정이 우선', () => {
+test('목표: 근력이면 복합 운동만 낮은 반복과 긴 휴식, 근지구력이면 12~15회, 운동별 직접 설정이 우선', () => {
   const s = freshState();
   assert.deepEqual(profileFor(s, 'lat').range, [8, 12]);
   s.settings.goal = 'strength';
@@ -241,7 +241,9 @@ test('목표: 근력이면 복합 운동만 낮은 반복과 긴 휴식, 근지�
   assert.ok(profileFor(s, 'lat').rest >= 180);
   assert.deepEqual(profileFor(s, 'curl').range, [8, 12], '고립 운동은 그대로');
   s.settings.goal = 'endurance';
-  assert.deepEqual(profileFor(s, 'curl').range, [12, 20]);
+  assert.deepEqual(profileFor(s, 'curl').range, [12, 15], 'ACSM 2009 초중급자 근지구력 10~15회 (11/23)');
+  assert.deepEqual(profileFor(s, 'squat').range, [12, 15]);
+  assert.deepEqual(profileFor(s, 'abduction').range, [12, 20], '카탈로그 상한이 15회보다 높으면 그대로');
   assert.deepEqual(profileFor(s, 'plank').range, [20, 45], '시간형은 그대로');
   s.prefs.curl = { range: [6, 10] };
   assert.deepEqual(profileFor(s, 'curl').range, [6, 10]);

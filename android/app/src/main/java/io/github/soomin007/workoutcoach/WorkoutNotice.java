@@ -9,9 +9,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -36,12 +38,21 @@ final class WorkoutNotice {
     static final String TAG = "WorkoutNotice";
     // 휴식 끝 알림(7001), 시험 알림(7002), 측정 스크립트의 시험 알림(7100 부터)과 겹치지 않는 번호
     static final int NOTICE_ID = 7010;
-    // 휴식 끝 채널을 같이 쓴다(중요도 높음, 진동과 기본 알림음, 잠금 화면 공개). 평소 갱신은 조용히 올리고
-    // 휴식이 끝날 때와 버티기 단계가 바뀔 때만 진동과 소리를 낸다. 채널 설정은 처음 만들 때 정해진다(known-issues 47).
-    static final String CHANNEL = "rest-end";
+    static final int TEST_ID = 7002;
+    // 중요도 높음, 진동, 잠금 화면 공개. 평소 갱신은 조용히 올리고 휴식이 끝날 때와 버티기 단계가 바뀔 때만 진동과 소리를 낸다.
+    // 소리는 알람 소리(USAGE_ALARM)로 내서 무음 모드에서도 울린다. 시계 앱의 타이머와 같고, 크기는 알람 볼륨을 따른다(11/23 세션 메모).
+    // 채널 설정은 처음 만들 때 정해져 바꿀 수 없으므로 예전 'rest-end'(보통 알림음) 대신 새 id 를 쓴다(known-issues 47).
+    static final String CHANNEL = "rest-alarm";
+    static final String LEGACY_CHANNEL = "rest-end";
     static final String ACTION_PRESS = "workoutcoach.notice.PRESS";
     static final String ACTION_ALARM = "workoutcoach.notice.ALARM";
+    static final String ACTION_TEST = "workoutcoach.notice.TEST";
     static final String EXTRA_TOKEN = "token";
+    static final String EXTRA_ID = "id";
+    static final String EXTRA_SECS = "secs";
+    // 크로노미터의 카운트다운은 남은 시간을 내림해 보인다(59.9초가 0:59). 앱 화면은 올림(1:00)이라 알림이 1초 앞서 보였다(11/23 세션 메모).
+    // 기준 시각을 0.999초 늦춰 올림과 같은 숫자를 보이게 한다. 알람 시각은 그대로라 0:00 이 되는 때와 소리가 같다(known-issues 57).
+    static final long CEIL_MS = 999;
     private static final String PREFS = "workout_notice";
     // 플러그인 호출(백그라운드 스레드)과 리시버(메인 스레드)가 같은 기록장을 고치므로 읽고 쓰는 동안 잠근다
     private static final Object LOCK = new Object();
@@ -344,17 +355,64 @@ final class WorkoutNotice {
         return NotificationManagerCompat.from(ctx).areNotificationsEnabled();
     }
 
-    // 웹 코드의 알림 플러그인이 아직 채널을 만들지 않았으면 같은 설정으로 만든다
-    private static void ensureChannel(Context ctx) {
+    // 알림 채널을 만든다(플러그인을 불러올 때와 알림을 올릴 때). 예전 'rest-end' 채널은 이 APK 에서 쓰지 않으므로 지운다.
+    // 웹 코드도 이 APK 에서는 그 채널을 다시 만들지 않는다(ui/native.js 의 notice.alarm).
+    static void ensureChannel(Context ctx) {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
-        if (nm == null || nm.getNotificationChannel(CHANNEL) != null) return;
-        NotificationChannel ch = new NotificationChannel(CHANNEL, "휴식 끝", NotificationManager.IMPORTANCE_HIGH);
-        ch.setDescription("휴식 타이머가 끝나면 화면 위에 알리고 진동과 소리를 냅니다.");
+        if (nm == null) return;
+        if (nm.getNotificationChannel(LEGACY_CHANNEL) != null) nm.deleteNotificationChannel(LEGACY_CHANNEL);
+        if (nm.getNotificationChannel(CHANNEL) != null) return;
+        NotificationChannel ch = new NotificationChannel(CHANNEL, "휴식 끝 알람", NotificationManager.IMPORTANCE_HIGH);
+        ch.setDescription("휴식과 버티기 타이머가 끝나면 무음 모드에서도 알람 소리로 알립니다. 소리 크기는 알람 볼륨을 따릅니다.");
         ch.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
         ch.enableVibration(true);
         ch.enableLights(false);
+        ch.setSound(Settings.System.DEFAULT_NOTIFICATION_URI, new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build());
         nm.createNotificationChannel(ch);
+    }
+
+    /** 설정 탭의 시험 알림. 운동 중 알림과 같은 채널로 seconds 초 뒤에 울린다. 예약한 시각(ms)을 돌려준다. */
+    static long scheduleTest(Context ctx, int seconds, int id) {
+        AlarmManager am = ctx.getSystemService(AlarmManager.class);
+        if (am == null) return 0;
+        long at = System.currentTimeMillis() + seconds * 1000L;
+        // 번호마다 주소(data)가 달라 측정 스크립트가 연달아 예약해도 앞 예약을 덮지 않는다
+        PendingIntent pi = PendingIntent.getBroadcast(
+            ctx,
+            4,
+            new Intent(ctx, WorkoutNoticeReceiver.class)
+                .setAction(ACTION_TEST)
+                .setData(Uri.parse("wcnotice://test/" + id))
+                .putExtra(EXTRA_ID, id)
+                .putExtra(EXTRA_SECS, seconds),
+            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+        if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        return at;
+    }
+
+    static void postTest(Context ctx, int id, int seconds) {
+        if (!canPost(ctx)) return;
+        ensureChannel(ctx);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_workout)
+            .setColor(0xFF3449D6)
+            .setContentTitle("시험 알림")
+            .setContentText(seconds + "초 뒤에 울리도록 예약한 알림입니다. 무음 모드에서도 알람 볼륨으로 울립니다.")
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openApp(ctx))
+            .setAutoCancel(true);
+        try {
+            NotificationManagerCompat.from(ctx).notify(id, b.build());
+        } catch (SecurityException e) {
+            Log.w(TAG, "postTest", e);
+        }
     }
 
     private static String text(JSONObject t, String key) {
@@ -422,7 +480,7 @@ final class WorkoutNotice {
             .setRequestPromotedOngoing(true)
             .setSilent(!alert)
             .setOnlyAlertOnce(!alert);
-        if (when > 0) b.setWhen(when).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(countDown);
+        if (when > 0) b.setWhen(when + (countDown ? CEIL_MS : 0)).setShowWhen(true).setUsesChronometer(true).setChronometerCountDown(countDown);
         else b.setShowWhen(false);
         if (promotable(ctx)) {
             // 라이브 업데이트로 올라가면 늘 펼친 카드로 보이므로 기본 모양(본문 여러 줄, 아래 버튼)을 쓴다. 사용자 정의 화면은 승격 조건에 어긋난다.
@@ -461,7 +519,7 @@ final class WorkoutNotice {
         if (when > 0) {
             // 크로노미터는 부팅 뒤 경과 시각(elapsedRealtime)을 기준으로 센다. 휴식이 끝난 뒤에는 앱 화면처럼 +0:12 로 지난 시간을 보인다.
             // 시간이 있으면 시간을 크게 두고 상태 말(휴식 중)은 옆의 옅은 글(notice_label)로 보인다(2026-11-22).
-            v.setChronometer(R.id.notice_clock, SystemClock.elapsedRealtime() + (when - now), countDown ? null : "+%s", true);
+            v.setChronometer(R.id.notice_clock, SystemClock.elapsedRealtime() + (when - now) + (countDown ? CEIL_MS : 0), countDown ? null : "+%s", true);
             v.setChronometerCountDown(R.id.notice_clock, countDown);
             v.setViewVisibility(R.id.notice_clock, View.VISIBLE);
             v.setViewVisibility(R.id.notice_label, View.VISIBLE);

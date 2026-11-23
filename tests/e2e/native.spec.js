@@ -6,8 +6,9 @@ const WEEKDAY = new Date('2026-09-30T18:00:00'); // known-issues 15
 
 // display: checkPermissions 가 처음 돌려줄 값, ask: requestPermissions 가 돌려줄 값. bridge=false 면 진동만 흉내 낸다.
 // workout=true 면 운동 중 알림 플러그인(WorkoutNotice)이 든 새 APK, 아니면 휴식 끝 알림만 있는 옛 APK 를 흉내 낸다.
-function setup(page, { bridge = true, display = 'granted', ask = 'granted', exact = 'granted', workout = false } = {}) {
-  return page.addInitScript(({ bridge, display, ask, exact, workout }) => {
+// alarm=true 면 그 플러그인에 test 메서드가 있는 APK(2026-11-23 이후, 무음 모드에서도 알람 소리로 울리는 채널)다.
+function setup(page, { bridge = true, display = 'granted', ask = 'granted', exact = 'granted', workout = false, alarm = false } = {}) {
+  return page.addInitScript(({ bridge, display, ask, exact, workout, alarm }) => {
     window.__vib = 0;
     Object.defineProperty(navigator, 'vibrate', { configurable: true, value: () => { window.__vib += 1; return true; } });
     if (!bridge) return;
@@ -19,12 +20,13 @@ function setup(page, { bridge = true, display = 'granted', ask = 'granted', exac
     const keep = (evs) => sessionStorage.setItem('__wn', JSON.stringify(evs));
     window.Capacitor = {
       isNativePlatform: () => true,
-      PluginHeaders: [{ name: 'App', methods: [] }, { name: 'LocalNotifications', methods: [] }, ...(workout ? [{ name: 'WorkoutNotice', methods: [] }] : [])],
+      PluginHeaders: [{ name: 'App', methods: [] }, { name: 'LocalNotifications', methods: [] }, ...(workout ? [{ name: 'WorkoutNotice', methods: alarm ? [{ name: 'test', rtype: 'promise' }] : [] }] : [])],
       addListener: (plugin, event, cb) => { window.__listeners[`${plugin}:${event}`] = cb; return { remove: async () => {} }; },
       nativePromise: (plugin, method, opts = {}) => {
         calls.push({ plugin, method, opts: JSON.parse(JSON.stringify(opts)) });
         if (plugin === 'WorkoutNotice') {
           if (method === 'pending') return Promise.resolve({ events: book() });
+          if (method === 'test') return Promise.resolve({ at: Date.now() + (opts.seconds || 10) * 1000 });
           if (method === 'sync') {
             const p = opts.plan;
             keep(p ? book().filter((e) => e.sid === p.sid && e.seq > p.ack) : []);
@@ -36,7 +38,7 @@ function setup(page, { bridge = true, display = 'granted', ask = 'granted', exac
         return Promise.resolve(r || {});
       },
     };
-  }, { bridge, display, ask, exact, workout });
+  }, { bridge, display, ask, exact, workout, alarm });
 }
 
 async function open(page, opts) {
@@ -266,4 +268,17 @@ test('새 앱: 앱을 다시 띄울 때와 앱이 떠 있을 때 누른 기록�
   await expect(page.locator('#toast')).toContainText('그사이 운동이 바뀌어 넣지 못했습니다');
   await page.locator('#tabs [data-tab="settings"]').click();
   await expect(page.getByTestId('notice-status')).toContainText('알림의 세트 완료 버튼으로');
+});
+
+test('알람 소리 채널이 든 앱: 예전 채널을 만들지 않고, 시험 알림은 운동 중 알림과 같은 채널로 네이티브가 예약한다 (11/23 세션 메모)', async ({ page }) => {
+  await open(page, { workout: true, alarm: true });
+  await page.locator('#tabs [data-tab="settings"]').click();
+  await expect(page.getByTestId('notice-status')).toContainText('무음 모드에서도 알람 소리로');
+  expect(await calls(page, 'createChannel')).toEqual([]);
+  await page.getByRole('button', { name: '시험 알림 (10초 뒤)' }).click();
+  await expect.poll(() => calls(page, 'test').then((c) => c.length)).toBe(1);
+  const c = (await calls(page, 'test'))[0];
+  expect([c.plugin, c.opts]).toEqual(['WorkoutNotice', { seconds: 10, id: 7002 }]);
+  expect(await calls(page, 'schedule')).toEqual([]);
+  await expect(page.locator('#toast')).toContainText('무음 모드로 바꿔');
 });

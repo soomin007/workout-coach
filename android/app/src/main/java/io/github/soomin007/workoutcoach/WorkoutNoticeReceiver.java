@@ -15,5 +15,8 @@ public class WorkoutNoticeReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         if (WorkoutNotice.ACTION_PRESS.equals(action)) WorkoutNotice.press(ctx, intent.getStringExtra(WorkoutNotice.EXTRA_TOKEN));
         else if (WorkoutNotice.ACTION_ALARM.equals(action)) WorkoutNotice.alarm(ctx);
+        else if (WorkoutNotice.ACTION_TEST.equals(action)) {
+            WorkoutNotice.postTest(ctx, intent.getIntExtra(WorkoutNotice.EXTRA_ID, WorkoutNotice.TEST_ID), intent.getIntExtra(WorkoutNotice.EXTRA_SECS, 10));
+        }
     }
 }

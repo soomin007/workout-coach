@@ -6,13 +6,15 @@ import { ORDER, fatigueClass } from './order.js';
 import { gripOf, gripById } from './grips.js';
 
 // 목표(설정)에 따른 기본 반복 범위와 휴식 (정책 14절). 사용자가 운동별로 정한 범위가 있으면 그것이 우선.
-// 근력: 복합 운동만 낮은 반복과 긴 휴식. 근육량: 카탈로그 그대로. 근지구력: 12~20회와 짧은 휴식.
+// 근력: 복합 운동만 낮은 반복과 긴 휴식. 근육량: 카탈로그 그대로. 근지구력: 12~15회와 짧은 휴식.
+// 근지구력 상한은 ACSM 2009 의 초중급자 권고(10~15회)를 따른다. 10~25회는 상급자 권고다(11/23 스쿼트 메모: 10회부터 숨이 찼다).
+// 카탈로그 범위가 이미 15회보다 높은 운동(어브덕션 12~20회)은 그 상한을 그대로 둔다.
 export const GOALS = { hypertrophy: '근육량 늘리기', strength: '더 강해지기', endurance: '근지구력' };
 export function goalRange(goal, base) {
   const [lo, hi] = base.range || [8, 12];
   if ((base.measure || 'reps') !== 'reps') return { range: [lo, hi], rest: base.rest || 90 };
   if (goal === 'strength' && base.compound) return { range: hi <= 8 ? [Math.max(3, lo - 2), Math.max(5, hi - 2)] : [5, 8], rest: Math.max(base.rest || 90, 180) };
-  if (goal === 'endurance') return { range: [Math.max(lo, 12), Math.max(hi, 20)], rest: Math.min(base.rest || 90, 75) };
+  if (goal === 'endurance') return { range: [Math.max(lo, 12), Math.max(hi, 15)], rest: Math.min(base.rest || 90, 75) };
   return { range: [lo, hi], rest: base.rest || 90 };
 }
 
@@ -21,14 +23,18 @@ export function profileFor(state, exerciseId) {
   const base = catalogById(exerciseId) || (state.customExercises || []).find((x) => x.id === exerciseId);
   if (!base) return null;
   const p = state.prefs?.[exerciseId] || {};
-  const g = goalRange(state.settings?.goal || 'hypertrophy', base);
+  const goal = state.settings?.goal || 'hypertrophy';
+  const g = goalRange(goal, base);
   const mode = p.loadMode || base.mode || 'machine';
+  const rangeByPref = Array.isArray(p.range) && p.range.length === 2;
   return {
     id: base.id, name: base.name, part: base.part, role: base.role,
     primary: base.primary || [], secondary: base.secondary || [], ...(base.focus ? { focus: base.focus } : {}),
     ...(base.stretches ? { stretches: base.stretches } : {}),
     sets: base.sets || 2,
-    range: Array.isArray(p.range) && p.range.length === 2 ? [...p.range] : [...g.range],
+    range: rangeByPref ? [...p.range] : [...g.range],
+    // 범위가 바뀐 뒤 첫 처방의 안내에 쓴다: 목표 때문에 바뀌었는지, 사용자가 운동별로 정했는지
+    goal, rangeByPref,
     rest: Number.isFinite(+p.rest) && p.rest !== null ? +p.rest : g.rest,
     inc: Number.isFinite(+p.increment) && p.increment !== null ? +p.increment : (base.inc ?? 0),
     start: +base.start || 0,
@@ -160,6 +166,8 @@ export function lighterThanUsual(state, session = state.session) {
     const now = topWeight(e.sets);
     if (now === null) continue;
     const prev = recordsNewestFirst(state, e.exerciseId).find((p) => !p.light && !p.heavy && p.date <= session.date);
+    // 목표를 바꿔 반복 범위가 달라졌으면 무게가 내려간 것이 당연하다. 가벼운 날로 묻지 않는다(11/23 근지구력으로 바꾼 날).
+    if (prev && rangeChanged(prev.range, e.range)) continue;
     const was = prev && topWeight(prev.sets);
     if (!was) continue;
     compared++;
@@ -171,6 +179,41 @@ export function lighterThanUsual(state, session = state.session) {
 const isAssist = (mode) => mode === 'assist';
 const unitWord = (profile) => (profile.measure === 'seconds' ? '초' : '회');
 const STRETCH_FIRST = 45;
+// 기록에 남은 반복 범위가 지금 범위와 다른지. 범위가 적히지 않은 옛 기록은 같다고 본다.
+export function rangeChanged(old, cur) {
+  return Array.isArray(old) && old.length === 2 && Array.isArray(cur) && (old[0] !== cur[0] || old[1] !== cur[1]);
+}
+
+// ---------- 반복 범위가 바뀐 뒤 첫 처방 (코칭 정책 14절) ----------
+// 설정의 목표나 운동별 범위를 바꾸면 지난 기록의 반복은 예전 범위로 한 것이라, 새 하한에 못 미쳐도 실패가 아니다.
+// 11/23 근지구력으로 바꾼 날 "지난번 60kg에서 목표 최소 12회에 못 미쳐 낮춥니다"가 나왔다(세션 메모).
+// 지난 마지막 본세트로 힘을 추정해(Epley, 남은 반복 포함) 새 하한을 2회쯤 남기고 할 수 있는 무게로 잡고 눈금에 맞춰 내린다.
+// 마지막 세트는 느낌 질문으로 남은 반복을 아는 세트라 쓴다. assist 는 보조로 힘을 추정할 수 없어 보조를 한 단계 늘린다.
+export const RANGE_SHIFT = { rir: 2 };
+function rangeChangeRx(profile, last, weighted) {
+  const [lo, hi] = profile.range;
+  const [a, b] = last.range;
+  const u = unitWord(profile);
+  const why = profile.rangeByPref
+    ? `반복 범위를 ${a}~${b}${u}에서 ${lo}~${hi}${u}로 바꿨습니다.`
+    : `설정한 목표(${GOALS[profile.goal] || GOALS.hypertrophy})에 맞춰 반복 범위가 ${a}~${b}${u}에서 ${lo}~${hi}${u}로 바뀌었습니다.`;
+  const reps = profile.alternating ? lo + (lo % 2) : lo;
+  const z = weighted[weighted.length - 1];
+  const step = profile.inc > 0 ? profile.inc : 0;
+  if (isAssist(profile.mode)) {
+    const W = z.weight;
+    const w = Math.max(roundTo(W * 1.1, step || 0.5, 'ceil'), W + step);
+    return { weight: w, reps, kind: 'range_change', note: `${why} 지난번 보조 ${W}kg보다 한 단계 늘린 ${w}kg로 ${reps}${u}부터 합니다. 첫 세트로 보조를 맞추세요.` };
+  }
+  const r = setReps(z);
+  const rir = setRir(z, last) ?? 1;
+  const e = z.weight * (1 + Math.min(20, r + rir) / 30);
+  let w = Math.max(profile.start || 0, snapW(e / (1 + (reps + RANGE_SHIFT.rir) / 30), profile, 'floor'));
+  if (!(w > 0)) w = Math.min(z.weight, step || z.weight);
+  const can = `${reps}${u}를 ${RANGE_SHIFT.rir}${u}쯤 남기고 할 수 있는`;
+  const tail = w < z.weight ? `${can} ${w}kg로 낮춥니다.` : w > z.weight ? `${can} ${w}kg로 올립니다.` : `${can} 무게도 ${w}kg라 그대로 둡니다.`;
+  return { weight: w, reps, kind: 'range_change', note: `${why} 지난번 ${z.weight}kg × ${r}${u}로 힘을 추정해, ${tail}` };
+}
 
 // ---------- 세트 중간에 낮춘 무게 (코칭 정책 2절) ----------
 // 목표 하한을 채운 세트 다음에 무게를 낮췄으면(assist 는 보조를 늘렸으면) 앞 무게가 그날 맞지 않았다는 사용자의 판단이다.
@@ -222,6 +265,9 @@ export function prescribe(profile, last) {
   }
   const qualifying = weighted.filter((s) => setReps(s) >= lo);
   const step = profile.inc > 0 ? profile.inc : 0;
+  // 범위가 바뀌어 새 하한에 못 미친 것이면 실패로 읽지 않고 힘을 추정해 새 범위에 맞춘다.
+  // 새 범위 안이나 위면 아래 더블 프로그레션이 그대로 맞는다(레그컬 13회는 새 범위 12~15회 안이다).
+  if (!qualifying.length && profile.measure !== 'seconds' && rangeChanged(last.range, profile.range)) return rangeChangeRx(profile, last, weighted);
   if (!qualifying.length) {
     // 목표 하한을 한 세트도 못 채움 → 약 10% 감량 (assist 는 보조 증가)
     const W = isAssist(profile.mode) ? Math.min(...weighted.map((s) => s.weight)) : Math.max(...weighted.map((s) => s.weight));
@@ -354,10 +400,13 @@ export function recordForOrder(state, exerciseId, cls, grip = null) {
   return { ...r, otherGrip };
 }
 
+// 같은 조건 기록이라도 가장 최근 기록보다 ORDER.maxGapDays 넘게 오래됐으면 쓰지 않는다. 그사이 깊이나 실력이 바뀌었을 수 있다.
+// 11/9 와 11/23 스미스 스쿼트는 가장 최근 기록 대신 깊이를 바꾸기 전인 10/1 기록(30kg × 9)을 골라 30kg가 두 번 나왔다.
+const dayNo = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 864e5;
 function pickByOrder(xs, cls) {
   const latest = xs[0] || null;
   if (!cls || !latest) return { rec: latest, shift: null };
-  const same = xs.slice(0, ORDER.lookback).find((p) => fatigueClass(p.prefatigue) === cls);
+  const same = xs.slice(0, ORDER.lookback).find((p) => fatigueClass(p.prefatigue) === cls && dayNo(latest.date) - dayNo(p.date) <= ORDER.maxGapDays);
   if (same) return { rec: same, shift: null };
   const lc = fatigueClass(latest.prefatigue);
   return { rec: latest, shift: lc && lc !== cls ? `${lc}>${cls}` : null };
@@ -376,7 +425,9 @@ export function prescribeForOrder(profile, state, pf, grip = null) {
 
 function orderAdjusted(profile, rec, shift, pf) {
   const rx = prescribe(profile, rec);
-  if (!shift || rx.kind === 'first' || rx.kind === 'stretch' || isAssist(profile.mode)) return { ...rx, shift: null };
+  // 범위가 바뀐 뒤 첫 처방은 새 하한을 목표로 힘을 추정한 값이라 순서 보정을 얹지 않는다.
+  // 첫 세트 기준으로 고치면 예전 범위의 무거운 무게가 새 하한 반복으로 돌아온다.
+  if (!shift || rx.kind === 'first' || rx.kind === 'stretch' || rx.kind === 'range_change' || isAssist(profile.mode)) return { ...rx, shift: null };
   const [lo, hi] = profile.range;
   const u = unitWord(profile);
   if (shift === 'fatigued>fresh') {

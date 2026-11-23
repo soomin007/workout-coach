@@ -648,22 +648,33 @@ export function stopRest(state) {
 }
 
 // 명시적 사용자 선호 저장 (설정 화면 전용). 현재 세션의 같은 운동 항목에도 즉시 반영한다.
+// 설정 시트는 모든 칸을 함께 넘기므로 지금 값과 같은 칸은 건드리지 않고, 기본값(카탈로그와 목표)으로 되돌린 칸은 선호에서 지운다.
+// 바꾸지 않은 칸까지 저장하면 그 운동만 목표를 바꿔도 예전 값에 묶인다(11/23 스미스 스쿼트가 근지구력에서도 8~10회, 휴식 180초였다).
+const PREF_FIELD = { loadMode: 'mode', increment: 'inc', rest: 'rest', range: 'range', unilateral: 'unilateral' };
 export function setPref(state, exerciseId, patch) {
-  const allowed = ['loadMode', 'increment', 'rest', 'range', 'unilateral'];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const shown = profileFor(state, exerciseId);
+  const def = profileFor({ ...state, prefs: { ...state.prefs, [exerciseId]: {} } }, exerciseId);
   const cur = { ...(state.prefs[exerciseId] || {}) };
-  for (const [k, v] of Object.entries(patch)) { need(allowed.includes(k), 'bad_pref', k); cur[k] = v; }
-  state.prefs[exerciseId] = cur;
+  const changed = {};
+  for (const [k, v] of Object.entries(patch)) {
+    need(k in PREF_FIELD, 'bad_pref', k);
+    if (shown && same(shown[PREF_FIELD[k]], v)) continue;
+    changed[k] = v;
+    if (def && same(def[PREF_FIELD[k]], v)) delete cur[k]; else cur[k] = v;
+  }
+  if (Object.keys(cur).length) state.prefs[exerciseId] = cur; else delete state.prefs[exerciseId];
   for (const e of state.session?.exercises || []) {
     if (e.exerciseId !== exerciseId) continue;
-    if ('loadMode' in patch) {
-      e.loadMode = patch.loadMode;
+    if ('loadMode' in changed) {
+      e.loadMode = changed.loadMode;
       const ladder = profileFor(state, exerciseId)?.ladder;
       if (ladder) e.ladder = ladder; else delete e.ladder;
     }
-    if ('increment' in patch) e.increment = Number(patch.increment) || 0;
-    if ('rest' in patch) e.rest = Number(patch.rest) || e.rest;
-    if ('range' in patch) e.range = [...patch.range];
-    if ('unilateral' in patch) e.unilateral = !!patch.unilateral;
+    if ('increment' in changed) e.increment = Number(changed.increment) || 0;
+    if ('rest' in changed) e.rest = Number(changed.rest) || e.rest;
+    if ('range' in changed) e.range = [...changed.range];
+    if ('unilateral' in changed) e.unilateral = !!changed.unilateral;
   }
   recalcEstimate(state);
 }

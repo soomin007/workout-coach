@@ -699,8 +699,14 @@ test('레그프레스: 기본값이 원판 합계, 공중량 칸은 없다', asy
   await sheet(page).getByRole('button', { name: /싱글 레그프레스/ }).click();
   await expect(sheet(page).locator('select[name=loadMode]')).toHaveValue('plates');
   await expect(sheet(page).locator('input[name=base]')).toHaveCount(0);
+  // 바꾸지 않은 칸은 저장하지 않는다. 그대로 저장하면 운동별 설정이 생기지 않아 목표를 바꿀 때 따라간다(11/23 스미스 메모)
   await sheet(page).getByRole('button', { name: '저장' }).click();
-  expect((await st(page)).prefs.legpress.loadMode).toBe('plates');
+  expect((await st(page)).prefs.legpress).toBeUndefined();
+  await page.getByRole('button', { name: '운동 골라서 설정' }).click();
+  await sheet(page).getByRole('button', { name: /싱글 레그프레스/ }).click();
+  await sheet(page).locator('select[name=rest]').selectOption('150');
+  await sheet(page).getByRole('button', { name: '저장' }).click();
+  expect((await st(page)).prefs.legpress).toEqual({ rest: 150 });
 });
 
 test('그립: 카드의 그림 칩을 누르면 그립별 그림, 자극 부위, 잡는 법이 나오고, 고른 그립이 자극 부위와 함께 유지된다', async ({ page }) => {

@@ -131,12 +131,24 @@ function drainNotice() {
   return draining;
 }
 
-setInterval(() => {
-  if (!store.state.session) return;
-  const c = document.getElementById('sessionClock');
-  if (c) c.textContent = fmtClock(T.timerSeconds(store.state.session.timer));
-  renderRest();
-}, 500);
+// 세션 시계와 휴식 줄은 0.5초마다 다시 그린다. 휴식 중에는 남은 초가 바뀌는 순간에도 맞춰 그린다.
+// 0.5초 간격만 두면 숫자가 최대 0.5초 늦게 넘어가, 알림의 시계와 1.5초쯤 벌어졌다(11/23 세션 메모, known-issues 57).
+function tick() {
+  let wait = 500;
+  const ses = store.state.session;
+  if (ses) {
+    const c = document.getElementById('sessionClock');
+    if (c) c.textContent = fmtClock(T.timerSeconds(ses.timer));
+    renderRest();
+    const rt = ses.restTimer;
+    if (rt) {
+      const ms = (rt.startedAt + rt.seconds * 1000 - Date.now()) % 1000;
+      wait = Math.min(500, (ms > 0 ? ms : ms + 1000) + 5);
+    }
+  }
+  setTimeout(tick, wait);
+}
+setTimeout(tick, 500);
 
 // 전이 실행: 실패하면 상태 불변 + 안내.
 function run(fn, okMsg) {
@@ -233,7 +245,7 @@ const actions = {
   'ex-menu': (d) => exerciseMenu(d.uid),
   'rest-adj': (d) => { const rt = store.state.session?.restTimer; if (rt) run((s) => T.adjustRest(s, rt.uid, +d.d)); },
   'rest-stop': () => run((s) => T.stopRest(s)),
-  'notice-test': async () => { toast((await testNotice(10)) ? '10초 뒤에 시험 알림이 옵니다. 화면을 꺼 두고 기다려 보세요.' : '알림 권한이 없어 시험 알림을 보낼 수 없습니다.', 4000); },
+  'notice-test': async () => { toast((await testNotice(10)) ? `10초 뒤에 시험 알림이 옵니다. 화면을 꺼 두고${notice.alarm ? ` ${tightName('무음 모드로')} 바꿔` : ''} 기다려 보세요.` : '알림 권한이 없어 시험 알림을 보낼 수 없습니다.', 4000); },
   'notice-exact': async () => { await openExactAlarmSetting(); render(); },
   finish: () => finishSession(),
   'export-json': () => exportJSON(),

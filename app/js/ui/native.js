@@ -14,9 +14,16 @@ export function hasPlugin(name) {
   try { return !!(c?.isNativePlatform?.() && Array.isArray(c.PluginHeaders) && c.PluginHeaders.some((h) => h.name === name)); } catch { return false; }
 }
 
+// 그 APK 의 플러그인에 메서드가 있는지. 같은 플러그인이라도 APK 마다 메서드가 다를 수 있다.
+export function hasMethod(name, method) {
+  const c = cap();
+  try { return hasPlugin(name) && c.PluginHeaders.some((h) => h.name === name && (h.methods || []).some((m) => m.name === method)); } catch { return false; }
+}
+
 // 설정 탭 표시용. display: 알림 권한, exact: 정확한 시각 알람 권한 ('granted', 'denied', 'prompt' …)
 // workout: 이 APK 에 운동 중 알림 플러그인(WorkoutNotice)이 있는지
-export const notice = { available: false, display: null, exact: null, error: null, workout: false };
+// alarm: 휴식 끝을 무음 모드에서도 알람 소리로 내는 채널이 든 APK 인지(2026-11-23 이후, WorkoutNotice.test 가 있다)
+export const notice = { available: false, display: null, exact: null, error: null, workout: false, alarm: false };
 let ready = null;
 let queue = Promise.resolve();
 let appliedKey; // 마지막으로 맞춘 키. undefined 면 앱을 새로 띄운 것이라 지난 실행에서 남은 예약도 한 번 지운다.
@@ -36,9 +43,11 @@ async function readPermissions({ ask = false } = {}) {
 export function initNotices(onChange) {
   if (!hasPlugin(LN)) return null;
   notice.available = true;
+  notice.alarm = hasMethod('WorkoutNotice', 'test');
   ready = (async () => {
     // 채널의 중요도와 소리, 진동은 처음 만들 때만 정해진다. 바꾸려면 새 id 로 만든다 (known-issues 47).
-    await call('createChannel', { id: REST_CHANNEL, name: '휴식 끝', description: '휴식 타이머가 끝나면 화면 위에 알리고 진동과 소리를 냅니다.', importance: 4, visibility: 1, vibration: true });
+    // 알람 소리 채널이 든 APK 는 네이티브가 그 채널을 만들고 예전 채널을 지우므로 여기서 다시 만들지 않는다.
+    if (!notice.alarm) await call('createChannel', { id: REST_CHANNEL, name: '휴식 끝', description: '휴식 타이머가 끝나면 화면 위에 알리고 진동과 소리를 냅니다.', importance: 4, visibility: 1, vibration: true });
     await readPermissions({ ask: true });
   })().catch((e) => { notice.error = String(e?.message || e); }).finally(() => onChange?.());
   return ready;
@@ -81,6 +90,12 @@ export async function testNotice(seconds = 10, id = TEST_NOTICE_ID) {
   if (!ready) return false;
   await ready;
   if (notice.display !== 'granted') return false;
+  // 새 APK 는 운동 중 알림과 같은 채널(무음 모드에서도 알람 소리)로 울려, 실제 휴식 끝과 같은 소리를 미리 들어 볼 수 있다
+  if (notice.alarm) {
+    const r = await cap().nativePromise('WorkoutNotice', 'test', { seconds, id });
+    console.info(`[rest-alarm] test scheduled at=${r?.at} lead=${(r?.at || 0) - Date.now()}ms`);
+    return r?.at || false;
+  }
   const at = Date.now() + seconds * 1000;
   await call('schedule', { notifications: [{ id, title: '시험 알림', body: `${seconds}초 뒤에 울리도록 예약한 알림입니다.`, channelId: REST_CHANNEL, autoCancel: true,
     schedule: { at: new Date(at), allowWhileIdle: true }, isExactNotification: notice.exact === 'granted' }] });

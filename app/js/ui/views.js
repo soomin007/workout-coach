@@ -476,7 +476,7 @@ export function renderRecords(state, ui, now = new Date()) {
 
 // ---------- 설정 ----------
 
-const GOAL_HINT = { hypertrophy: '보통 8~12회로, 지금까지의 기본값입니다', strength: '복합 운동을 5~8회로 무겁게 하고 휴식은 길게 둡니다', endurance: '12~20회로 가볍게 하고 휴식은 짧게 둡니다' };
+const GOAL_HINT = { hypertrophy: '보통 8~12회로, 지금까지의 기본값입니다', strength: '복합 운동을 5~8회로 무겁게 하고 휴식은 길게 둡니다', endurance: '12~15회로 가볍게 하고 휴식은 짧게 둡니다' };
 
 export function renderSettings(state, ui) {
   const st = state.settings;
@@ -526,6 +526,7 @@ function noticeCard(nt) {
     : nt.display === null ? '알림 권한을 확인하는 중입니다.'
     : !on ? '알림이 꺼져 있어 휴식이 끝나도 알리지 못합니다. 휴대전화 설정의 앱 알림에서 Workout Coach 알림을 켜 주세요.'
     : exactOff ? '알림은 켜져 있지만 정확한 시각 알람이 꺼져 있어 늦게 울릴 수 있습니다.'
+    : nt.workout && nt.alarm ? `운동하는 동안 알림 창과 잠금 화면에 남은 휴식과 ${nw('다음 세트가')} 보이고, 알림의 세트 완료 버튼으로 앱을 ${nw('열지 않고')} 기록합니다. 휴식이 끝나면 ${nw('무음 모드에서도')} ${nw('알람 소리로')} 알리고, 소리 크기는 ${nw('알람 볼륨을')} 따릅니다.`
     : nt.workout ? '운동하는 동안 알림 창과 잠금 화면에 남은 휴식과 다음 세트가 보이고, 알림의 세트 완료 버튼으로 앱을 열지 않고 기록합니다. 휴식이 끝나면 진동과 소리로 알립니다.'
     : '휴식이 끝나면 화면 위 알림과 진동, 소리로 알립니다. 화면이 꺼져 있어도 울립니다.';
   return `<section class="card"><h3>휴식 끝 알림</h3><div class="small" data-testid="notice-status">${line}</div>
