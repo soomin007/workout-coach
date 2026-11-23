@@ -141,3 +141,24 @@ export async function workoutEvents() {
   const r = await cap().nativePromise(WN, 'pending', {});
   return Array.isArray(r?.events) ? r.events : [];
 }
+
+// ---------- 뒤로 가기 ----------
+// @capacitor/app 8 은 웹 쪽 리스너가 없으면 웹뷰 기록을 한 칸 되돌리고, 되돌아갈 기록이 없으면 뒤로 가기를 받은 채 아무것도 하지 않는다.
+// 그래서 오늘 탭에서 "한 번 더 누르면 종료됩니다"가 뜬 뒤에도 앱이 닫히지 않았다(known-issues 64). 리스너를 걸면 그 처리 대신 여기로 온다.
+// 기록이 있으면 history.back() 으로 크롬과 같은 popstate 흐름(main.js 의 뒤로가기)을 타고, 없으면 앱을 뒤로 내린다.
+// 안드로이드 12 부터 앱이 뒤로 가기로 닫힐 때와 같은 동작이라, 하던 운동은 그대로 남는다.
+export function initBackButton() {
+  if (!hasPlugin('App')) return false;
+  try {
+    cap().addListener('App', 'backButton', (ev) => {
+      if (ev?.canGoBack) { history.back(); return; }
+      cap().nativePromise('App', 'minimizeApp', {})
+        .catch(() => cap().nativePromise('App', 'exitApp', {}))
+        .catch((e) => console.warn('[back]', e?.message || e));
+    });
+  } catch (e) {
+    console.warn('[back]', e?.message || e);
+    return false;
+  }
+  return true;
+}

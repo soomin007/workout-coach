@@ -282,3 +282,29 @@ test('휴식 끝 소리를 앱이 내는 새 APK: 예전 채널을 만들지 않
   expect(await calls(page, 'schedule')).toEqual([]);
   await expect(page.locator('#toast')).toContainText('무음 모드로 바꿔');
 });
+
+test('앱의 뒤로 가기: 기록이 있으면 시트와 탭을 크롬처럼 되돌리고, 오늘 탭에서 한 번 더 누르면 앱을 내린다 (11/24, known-issues 64)', async ({ page }) => {
+  await open(page, { workout: true, alarm: true });
+  // @capacitor/app 은 리스너가 있으면 웹뷰에 되돌아갈 기록이 있는지(canGoBack)를 실어 이 이벤트만 보낸다
+  expect(await page.evaluate(() => typeof window.__listeners['App:backButton'])).toBe('function');
+  const back = (canGoBack) => page.evaluate((v) => window.__listeners['App:backButton']({ canGoBack: v }), canGoBack);
+  const sheet = page.locator('#sheet');
+  await page.locator('#tabs').getByRole('button', { name: '설정' }).click();
+  await page.getByRole('button', { name: '근거와 앱 정책 보기' }).click();
+  await expect(sheet).toBeVisible();
+  await back(true);
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('#tabs button.on')).toHaveText('설정');
+  await back(true);
+  await expect(page.locator('#tabs button.on')).toHaveText('오늘');
+  await page.locator('.cond-summary').click();
+  await page.locator('.cond-summary').click();
+  await back(true);
+  await expect(page.locator('#toast')).toContainText('한 번 더 누르면 종료');
+  expect(await calls(page, 'minimizeApp')).toEqual([]);
+  // 되돌아갈 기록이 없으면 예전처럼 아무 일 없이 끝나지 않고 앱을 뒤로 내린다
+  await back(false);
+  await expect.poll(() => calls(page, 'minimizeApp').then((c) => c.map((x) => x.plugin))).toEqual(['App']);
+  expect(await calls(page, 'exitApp')).toEqual([]);
+  expect(page.url()).toContain('localhost');
+});

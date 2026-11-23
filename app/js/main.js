@@ -11,7 +11,7 @@ import { PART_LABEL, LOAD_MODES, CORE_SLOTS, OPTIONAL_SLOTS, PART_MUSCLES, ALL_C
 import { localISODate, fmtClock } from './core/util.js';
 import { esc, nw, joinMeta, toast, sheet, confirmSheet, choiceSheet, listHtml, numberSheet, textSheet, handleSheetBack, sheetOpen } from './ui/dom.js';
 import { renderToday, renderRecords, renderSettings, renderRestbar, restNoticeText, noticePayload, evidenceHtml, startSheetHtml, gripSheetHtml, INTENSITY, MODE_LABEL, EMPTY_OK } from './ui/views.js';
-import { notice, initNotices, refreshNotices, syncRestAlarm, restAlarmOn, testNotice, openExactAlarmSetting, initWorkoutNotice, syncWorkoutNotice, workoutEvents } from './ui/native.js';
+import { notice, initNotices, refreshNotices, syncRestAlarm, restAlarmOn, testNotice, openExactAlarmSetting, initWorkoutNotice, syncWorkoutNotice, workoutEvents, initBackButton } from './ui/native.js';
 import { applyNoticeEvents } from './core/notice.js';
 import { holdSeconds } from './core/hold.js';
 import { gripsFor, gripById } from './core/grips.js';
@@ -973,6 +973,8 @@ window.addEventListener('popstate', () => {
   if (ui.tab !== 'today') { actions.tab({ tab: 'today' }); armBackGuard(); return; }
   toast('뒤로 버튼을 한 번 더 누르면 종료됩니다.', 2000);
 });
+// 안드로이드 앱에서는 뒤로 가기가 @capacitor/app 을 거쳐 온다. 기록이 있으면 같은 popstate 로 넘기고, 없으면 앱을 내린다(ui/native.js).
+initBackButton();
 
 // ---------- 시작 ----------
 (async () => {
